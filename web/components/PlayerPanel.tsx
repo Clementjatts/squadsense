@@ -5,6 +5,7 @@
 // /api/players/[id] when it opens, so pages don't carry every player's
 // history around.
 
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { formatPrice, formatXp } from "@/lib/format";
 import type { PlayerDetail } from "@/lib/types";
@@ -13,13 +14,20 @@ import { useWatchlist } from "@/lib/watchlist";
 const PanelContext = createContext<((playerId: number) => void) | null>(null);
 
 // Wrap the app in this once (in the layout) so any PlayerLink can open the panel.
+// MotionConfig makes every Motion animation in the app follow the Mac's
+// "Reduce motion" setting. AnimatePresence keeps the panel on screen until
+// its closing animation has finished.
 export function PlayerPanelProvider({ children }: { children: React.ReactNode }) {
   const [openId, setOpenId] = useState<number | null>(null);
   return (
-    <PanelContext.Provider value={setOpenId}>
-      {children}
-      {openId !== null && <PlayerPanel key={openId} playerId={openId} onClose={() => setOpenId(null)} />}
-    </PanelContext.Provider>
+    <MotionConfig reducedMotion="user">
+      <PanelContext.Provider value={setOpenId}>
+        {children}
+        <AnimatePresence>
+          {openId !== null && <PlayerPanel key={openId} playerId={openId} onClose={() => setOpenId(null)} />}
+        </AnimatePresence>
+      </PanelContext.Provider>
+    </MotionConfig>
   );
 }
 
@@ -85,9 +93,26 @@ function PlayerPanel({ playerId, onClose }: { playerId: number; onClose: () => v
 
   const title = state.kind === "ready" ? state.detail.fullName : "Player details";
   return (
-    <>
-      <div className="panel-backdrop" aria-hidden="true" onClick={onClose} />
-      <aside className="player-panel" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="panel-root">
+      <motion.div
+        className="panel-backdrop"
+        aria-hidden="true"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      />
+      <motion.aside
+        className="player-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        initial={{ x: "100%", opacity: 0.6 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={{ type: "spring", stiffness: 380, damping: 36 }}
+      >
         <div className="panel-head">
           <div className="grow">
             <h2>{title}</h2>
@@ -97,11 +122,27 @@ function PlayerPanel({ playerId, onClose }: { playerId: number; onClose: () => v
             ✕
           </button>
         </div>
-        {state.kind === "loading" && <p className="muted">Loading…</p>}
+        {state.kind === "loading" && <PanelSkeleton />}
         {state.kind === "error" && <p className="muted">Couldn&apos;t load this player: {state.message}</p>}
         {state.kind === "ready" && <PanelBody detail={state.detail} />}
-      </aside>
-    </>
+      </motion.aside>
+    </div>
+  );
+}
+
+// Grey placeholders the same shape as the stat tiles, chart and fixtures,
+// shown while the player loads so the panel doesn't jump when data arrives.
+function PanelSkeleton() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }} aria-busy="true" aria-label="Loading player stats">
+      <div className="panel-tiles">
+        {[0, 1, 2, 3].map((slot) => (
+          <div key={slot} className="panel-tile skeleton-shimmer" style={{ height: 64 }} />
+        ))}
+      </div>
+      <div className="skeleton-shimmer" style={{ height: 180, borderRadius: 14 }} />
+      <div className="skeleton-shimmer" style={{ height: 72, borderRadius: 12 }} />
+    </div>
   );
 }
 
@@ -183,12 +224,25 @@ function RecentChart({ detail }: { detail: PlayerDetail }) {
         </span>
       </div>
       <div className="recent-chart">
-        {detail.recent.map((week) => (
+        {/* Each week's bars grow up from the bottom, one week after another. */}
+        {detail.recent.map((week, index) => (
           <div key={week.gameweek} className="recent-week" title={`${week.minutes} minutes, ${week.xg} xG, ${week.xa} xA`}>
             <span className="recent-points">{week.points} pts</span>
             <div className="recent-bar" style={{ height: BAR_HEIGHT }}>
-              <div className="bar xa" style={{ height: (week.xa / scale) * BAR_HEIGHT }} />
-              <div className="bar xg" style={{ height: (week.xg / scale) * BAR_HEIGHT }} />
+              <motion.div
+                className="bar xa"
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.32, delay: 0.08 + index * 0.035, ease: [0.22, 1, 0.36, 1] }}
+                style={{ height: (week.xa / scale) * BAR_HEIGHT, transformOrigin: "bottom" }}
+              />
+              <motion.div
+                className="bar xg"
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.32, delay: 0.05 + index * 0.035, ease: [0.22, 1, 0.36, 1] }}
+                style={{ height: (week.xg / scale) * BAR_HEIGHT, transformOrigin: "bottom" }}
+              />
             </div>
             <span className="muted small">GW{week.gameweek}</span>
           </div>

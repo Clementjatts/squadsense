@@ -9,6 +9,7 @@ import { formatCount, formatPrice } from "@/lib/format";
 import type { PriceWatch, PriceWatchRow } from "@/lib/types";
 import { useWatchlist } from "@/lib/watchlist";
 import { PlayerLink } from "./PlayerPanel";
+import { SegmentedControl } from "./SegmentedControl";
 
 type Filter = "all" | "rising" | "falling" | "mine" | "watchlist";
 
@@ -20,6 +21,8 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "watchlist", label: "Watchlist" },
 ];
 const ROWS_BEFORE_SHOW_ALL = 50;
+// Players this far (or further) towards a change glow, to catch the eye before 00:00.
+const IMMINENT_PROGRESS = 95;
 
 interface PriceWatchViewProps {
   watch: PriceWatch;
@@ -58,13 +61,13 @@ export function PriceWatchView({ watch, checkedAt }: PriceWatchViewProps) {
 
       <section className="card">
         <div className="card-head">
-          <div className="segmented" role="group" aria-label="Show">
-            {FILTERS.map(({ key, label }) => (
-              <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Show"
+            options={FILTERS.map(({ key, label }) => ({ value: key, label }))}
+            value={filter}
+            onChange={setFilter}
+            layoutGroup="price-filter"
+          />
           <span className="muted">Sorted by progress to a change</span>
         </div>
         <div className="table-wrap">
@@ -151,7 +154,7 @@ function PriceRow({ row, watched, onToggleWatch }: { row: PriceWatchRow; watched
       <td className="right muted">{row.ownership.toFixed(1)}%</td>
       <td className="right num">{formatCount(row.netTransfers)}</td>
       <td className="progress-cell">
-        <span className={`progress ${rising ? "rise" : "fall"}`}>
+        <span className={`progress ${rising ? "rise" : "fall"}${Math.abs(row.progress) >= IMMINENT_PROGRESS ? " imminent" : ""}`}>
           <span aria-hidden="true">{rising ? "↑" : "↓"}</span>
           <span className="progress-track">
             <span className="progress-fill" style={{ width: `${Math.min(Math.abs(row.progress), 100)}%` }} />

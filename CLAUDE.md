@@ -78,7 +78,8 @@ Database: `db/schema.sql` creates the tables (`api_cache`, `player_history`, `pr
 Scheduling: `.github/workflows/sync.yml` runs the job every hour, every 15 minutes in the three hours before the midnight price change, and does a full refresh each night. It does nothing until the repo is on GitHub with the `DATABASE_URL` and `FPL_TEAM_ID` secrets set.
 
 Website (`web/`, Next.js 15, React 19, TypeScript, plain CSS):
-- Desktop shell with sidebar and top bar matching the design. Unbuilt sections show as "Soon".
+- Desktop shell with sidebar (icons from the design) and top bar. Unbuilt sections show as "Soon".
+- Polish from `docs/frontend-upgrade-guide.md`: card lighting, focus rings, tabular digits, pitch markings, club shirts (`ClubKit.tsx`, colors keyed by club code, 2026/27 clubs plus recently relegated ones), counting numbers (`AnimatedNumber.tsx`), and Motion (`motion` package) for the sliding toggle and sidebar pills, ticker row reordering, the player panel's enter and exit, and the Planner's move list. `MotionConfig reducedMotion="user"` in `PlayerPanel.tsx` and CSS media queries turn motion off when macOS "Reduce motion" is on. Motion adds about 50 KB to each page's first load; `LazyMotion` could trim it.
 - Dashboard: pitch, bench, suggested move, top 3 captain options, warnings.
 - Fixture Ticker (`/fixtures`): attackers/defenders toggle, 3/5/8 gameweek window, blanks, doubles, and "Highlight my teams", which fades clubs you don't own players from. The score column shows real units (expected goals or expected clean sheets) in place of the design's 0-50 score.
 - Chip Planner (`/chips`): 38-week strip (played, recommended, this week, half-way gap) and one card per chip with best week, expected gain and a reason.
@@ -154,7 +155,8 @@ npm run build
 | `docs/research-and-planning.md` | The research doc |
 | `docs/design/` | Design screen sources, notes and canvas layout |
 | `docs/brand/` | Logo files (Formation dots mark) and how to use them |
-| `docs/screenshots/` | The first build's Dashboard and Planner on sample data (older than the current pages) |
+| `docs/screenshots/` | Every page at 1440 px on real data (`dashboard.png`, `planner.png`, `fixtures.png`, `prices.png`, `chips.png`), plus the first build's `-demo` shots |
+| `docs/frontend-upgrade-guide.md` | The visual and motion polish guide, fully implemented on 20 November 2026 |
 | `jobs/` | Python data job and tests |
 | `db/schema.sql` | Database tables |
 | `.github/workflows/sync.yml` | GitHub Actions schedule |

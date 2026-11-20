@@ -3,8 +3,10 @@
 // Left-hand navigation. It's a client component only because it needs
 // the current URL to highlight the page you're on.
 
+import { motion } from "motion/react";
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
+import { NavIcon } from "./NavIcon";
 import { usePathname } from "next/navigation";
 
 const LIVE_PAGES = [
@@ -40,14 +42,24 @@ export function Sidebar({ teamName, teamId, syncedAt, isDemo }: SidebarProps) {
       </div>
       <nav className="nav" aria-label="Main">
         <span className="nav-label">FANTASY PREMIER LEAGUE</span>
-        {LIVE_PAGES.map((page) => (
-          <Link key={page.href} href={page.href} className="nav-link" aria-current={pathname === page.href ? "page" : undefined}>
-            {page.label}
-          </Link>
-        ))}
+        {LIVE_PAGES.map((page) => {
+          const isActive = pathname === page.href;
+          return (
+            <Link key={page.href} href={page.href} className="nav-link" aria-current={isActive ? "page" : undefined}>
+              {/* The highlight slides from the old page's link to the new one. */}
+              {isActive && (
+                <motion.span className="nav-pill" layoutId="sidebar-active-pill" aria-hidden="true" transition={{ type: "spring", stiffness: 420, damping: 38 }} />
+              )}
+              <NavIcon label={page.label} />
+              <span className="nav-text">{page.label}</span>
+            </Link>
+          );
+        })}
         {COMING_SOON.map((label) => (
           <span key={label} className="nav-link soon" aria-disabled="true">
-            {label} <span className="chip">Soon</span>
+            <NavIcon label={label} />
+            <span className="nav-text">{label}</span>
+            <span className="chip">Soon</span>
           </span>
         ))}
       </nav>

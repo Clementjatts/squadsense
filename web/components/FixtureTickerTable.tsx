@@ -4,11 +4,17 @@
 // many gameweeks to rank by, and whether to highlight your clubs. All the
 // numbers come from the snapshot; this only sorts and colors them.
 
+import { motion } from "motion/react";
 import { useState } from "react";
+import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 import type { FixtureTicker, TickerMatch, TickerTeam } from "@/lib/types";
 
 type Mode = "attack" | "defence";
 
+const MODE_OPTIONS: SegmentedOption<Mode>[] = [
+  { value: "attack", label: "For attackers" },
+  { value: "defence", label: "For defenders" },
+];
 const DIFFICULTY_LABELS = ["Easiest", "Easy", "Medium", "Hard", "Hardest"];
 
 interface FixtureTickerTableProps {
@@ -28,23 +34,16 @@ export function FixtureTickerTable({ ticker, myTeamIds }: FixtureTickerTableProp
   return (
     <>
       <div className="ticker-toolbar">
-        <div className="segmented" role="group" aria-label="Rank for">
-          <button type="button" aria-pressed={mode === "attack"} onClick={() => setMode("attack")}>
-            For attackers
-          </button>
-          <button type="button" aria-pressed={mode === "defence"} onClick={() => setMode("defence")}>
-            For defenders
-          </button>
-        </div>
+        <SegmentedControl label="Rank for" options={MODE_OPTIONS} value={mode} onChange={setMode} layoutGroup="ticker-mode" />
         <div className="ticker-toolbar-right">
           <span className="muted">Window</span>
-          <div className="segmented" role="group" aria-label="Window">
-            {ticker.windows.map((length) => (
-              <button key={length} type="button" aria-pressed={windowLength === length} onClick={() => setWindowLength(length)}>
-                {length} GWs
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Window"
+            options={ticker.windows.map((length) => ({ value: length, label: `${length} GWs` }))}
+            value={windowLength}
+            onChange={setWindowLength}
+            layoutGroup="ticker-window"
+          />
           <button type="button" className="btn" aria-pressed={highlightMine} onClick={() => setHighlightMine(!highlightMine)}>
             Highlight my teams
           </button>
@@ -68,8 +67,15 @@ export function FixtureTickerTable({ ticker, myTeamIds }: FixtureTickerTableProp
               </tr>
             </thead>
             <tbody>
+              {/* Rows glide to their new rank when the order changes. "position" moves
+                  them up and down without stretching the table's columns. */}
               {rankedTeams.map((team) => (
-                <tr key={team.id} className={myTeamIds.includes(team.id) ? "mine" : undefined}>
+                <motion.tr
+                  key={team.id}
+                  layout="position"
+                  transition={{ type: "spring", stiffness: 360, damping: 34 }}
+                  className={myTeamIds.includes(team.id) ? "mine" : undefined}
+                >
                   <th scope="row">{team.name}</th>
                   {shownWeeks.map((week) => (
                     <td key={week}>
@@ -77,7 +83,7 @@ export function FixtureTickerTable({ ticker, myTeamIds }: FixtureTickerTableProp
                     </td>
                   ))}
                   <td className="right score">{score(team).toFixed(1)}</td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
