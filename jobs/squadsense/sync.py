@@ -81,6 +81,23 @@ def squad_is_public(team_entry, current_week):
     return team_entry["started_event"] <= current_week
 
 
+def squad_picks(client, team_id, current_week, started_event):
+    """The picks to plan with: this week's, or last week's during a Free Hit.
+
+    A Free Hit squad only lasts one gameweek. Its picks show the temporary
+    squad, but next week the team goes back to the squad (and bank) from
+    the week before, so that's the one to plan transfers around.
+    """
+    picks = client.entry_picks(team_id, current_week)
+    if picks.get("active_chip") != "freehit":
+        return picks
+    previous_week = current_week - 1
+    if previous_week < started_event:
+        raise FplApiError(f"GW{current_week} shows a Free Hit but the team has no earlier gameweek to go back to")
+    log.info("Free Hit played in GW%d, so planning with the GW%d squad that comes back", current_week, previous_week)
+    return client.entry_picks(team_id, previous_week)
+
+
 def read_real_squad(client, team_id, next_week, picks, team_entry, players_by_id, histories):
     """Rebuilds the team's actual squad, bank and transfers from public data."""
     started_event = team_entry["started_event"]
@@ -127,7 +144,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None):
     current_week, next_week = find_gameweeks(bootstrap)
     team_entry = client.entry(team_id)
     is_public = squad_is_public(team_entry, current_week)
-    picks = client.entry_picks(team_id, current_week) if is_public else None
+    picks = squad_picks(client, team_id, current_week, team_entry["started_event"]) if is_public else None
     squad_ids = [pick["element"] for pick in picks["picks"]] if picks else []
 
     to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), squad_ids, full_refresh)

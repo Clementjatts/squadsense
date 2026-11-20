@@ -39,7 +39,7 @@ This project lives in `Documents/Workspace/Coding-Workspace/Output/squadsense/`.
 | Stack | Python jobs, Supabase (Postgres), Next.js website on Vercel, GitHub Actions for scheduling | All free tiers. Clement already has GitHub, Vercel and Supabase accounts. |
 | Alerts | Phone push and email | Clement's choice. Not built yet. Web push plus Resend is the current plan; Resend's free tier limits haven't been checked. |
 | Main device | MacBook (desktop layout first); phone layouts as a companion | Clement's choice after the first design round |
-| Backtesting | Yes, against his own past seasons | Clement's choice, to tune the model's guessed weights |
+| Backtesting | Against full past seasons (vaastav dataset) plus this season so far | His own past seasons can't be replayed: the API only keeps season totals, not weekly picks |
 
 ## What's done
 
@@ -71,7 +71,7 @@ Python data job (`jobs/`):
 - `snapshot.py`: runs the model and packs everything the website needs into one JSON snapshot.
 - `storage.py`: the same methods for local JSON files or Supabase.
 - `sync.py`: the job's entry point (`python -m squadsense.sync`).
-- `tests/`: 14 pytest tests and a made-up FPL dataset (`sample_data.py`) used by the tests and the website's demo mode. The sample mirrors the 2026/27 API shape (zeroed strengths, `fixture` and `was_home` on history rows).
+- `tests/`: 27 pytest tests and a made-up FPL dataset (`sample_data.py`) used by the tests and the website's demo mode. The sample mirrors the 2026/27 API shape (zeroed strengths, `fixture` and `was_home` on history rows).
 
 Database: `db/schema.sql` creates the tables (`api_cache`, `player_history`, `predictions`, `price_snapshots`, `snapshots`) with row level security on.
 
@@ -90,12 +90,12 @@ Website (`web/`, Next.js 15, React 19, TypeScript, plain CSS):
 
 ### Verified
 
-All 14 Python tests pass. `next build` passes with no type errors. On 20 November 2026 the first real sync ran against the live API (with a model-picked squad) and both pages loaded on real data with no console errors.
+All 27 Python tests pass. `next build` passes with no type errors. On 20 November 2026 the real sync ran against the live API (with a model-picked squad), and every page (Dashboard, Planner, Fixtures, Price Watch, Chips, player panel) loaded on real data with no console errors.
 
 ### Not verified
 
 - **Real squad not read yet.** The sync runs against the live API, but Clement's picks stay hidden until the GW11 deadline, so the rebuilt bank, selling prices and free transfers haven't been compared with the FPL site yet. Every other field the code reads matched the live API, except the club attack and defence strengths (now all 0, see `fixtures.py`).
-- The new club ratings (`PRIOR_GAMES`, `RATING_STEP` in `fixtures.py`) and `BENCH_WEIGHT` in `squad_builder.py` are starting assumptions, like the model weights.
+- Free Hit handling: in a Free Hit week the sync plans with the previous week's picks and bank, and leaves Free Hit transfers out of purchase prices. Tested with sample data only; FPL listing Free Hit transfers in the transfer history is about 85% sure.
 - Supabase, GitHub Actions and Vercel haven't been connected. Clement does those steps from the README with his own keys.
 
 ## Known gaps and assumptions
@@ -106,15 +106,15 @@ All 14 Python tests pass. `next build` passes with no type errors. On 20 Novembe
 - Players kept from the original squad get their purchase price from their first match in the team's first gameweek (`started_event`), which can be £0.1m off.
 - Clement's 2026/27 team was created on 20 November 2026 and starts in GW11. Its squad isn't public until the GW11 deadline (21 November, 11:00 UTC), so `sync` fails with a 404 on `picks` before then. Free transfers and starting prices now count from `started_event`.
 - Transfers made for a gameweek whose deadline hasn't passed aren't visible in public data.
-- The planner doesn't model chips yet, and only tests single transfers when suggesting moves.
+- Transfer suggestions only test single transfers, not pairs or roll-then-double sequences. The Chip Planner values chips separately; the transfer suggestions don't consider them.
 - FPL scoring values are hardcoded in `rules.py`. The research doc suggests reading them from `game_settings` instead.
 - A private GitHub repo gets 2,000 Actions minutes a month and this schedule uses about that. Either make the repo public or drop the 15-minute runs.
 
 ## Next steps, in order
 
-1. Get the first live run working against the real FPL API and fix any field mismatches. Then connect Supabase, GitHub Actions and Vercel (README steps 2 to 5).
+1. After the GW11 deadline (21 November, 11:00 UTC), run the sync and compare bank, squad value and free transfers with the FPL site. Then hosting: upgrade Next.js 15 to 16 (2 npm security warnings), then Supabase, GitHub Actions and Vercel on a Cloudflare subdomain (README steps 3 to 5). Before Supabase, stop the `snapshots` table growing by about 1.4 MB per run (keep the latest per team), prune `price_snapshots`, and batch the `predictions` inserts.
 2. Price Watch is done, using FPL's own predictor. Still open: check after a few nights whether projection offsets 1 and 2 are the following nights (about 75% sure), and use `price_snapshots` to measure how often the predictor is right.
-3. Chip Planner and Fixture Ticker are done. The chip values are only as good as the xP model, which currently squeezes most players into a narrow 4.5-6.5 xP range. That's why Triple Captain can land on a defender. Fix it through backtesting (step 8).
+3. Chip Planner and Fixture Ticker are done. The backtest showed the narrow xP range is realistic (slope 0.97 over 20,079 past starts), so chip values need no special fix. Still open: suggest pairs of transfers, not just one.
 4. Player detail panel is done. Still open: the design's "Add to plan" and "Make captain" buttons.
 5. Alerts: phone push and email (deadline reminders, price risks on owned players, injury news, yellow-card risk).
 6. Phone layouts for the built pages.
@@ -154,7 +154,7 @@ npm run build
 | `docs/research-and-planning.md` | The research doc |
 | `docs/design/` | Design screen sources, notes and canvas layout |
 | `docs/brand/` | Logo files (Formation dots mark) and how to use them |
-| `docs/screenshots/` | The built Dashboard and Planner on sample data |
+| `docs/screenshots/` | The first build's Dashboard and Planner on sample data (older than the current pages) |
 | `jobs/` | Python data job and tests |
 | `db/schema.sql` | Database tables |
 | `.github/workflows/sync.yml` | GitHub Actions schedule |

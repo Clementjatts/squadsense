@@ -2,7 +2,7 @@
 
 A personal Fantasy Premier League planner. It pulls your team from the public FPL API, works out expected points (xP) for every player over the next five gameweeks, and shows the results in a website built from the SquadSense design.
 
-This is the first build. The Dashboard and Transfer Planner work. Fixtures, Price Watch, Chips, Champions League and alerts are designed but not built yet; they show as "Soon" in the sidebar.
+Built so far: the Dashboard, Transfer Planner, Fixture Ticker, Price Watch, Chip Planner and a player detail panel, all on real FPL data. Champions League and alerts are designed but not built yet; they show as "Soon" in the sidebar.
 
 ## How it fits together
 
@@ -50,8 +50,6 @@ python -m squadsense.sync --team-id 11304359 --web-snapshot ../web/data/snapshot
 The first run downloads every player's match history, about one player a second, so expect around 13 minutes. Later runs only refresh your squad and finish in under a minute. Results go into `jobs/.data/`, and the `--web-snapshot` option writes a copy the website reads. That file holds your team, so `.gitignore` keeps it out of git.
 
 If your squad isn't public yet (FPL hides a new team's picks until its first deadline), the job picks the best squad it can for £100m instead and the website labels it as model-picked. Your real squad replaces it on the first run after the deadline.
-
-I couldn't test this step: the build sandbox can't reach the FPL site. If the API has changed a field name since the community docs were written, this is where it will show up. Paste me the error and I'll fix it.
 
 ## 3. Connect Supabase
 
@@ -104,4 +102,4 @@ Then run `python -m squadsense.backtest`. It also checks this season, using the 
 
 ## Next build
 
-Price Watch with a price change predictor (the job already logs prices every run for this), the Fixtures and Chips pages, phone layouts, phone push and email alerts, the Champions League import, and backtesting against your past seasons.
+Hosting first (Supabase, GitHub Actions and Vercel, steps 3 to 5), then phone push and email alerts, the Champions League import and phone layouts. Transfer suggestions will also learn to test pairs of transfers, not just one.

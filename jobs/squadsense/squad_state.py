@@ -95,7 +95,8 @@ def build_squad_state(
     """Puts the pieces together into one SquadState.
 
     `started_event` is the team's first gameweek (entry/{id}/ has it),
-    `picks` is the latest entry/{id}/event/{gw}/picks/ response,
+    `picks` is the entry/{id}/event/{gw}/picks/ response for the squad to
+    plan with (the week before, during a Free Hit; see sync.py),
     `history` is entry/{id}/history/ and `players_by_id` maps player id
     to the bootstrap-static player record.
     """
@@ -103,7 +104,10 @@ def build_squad_state(
     captain_id = next(pick["element"] for pick in picks["picks"] if pick["is_captain"])
     vice_captain_id = next(pick["element"] for pick in picks["picks"] if pick["is_vice_captain"])
 
-    purchase_prices, estimated = find_purchase_prices(player_ids, transfer_log, starting_price_lookup)
+    # Free Hit transfers are undone the next week, so they aren't real purchases.
+    free_hit_weeks = {chip["event"] for chip in history["chips"] if chip["name"] == "freehit"}
+    lasting_transfers = [transfer for transfer in transfer_log if transfer["event"] not in free_hit_weeks]
+    purchase_prices, estimated = find_purchase_prices(player_ids, lasting_transfers, starting_price_lookup)
 
     selling_prices = {}
     for player_id in player_ids:
@@ -116,13 +120,12 @@ def build_squad_state(
             paid = current_price
         selling_prices[player_id] = rules.selling_price(paid, current_price)
 
-    # The bank after the last finished deadline is public in the history feed.
-    latest_week = max(history["current"], key=lambda week: week["event"])
-
     return SquadState(
         team_id=team_id,
         gameweek=next_gameweek,
-        bank=latest_week["bank"],
+        # The picks response carries the bank for its own gameweek. The history
+        # feed can be empty just after a new team's first deadline, so it isn't used.
+        bank=picks["entry_history"]["bank"],
         free_transfers=count_free_transfers(history["current"], history["chips"], next_gameweek, started_event),
         player_ids=player_ids,
         captain_id=captain_id,

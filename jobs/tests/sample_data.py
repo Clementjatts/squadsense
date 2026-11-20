@@ -244,6 +244,8 @@ def build_sample(seed=7):
         {"event": 8, "element_in": by_name["Mbeumo"], "element_in_cost": 78, "element_out": by_name["Mitoma"]},
     ]
     responses[f"entry/{TEAM_ID}/event/{CURRENT_WEEK}/picks/"] = {
+        "active_chip": None,
+        "entry_history": {"event": CURRENT_WEEK, "bank": 14, "value": 1001, "event_transfers": 1},
         "picks": [
             {"element": player_id, "is_captain": player_id == by_name["Haaland"],
              "is_vice_captain": player_id == by_name["Saka"]}

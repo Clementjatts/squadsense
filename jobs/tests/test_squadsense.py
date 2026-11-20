@@ -14,7 +14,7 @@ from squadsense.player_detail import recent_gameweeks
 from squadsense.price_watch import prediction_label
 from squadsense.squad_builder import pick_best_squad
 from squadsense.ticker import difficulty, difficulty_cut_points
-from squadsense.squad_state import count_free_transfers
+from squadsense.squad_state import build_squad_state, count_free_transfers
 from squadsense.sync import run, starting_price_lookup_from
 from tests.sample_data import CURRENT_WEEK, TEAM_ID, FakeHttpClient, build_sample
 
@@ -276,3 +276,38 @@ def test_chip_plan_marks_used_chips_and_recommends_open_weeks(tmp_path, fake_cli
     assert len(best_weeks) == len(set(best_weeks))
     assert all(13 <= week <= 19 for week in best_weeks)
     assert chip_plan["timeline"][6]["used"] == ["WC"]
+
+
+def test_bank_comes_from_picks_even_with_an_empty_history(sample):
+    # Just after a new team's first deadline, its history list can be empty.
+    picks = sample[f"entry/{TEAM_ID}/event/{CURRENT_WEEK}/picks/"]
+    players_by_id = {player["id"]: player for player in sample["bootstrap-static/"]["elements"]}
+    state = build_squad_state(
+        TEAM_ID, CURRENT_WEEK + 1, CURRENT_WEEK, picks, {"current": [], "chips": []}, [],
+        players_by_id, lambda player_id: None,
+    )
+    assert state.bank == 14
+    assert state.free_transfers == 1
+
+
+def test_free_hit_week_plans_with_the_squad_that_comes_back(tmp_path, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    responses = dict(sample)
+    real_picks = sample[f"entry/{TEAM_ID}/event/{CURRENT_WEEK}/picks/"]
+    real_squad = [pick["element"] for pick in real_picks["picks"]]
+    # GW12 is a Free Hit with a different first player; GW11 holds the real squad.
+    outsider = next(player["id"] for player in sample["bootstrap-static/"]["elements"]
+                    if player["id"] not in real_squad and player["element_type"] == 1)
+    free_hit_picks = [dict(pick, element=outsider) if index == 0 else pick for index, pick in enumerate(real_picks["picks"])]
+    responses[f"entry/{TEAM_ID}/event/{CURRENT_WEEK}/picks/"] = {
+        "active_chip": "freehit", "entry_history": {"event": CURRENT_WEEK, "bank": 0}, "picks": free_hit_picks,
+    }
+    responses[f"entry/{TEAM_ID}/event/{CURRENT_WEEK - 1}/picks/"] = real_picks
+    history = sample[f"entry/{TEAM_ID}/history/"]
+    responses[f"entry/{TEAM_ID}/history/"] = dict(history, chips=history["chips"] + [{"name": "freehit", "event": CURRENT_WEEK}])
+    client = FplClient(min_seconds_between_requests=0, http_client=FakeHttpClient(responses))
+
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=client)
+
+    assert sorted(snapshot["squad"]) == sorted(real_squad)
+    assert snapshot["bank"] == 14
