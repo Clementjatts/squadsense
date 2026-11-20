@@ -153,6 +153,7 @@ npm run build
 | `README.md` | Setup steps for Clement, steps 1 to 5 |
 | `docs/research-and-planning.md` | The research doc |
 | `docs/design/` | Design screen sources, notes and canvas layout |
+| `docs/brand/` | Logo files (Formation dots mark) and how to use them |
 | `docs/screenshots/` | The built Dashboard and Planner on sample data |
 | `jobs/` | Python data job and tests |
 | `db/schema.sql` | Database tables |

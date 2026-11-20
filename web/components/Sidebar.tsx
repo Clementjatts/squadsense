@@ -4,6 +4,7 @@
 // the current URL to highlight the page you're on.
 
 import Link from "next/link";
+import { BrandMark } from "./BrandMark";
 import { usePathname } from "next/navigation";
 
 const LIVE_PAGES = [
@@ -30,7 +31,7 @@ export function Sidebar({ teamName, teamId, syncedAt, isDemo }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-mark" aria-hidden="true" />
+        <BrandMark />
         SquadSense
       </div>
       <div className="team-box">

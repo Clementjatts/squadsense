@@ -27,7 +27,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .content { padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px; }
 
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-size: 18px; font-weight: 700; }
-.brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--accent); }
+.brand-mark { display: block; flex: none; }
 .nav { display: flex; flex-direction: column; gap: 4px; }
 .nav-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); padding: 0 12px 4px; }
 .nav-link { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none; font-size: 14px; }
