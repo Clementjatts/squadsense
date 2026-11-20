@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chip Planner</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#B7F34A}a:hover{color:#D4FF8A}
+</style>
+</helmet>
+<div style="width: 390px; height: 1010px; background: #0B1220; color: #E8EDF7; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;">
+<header style="display: flex; align-items: center; gap: 12px; padding: 20px 20px 12px;">
+
+<div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-family: 'Space Grotesk', Inter, sans-serif;">Chip Planner</h1>
+<p style="margin: 0; font-size: 13px; color: #9AA6BF;">First set expires at the GW19 deadline</p>
+</div>
+<a href="Alerts.dc.html" aria-label="Alerts and settings" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none; position: relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span style="position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 4px; background: #FFA24C;"></span></a>
+</header>
+<div style="margin: 0 20px; padding: 14px; border-radius: 14px; background: #111A2E; border: 1px solid #26324D; display: flex; align-items: center; gap: 14px;">
+<div style="font-size: 34px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif; color: {{accent}};">6</div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">gameweeks left to use 3 chips</span><span style="font-size: 12px; color: #9AA6BF;">Deadline: GW19, 13:30 GMT Sat 2 Jan</span></div>
+</div>
+<ul style="margin: 12px 20px 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+<li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 6px; opacity: 1;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 15px; font-weight: 600;">Bench Boost</span><span style="font-size: 11px; font-weight: 600; color: #0B1220; background: #B7F34A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Available</span></div>
+<span style="font-size: 13px;"><span style="color: #9AA6BF;">Best week: </span><b>GW16</b></span>
+<span style="font-size: 12px; color: #9AA6BF; line-height: 1.5;">Double gameweek for 6 of your 15. Bench scores about 13.8 xP.</span>
+</li>
+<li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 6px; opacity: 1;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 15px; font-weight: 600;">Triple Captain</span><span style="font-size: 11px; font-weight: 600; color: #0B1220; background: #B7F34A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Available</span></div>
+<span style="font-size: 13px;"><span style="color: #9AA6BF;">Best week: </span><b>GW16</b></span>
+<span style="font-size: 12px; color: #9AA6BF; line-height: 1.5;">Haaland plays twice. Worth about 17 xP as triple captain.</span>
+</li>
+<li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 6px; opacity: 1;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 15px; font-weight: 600;">Free Hit</span><span style="font-size: 11px; font-weight: 600; color: #0B1220; background: #B7F34A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Available</span></div>
+<span style="font-size: 13px;"><span style="color: #9AA6BF;">Best week: </span><b>GW18</b></span>
+<span style="font-size: 12px; color: #9AA6BF; line-height: 1.5;">4 of your starters blank. A one-week squad scores about 11 xP more.</span>
+</li>
+<li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 6px; opacity: 0.6;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 15px; font-weight: 600;">Wildcard</span><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Used GW7</span></div>
+<span style="font-size: 13px;"><span style="color: #9AA6BF;">Best week: </span><b>Second half</b></span>
+<span style="font-size: 12px; color: #9AA6BF; line-height: 1.5;">Your second Wildcard unlocks after the GW19 deadline.</span>
+</li>
+</ul>
+<nav aria-label="More" style="margin: 14px 20px 0; display: flex; flex-direction: column; gap: 8px;">
+<a href="UCL.dc.html" style="min-height: 48px; padding: 0 14px; border-radius: 12px; background: #16213A; color: #E8EDF7; text-decoration: none; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600;">Champions League Fantasy<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></a>
+<a href="Alerts.dc.html" style="min-height: 48px; padding: 0 14px; border-radius: 12px; background: #16213A; color: #E8EDF7; text-decoration: none; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600;">Alerts and settings<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></a>
+</nav>
+<div style="padding: 10px 20px 0;"><span style="font-size: 11px; font-weight: 600; color: #9AA6BF; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Sample data</span></div>
+<nav aria-label="Main" style="margin-top: auto; display: flex; padding: 8px 8px 24px; background: #111A2E; border-top: 1px solid #26324D;"><a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Squad</span></a><a href="Transfers.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Plan</span></a><a href="Fixtures.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Fixtures</span></a><a href="Prices.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Prices</span></a><a href="Chips.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: {{accent}}; font-size: 11px; font-weight: 600;" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>More</span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent": {"editor": "color", "default": "#B7F34A", "options": ["#B7F34A", "#6CB4FF", "#FFA24C"]}, "$preview": {"width": 390, "height": 1010}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#B7F34A' };
+  }
+}
+</script>
+</body>
+</html>

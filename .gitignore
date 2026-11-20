@@ -1,0 +1,19 @@
+# Secrets: never commit these
+.env
+.env.local
+jobs/.env
+
+# Generated files
+node_modules/
+web/.next/
+web/next-env.d.ts
+__pycache__/
+jobs/.venv/
+web/tsconfig.tsbuildinfo
+# Personal Claude Code settings
+.claude/settings.local.json
+.pytest_cache/
+jobs/.data/
+# Your real team, written by the sync job on this Mac
+web/data/snapshot.json
+.DS_Store

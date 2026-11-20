@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Transfer Planner</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#B7F34A}a:hover{color:#D4FF8A}
+</style>
+</helmet>
+<div style="width: 390px; height: 1060px; background: #0B1220; color: #E8EDF7; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;">
+<header style="display: flex; align-items: center; gap: 12px; padding: 20px 20px 12px;">
+
+<div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-family: 'Space Grotesk', Inter, sans-serif;">Transfer Planner</h1>
+<p style="margin: 0; font-size: 13px; color: #9AA6BF;">Test moves before you make them on FPL</p>
+</div>
+<a href="Alerts.dc.html" aria-label="Alerts and settings" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none; position: relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span style="position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 4px; background: #FFA24C;"></span></a>
+</header>
+<div style="display: flex; gap: 6px; margin: 0 20px;"><button style="flex: 1; min-height: 40px; border-radius: 10px; border: 0; background: {{accent}}; color: #0B1220; font: 600 12px Inter, sans-serif;">GW13</button><button style="flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">GW14</button><button style="flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">GW15</button><button style="flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">GW16</button><button style="flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">GW17</button></div>
+<section style="margin: 12px 20px 0; display: flex; flex-direction: column; gap: 8px;">
+<div style="padding: 12px; border-radius: 14px; background: #16213A; display: flex; align-items: center; gap: 10px;">
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #FFA24C; font-weight: 600;">OUT</span><span style="font-size: 14px; font-weight: 600;">Calvert-Lewin</span><span style="font-size: 11px; color: #9AA6BF;">LEE · sells £5.9m</span></div>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: {{accent}}; font-weight: 600;">IN</span><span style="font-size: 14px; font-weight: 600;">Semenyo</span><span style="font-size: 11px; color: #9AA6BF;">MCI · costs £8.1m</span></div>
+<span style="font-size: 13px; font-weight: 700; color: {{accent}}; font-family: 'Space Grotesk', Inter, sans-serif;">+5.4</span>
+</div>
+<button style="min-height: 44px; border-radius: 12px; border: 1px dashed #26324D; background: transparent; color: #9AA6BF; font: 600 13px Inter, sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add another transfer</button>
+</section>
+<section aria-label="Budget check" style="margin: 12px 20px 0; padding: 14px; border-radius: 14px; background: #111A2E; border: 1px solid #26324D; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #9AA6BF;">Bank after</span><span style="font-size: 17px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">£0.2m</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #9AA6BF;">Transfers</span><span style="font-size: 17px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">1 of 2 free</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #9AA6BF;">Points hit</span><span style="font-size: 17px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">0</span></div>
+</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap;"><span style="font-size: 11px; font-weight: 600; color: #0B1220; background: #B7F34A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Budget OK</span><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #16213A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">MCI 2 of 3</span><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #16213A; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Formation valid</span></div>
+</section>
+<section style="margin: 12px 20px 0; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 15px; font-family: 'Space Grotesk', Inter, sans-serif;">Make it now or roll?</h2>
+<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: #9AA6BF;">This transfer, GW13 to GW17</span><span style="font-weight: 700;">+5.4 xP</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: #9AA6BF;">Value of rolling (3 banked next week)</span><span style="font-weight: 700;">+1.2 xP</span></div>
+<p style="margin: 0; font-size: 12px; color: {{accent}}; font-weight: 600;">Make it: worth 4.2 xP more than rolling.</p>
+</section>
+<section style="margin: 12px 20px 0;">
+<h2 style="margin: 0 0 4px; font-size: 15px; font-family: 'Space Grotesk', Inter, sans-serif;">Suggested targets</h2>
+<ul style="margin: 0; padding: 0;"><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">Semenyo</span><span style="font-size: 11px; color: #9AA6BF;">MCI · MID · £8.1m</span></span><span style="font-size: 12px; color: #9AA6BF;">5-GW gain</span><span style="font-size: 14px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">+5.4</span><button aria-label="Add Semenyo to plan" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #26324D; background: transparent; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">Wissa</span><span style="font-size: 11px; color: #9AA6BF;">NEW · FWD · £7.4m</span></span><span style="font-size: 12px; color: #9AA6BF;">5-GW gain</span><span style="font-size: 14px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">+4.1</span><button aria-label="Add Wissa to plan" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #26324D; background: transparent; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">Mitoma</span><span style="font-size: 11px; color: #9AA6BF;">BHA · MID · £6.6m</span></span><span style="font-size: 12px; color: #9AA6BF;">5-GW gain</span><span style="font-size: 14px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">+3.3</span><button aria-label="Add Mitoma to plan" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #26324D; background: transparent; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></li></ul>
+</section>
+<div style="padding: 10px 20px 0;"><span style="font-size: 11px; font-weight: 600; color: #9AA6BF; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Sample data</span></div>
+<nav aria-label="Main" style="margin-top: auto; display: flex; padding: 8px 8px 24px; background: #111A2E; border-top: 1px solid #26324D;"><a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Squad</span></a><a href="Transfers.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: {{accent}}; font-size: 11px; font-weight: 600;" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Plan</span></a><a href="Fixtures.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Fixtures</span></a><a href="Prices.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Prices</span></a><a href="Chips.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>More</span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent": {"editor": "color", "default": "#B7F34A", "options": ["#B7F34A", "#6CB4FF", "#FFA24C"]}, "$preview": {"width": 390, "height": 1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#B7F34A' };
+  }
+}
+</script>
+</body>
+</html>

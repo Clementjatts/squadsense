@@ -1,0 +1,201 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-20T00:23:27Z"
+ },
+ "title": "SquadSense App Design",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 1010,
+   "title": "My Squad",
+   "is_interactive": true
+  },
+  "Captain.dc.html": {
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 1010,
+   "title": "Captain Picker",
+   "is_interactive": true
+  },
+  "Player.dc.html": {
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 1010,
+   "title": "Player page",
+   "is_interactive": true
+  },
+  "Transfers.dc.html": {
+   "x": 1410,
+   "y": 0,
+   "w": 390,
+   "h": 1060,
+   "title": "Transfer Planner",
+   "is_interactive": true
+  },
+  "Fixtures.dc.html": {
+   "x": 1880,
+   "y": 0,
+   "w": 390,
+   "h": 900,
+   "title": "Fixture Ticker",
+   "is_interactive": true
+  },
+  "Prices.dc.html": {
+   "x": 0,
+   "y": 1460,
+   "w": 390,
+   "h": 1010,
+   "title": "Price Watch",
+   "is_interactive": true
+  },
+  "Chips.dc.html": {
+   "x": 470,
+   "y": 1460,
+   "w": 390,
+   "h": 1010,
+   "title": "Chip Planner",
+   "is_interactive": true
+  },
+  "UCL.dc.html": {
+   "x": 940,
+   "y": 1460,
+   "w": 390,
+   "h": 1010,
+   "title": "Champions League",
+   "is_interactive": true
+  },
+  "Alerts.dc.html": {
+   "x": 1410,
+   "y": 1460,
+   "w": 390,
+   "h": 1010,
+   "title": "Alerts and settings",
+   "is_interactive": true
+  },
+  "Planner-Desktop.dc.html": {
+   "x": 1560,
+   "y": 2870,
+   "w": 1440,
+   "h": 960,
+   "title": "Transfer Planner (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Dashboard.dc.html": {
+   "x": 0,
+   "y": 2870,
+   "w": 1440,
+   "h": 960,
+   "title": "Dashboard (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Fixtures.dc.html": {
+   "x": 0,
+   "y": 3950,
+   "w": 1440,
+   "h": 960,
+   "title": "Fixture Ticker (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Prices.dc.html": {
+   "x": 1560,
+   "y": 3950,
+   "w": 1440,
+   "h": 960,
+   "title": "Price Watch (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Player.dc.html": {
+   "x": 0,
+   "y": 5030,
+   "w": 1440,
+   "h": 960,
+   "title": "Player detail panel (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Chips.dc.html": {
+   "x": 1560,
+   "y": 5030,
+   "w": 1440,
+   "h": 960,
+   "title": "Chip Planner (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-UCL.dc.html": {
+   "x": 0,
+   "y": 6110,
+   "w": 1440,
+   "h": 960,
+   "title": "Champions League (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Desktop-Alerts.dc.html": {
+   "x": 1560,
+   "y": 6110,
+   "w": 1440,
+   "h": 960,
+   "title": "Alerts and settings (desktop)",
+   "expand": "fill",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Captain.dc.html",
+  "Player.dc.html",
+  "Transfers.dc.html",
+  "Fixtures.dc.html",
+  "Prices.dc.html",
+  "Chips.dc.html",
+  "UCL.dc.html",
+  "Alerts.dc.html",
+  "Desktop-Dashboard.dc.html",
+  "Planner-Desktop.dc.html",
+  "Desktop-Fixtures.dc.html",
+  "Desktop-Prices.dc.html",
+  "Desktop-Player.dc.html",
+  "Desktop-Chips.dc.html",
+  "Desktop-UCL.dc.html",
+  "Desktop-Alerts.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -300,
+   "text": "Squad, captain, player and planning",
+   "kind": "title1",
+   "maxW": 2270
+  },
+  "t2": {
+   "x": 0,
+   "y": 1160,
+   "text": "Prices, chips, Champions League and alerts",
+   "kind": "title1",
+   "maxW": 1800
+  },
+  "t3": {
+   "x": 0,
+   "y": 2570,
+   "text": "Desktop (MacBook)",
+   "kind": "title1",
+   "maxW": 3000
+  }
+ },
+ "designSystems": []
+}

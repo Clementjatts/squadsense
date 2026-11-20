@@ -1,0 +1,60 @@
+# Backtest results
+
+Run on 20 November 2026 with `python -m squadsense.backtest` (from `jobs/`). Past-season data comes from the community dataset at https://github.com/vaastav/Fantasy-Premier-League, which takes it from the official FPL API. Credit to Vaastav Anand.
+
+## How it works
+
+For every gameweek from GW4 on, the model only sees matches played before that week. It predicts each starter's points, and we compare with what he really scored. A "starter" here means he played 60+ minutes in a single match that week. Whether a player plays at all isn't tested, because old injury news isn't in the data.
+
+| Measure | Meaning |
+| --- | --- |
+| top20 | Average real points of the model's 20 highest-xP starters each week |
+| captain | Average real points of the model's top pick each week |
+| slope | How much 1 point of predicted difference turned into real difference (1.0 is ideal) |
+| mae | Average gap between predicted and real points |
+| bias | Average predicted minus real, per position |
+
+For scale, the average starter scores about 3.2 points. On the past seasons, luck alone can shift top20 by about 0.1 and captain by about 0.4.
+
+## Before (model v1)
+
+```
+season    top20 captain slope   mae  bias (GK DEF MID FWD)   starts
+2022-23    4.64    7.26  0.87  2.27  -0.11 -0.25 -0.29 -0.56  6334
+2023-24    5.35    7.20  1.09  2.35  +0.32 +0.10 -0.05 -0.20  6769
+2024-25    5.08    6.89  0.96  2.27  +0.14 -0.02 +0.05 -0.30  6976
+all        5.03    7.12  0.97  2.30  +0.12 -0.05 -0.09 -0.35  20079
+2026-27    4.81    6.43  0.71  2.35  -0.21 -0.32 +0.04 -0.58  1435
+```
+
+## After (model v2)
+
+```
+season    top20 captain slope   mae  bias (GK DEF MID FWD)   starts
+2022-23    4.67    6.85  0.84  2.30  -0.10 -0.22 -0.20 -0.40  6334
+2023-24    5.46    6.97  1.05  2.38  +0.33 +0.15 +0.09 -0.02  6769
+2024-25    5.16    7.00  0.93  2.30  +0.15 +0.03 +0.18 -0.14  6976
+all        5.10    6.94  0.93  2.33  +0.13 -0.01 +0.03 -0.18  20079
+2026-27    4.84    6.43  0.70  2.38  -0.20 -0.27 +0.17 -0.40  1435
+```
+
+## What changed and why
+
+Two corrections, both measured directly from the data rather than picked by a search:
+
+- `ASSIST_FACTOR = 1.4`. FPL gave 1.41 assists per xA in 2023-24, 1.38 in 2024-25 and 1.39 in 2026-27 so far. 2022-23 was 2.12, the xA provider's first FPL season, so it was left out.
+- Forward bonus prior from 0.4 to 0.6. Forwards averaged 0.50 to 0.72 bonus per start in every season, while other positions matched their old values.
+
+Together they roughly halve the forward under-rating and nudge top20 up on both the past seasons and this one. The captain number fell on the past seasons but stayed the same this season; at one pick a week, that's within luck.
+
+## What didn't change
+
+A coordinate search over the prior strength, recency half-life, recent-points weight and per-position bonus found settings that raised top20 on the past seasons to 5.18, but they made this season worse (top20 4.61, captain 5.86). Every single change moved top20 by less than the 0.1 noise level, so the search was fitting luck. Those weights keep their original values.
+
+The main finding: over 20,079 past starts the slope was 0.97, so the narrow spread of xP values is what real FPL points look like. It isn't a bug.
+
+## Known limits
+
+- The 1-5 club ratings in the old files are end-of-season values, so the starting guess for each club carries a little hindsight in early weeks. It fades as clubs play games and doesn't affect the 2026-27 check.
+- This season's check covers GW4-10 only (1,435 starts), and it's the first season with defensive contribution points. Defenders are still under-rated by about 0.3 this season; rerun the backtest in a few weeks before changing anything for that.
+- Clement's own past seasons can't be replayed: the FPL API only keeps season totals for past seasons, not weekly picks.

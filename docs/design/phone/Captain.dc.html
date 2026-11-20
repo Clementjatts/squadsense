@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Captain Picker</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#B7F34A}a:hover{color:#D4FF8A}
+</style>
+</helmet>
+<div style="width: 390px; height: 1010px; background: #0B1220; color: #E8EDF7; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;">
+<header style="display: flex; align-items: center; gap: 12px; padding: 20px 20px 12px;">
+<a href="Main.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+<div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-family: 'Space Grotesk', Inter, sans-serif;">Captain Picker</h1>
+<p style="margin: 0; font-size: 13px; color: #9AA6BF;">GW13 · ranked by expected points</p>
+</div>
+<a href="Alerts.dc.html" aria-label="Alerts and settings" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none; position: relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span style="position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 4px; background: #FFA24C;"></span></a>
+</header>
+<div style="margin: 0 20px; padding: 12px 14px; border-radius: 12px; background: #111A2E; border: 1px solid #26324D; display: flex; gap: 10px; align-items: flex-start;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFA24C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5 6.5 20.4l1-6.3L3 9.7l6.2-.9z"/></svg>
+<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #9AA6BF;"><b style="color: #E8EDF7;">Triple Captain?</b> Not this week. Haaland's double gameweek in GW16 scores about 3.1 xP more.</p>
+</div>
+<ol style="margin: 12px 20px 0; padding: 0; display: flex; flex-direction: column; gap: 10px;"><li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; border: 1px solid {{accent}}; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="width: 28px; font-size: 18px; font-weight: 700; color: #9AA6BF; font-family: 'Space Grotesk', Inter, sans-serif;">1</span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">Haaland <span style="color: #9AA6BF; font-weight: 500; font-size: 13px;">MCI</span></span><span style="font-size: 12px; color: #9AA6BF;">vs BUR (H) · plays 60+ min: 92%</span></div>
+<div style="text-align: right;"><div style="font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">8.4</div><div style="font-size: 11px; color: #9AA6BF;">xP as captain 16.8</div></div>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #111A2E;"><div style="width: 100%; height: 6px; border-radius: 3px; background: {{accent}};"></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Very safe</span>
+<button style="min-height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: {{accent}}; color: #0B1220; font: 600 12px Inter, sans-serif;">Captain</button></div>
+</li><li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; border: 1px solid #26324D; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="width: 28px; font-size: 18px; font-weight: 700; color: #9AA6BF; font-family: 'Space Grotesk', Inter, sans-serif;">2</span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">Saka <span style="color: #9AA6BF; font-weight: 500; font-size: 13px;">ARS</span></span><span style="font-size: 12px; color: #9AA6BF;">vs WHU (H) · plays 60+ min: 88%</span></div>
+<div style="text-align: right;"><div style="font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">6.3</div><div style="font-size: 11px; color: #9AA6BF;">xP as captain 12.6</div></div>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #111A2E;"><div style="width: 75%; height: 6px; border-radius: 3px; background: {{accent}};"></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Safe</span>
+<button style="min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">Make captain</button></div>
+</li><li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; border: 1px solid #26324D; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="width: 28px; font-size: 18px; font-weight: 700; color: #9AA6BF; font-family: 'Space Grotesk', Inter, sans-serif;">3</span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">Palmer <span style="color: #9AA6BF; font-weight: 500; font-size: 13px;">CHE</span></span><span style="font-size: 12px; color: #9AA6BF;">at FUL (A) · plays 60+ min: 85%</span></div>
+<div style="text-align: right;"><div style="font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">6.0</div><div style="font-size: 11px; color: #9AA6BF;">xP as captain 12.0</div></div>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #111A2E;"><div style="width: 71%; height: 6px; border-radius: 3px; background: {{accent}};"></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Safe</span>
+<button style="min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">Make captain</button></div>
+</li><li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; border: 1px solid #26324D; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="width: 28px; font-size: 18px; font-weight: 700; color: #9AA6BF; font-family: 'Space Grotesk', Inter, sans-serif;">4</span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">Isak <span style="color: #9AA6BF; font-weight: 500; font-size: 13px;">LIV</span></span><span style="font-size: 12px; color: #9AA6BF;">vs BRE (H) · plays 60+ min: 70%</span></div>
+<div style="text-align: right;"><div style="font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">5.6</div><div style="font-size: 11px; color: #9AA6BF;">xP as captain 11.2</div></div>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #111A2E;"><div style="width: 66%; height: 6px; border-radius: 3px; background: {{accent}};"></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Some risk</span>
+<button style="min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">Make captain</button></div>
+</li><li style="list-style: none; padding: 14px; border-radius: 14px; background: #16213A; border: 1px solid #26324D; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="width: 28px; font-size: 18px; font-weight: 700; color: #9AA6BF; font-family: 'Space Grotesk', Inter, sans-serif;">5</span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">Fernandes <span style="color: #9AA6BF; font-weight: 500; font-size: 13px;">MUN</span></span><span style="font-size: 12px; color: #9AA6BF;">at EVE (A) · plays 60+ min: 90%</span></div>
+<div style="text-align: right;"><div style="font-size: 20px; font-weight: 700; font-family: 'Space Grotesk', Inter, sans-serif;">5.1</div><div style="font-size: 11px; color: #9AA6BF;">xP as captain 10.2</div></div>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #111A2E;"><div style="width: 60%; height: 6px; border-radius: 3px; background: {{accent}};"></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 11px; font-weight: 600; color: #E8EDF7; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Safe</span>
+<button style="min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 12px Inter, sans-serif;">Make captain</button></div>
+</li></ol>
+<p style="margin: 12px 20px 0; font-size: 11px; line-height: 1.5; color: #9AA6BF;">Safety mixes the chance of playing 60+ minutes with how much his xP swings week to week.</p>
+<div style="padding: 10px 20px 0;"><span style="font-size: 11px; font-weight: 600; color: #9AA6BF; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Sample data</span></div>
+<nav aria-label="Main" style="margin-top: auto; display: flex; padding: 8px 8px 24px; background: #111A2E; border-top: 1px solid #26324D;"><a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: {{accent}}; font-size: 11px; font-weight: 600;" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Squad</span></a><a href="Transfers.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Plan</span></a><a href="Fixtures.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Fixtures</span></a><a href="Prices.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Prices</span></a><a href="Chips.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>More</span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent": {"editor": "color", "default": "#B7F34A", "options": ["#B7F34A", "#6CB4FF", "#FFA24C"]}, "$preview": {"width": 390, "height": 1010}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#B7F34A' };
+  }
+}
+</script>
+</body>
+</html>

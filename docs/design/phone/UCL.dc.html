@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Champions League</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#B7F34A}a:hover{color:#D4FF8A}
+</style>
+</helmet>
+<div style="width: 390px; height: 1010px; background: #0B1220; color: #E8EDF7; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;">
+<header style="display: flex; align-items: center; gap: 12px; padding: 20px 20px 12px;">
+<a href="Chips.dc.html" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+<div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-family: 'Space Grotesk', Inter, sans-serif;">Champions League</h1>
+<p style="margin: 0; font-size: 13px; color: #9AA6BF;">UCL Fantasy · Matchday 6</p>
+</div>
+<a href="Alerts.dc.html" aria-label="Alerts and settings" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16213A; text-decoration: none; position: relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8EDF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span style="position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 4px; background: #FFA24C;"></span></a>
+</header>
+<div role="tablist" aria-label="Game" style="display: flex; margin: 0 20px; padding: 4px; border-radius: 12px; background: #111A2E; border: 1px solid #26324D;">
+<a href="Main.dc.html" role="tab" aria-selected="false" style="flex: 1; min-height: 40px; border-radius: 9px; color: #9AA6BF; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none;">Premier League</a>
+<span role="tab" aria-selected="true" style="flex: 1; min-height: 40px; border-radius: 9px; background: #6CB4FF; color: #0B1220; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center;">Champions League</span>
+</div>
+<section style="margin: 12px 20px 0; padding: 14px; border-radius: 14px; background: #16213A; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 15px; font-family: 'Space Grotesk', Inter, sans-serif;">Update your team</h2>
+<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #9AA6BF;">UEFA doesn't let apps read your team without your login. Paste the team data from the UEFA site, or pick your 15 players by hand.</p>
+<label for="ucl-paste" style="font-size: 12px; font-weight: 600;">Team data</label>
+<textarea id="ucl-paste" rows="3" placeholder="Paste here" style="border-radius: 10px; border: 1px solid #26324D; background: #111A2E; color: #E8EDF7; padding: 10px; font: 13px Inter, sans-serif; resize: none;"></textarea>
+<div style="display: flex; gap: 8px;">
+<button style="flex: 1; min-height: 44px; border-radius: 12px; border: 0; background: #6CB4FF; color: #0B1220; font: 700 13px Inter, sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B1220" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg>Import</button>
+<button style="flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid #26324D; background: transparent; color: #E8EDF7; font: 600 13px Inter, sans-serif;">Pick by hand</button>
+</div>
+<a href="#how" style="font-size: 12px; color: #6CB4FF;">How to copy your team data</a>
+</section>
+<section style="margin: 12px 20px 0;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 style="margin: 0; font-size: 15px; font-family: 'Space Grotesk', Inter, sans-serif;">Imported squad</h2><span style="font-size: 11px; color: #9AA6BF;">Updated Tue 18:02</span></div>
+<ul style="margin: 4px 0 0; padding: 0;"><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">GK</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Courtois <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">RMA</span></span><span style="font-size: 13px; color: #9AA6BF;">€6.0m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">DEF</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Hakimi <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">PSG</span></span><span style="font-size: 13px; color: #9AA6BF;">€6.5m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">DEF</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Saliba <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">ARS</span></span><span style="font-size: 13px; color: #9AA6BF;">€5.5m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">MID</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Bellingham <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">RMA</span></span><span style="font-size: 13px; color: #9AA6BF;">€9.5m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">MID</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Olise <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">BAY</span></span><span style="font-size: 13px; color: #9AA6BF;">€8.5m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">FWD</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Kane <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">BAY</span></span><span style="font-size: 13px; color: #9AA6BF;">€11.0m</span></li><li style="list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #26324D;"><span style="width: 34px; font-size: 11px; color: #9AA6BF; font-weight: 600;">FWD</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Mbappé <span style="font-size: 12px; color: #9AA6BF; font-weight: 500;">RMA</span></span><span style="font-size: 13px; color: #9AA6BF;">€11.5m</span></li></ul>
+<p style="margin: 8px 0 0; font-size: 12px; color: #9AA6BF;">+ 8 more · €100m budget · max 3 per club</p>
+</section>
+<div style="padding: 10px 20px 0;"><span style="font-size: 11px; font-weight: 600; color: #9AA6BF; background: #111A2E; padding: 3px 8px; border-radius: 999px; white-space: nowrap;">Sample data</span></div>
+<nav aria-label="Main" style="margin-top: auto; display: flex; padding: 8px 8px 24px; background: #111A2E; border-top: 1px solid #26324D;"><a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Squad</span></a><a href="Transfers.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Plan</span></a><a href="Fixtures.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Fixtures</span></a><a href="Prices.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: #9AA6BF; font-size: 11px; font-weight: 500;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA6BF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Prices</span></a><a href="Chips.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 44px; text-decoration: none; color: {{accent}}; font-size: 11px; font-weight: 600;" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>More</span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent": {"editor": "color", "default": "#B7F34A", "options": ["#B7F34A", "#6CB4FF", "#FFA24C"]}, "$preview": {"width": 390, "height": 1010}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#B7F34A' };
+  }
+}
+</script>
+</body>
+</html>

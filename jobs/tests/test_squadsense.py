@@ -1,0 +1,278 @@
+"""Tests for the data jobs, run against the made-up sample data.
+
+Run from the jobs/ folder with:  python -m pytest
+"""
+
+import pytest
+
+from squadsense import rules
+from squadsense.chips import best_chip_weeks
+from squadsense.fixtures import FixtureModel, fixtures_by_team_and_week, starting_ratings, team_ratings
+from squadsense.fpl_client import FplApiError, FplClient
+from squadsense.planner import best_lineup
+from squadsense.player_detail import recent_gameweeks
+from squadsense.price_watch import prediction_label
+from squadsense.squad_builder import pick_best_squad
+from squadsense.ticker import difficulty, difficulty_cut_points
+from squadsense.squad_state import count_free_transfers
+from squadsense.sync import run, starting_price_lookup_from
+from tests.sample_data import CURRENT_WEEK, TEAM_ID, FakeHttpClient, build_sample
+
+
+@pytest.fixture(scope="module")
+def sample():
+    return build_sample()
+
+
+@pytest.fixture
+def fake_client(sample):
+    return FplClient(min_seconds_between_requests=0, http_client=FakeHttpClient(sample))
+
+
+def test_selling_price_keeps_half_the_rise_rounded_down():
+    assert rules.selling_price(purchase_price=60, current_price=63) == 61
+    assert rules.selling_price(purchase_price=60, current_price=58) == 58
+
+
+def test_check_squad_catches_club_limit():
+    four_from_one_club = [{"element_type": 2, "team": 1}] * 4
+    problems = rules.check_squad(four_from_one_club, bank=0)
+    assert any("limit is 3" in problem for problem in problems)
+
+
+def test_free_transfers_bank_to_five_and_survive_a_wildcard():
+    history = [{"event": week, "event_transfers": {5: 1, 8: 2, 11: 1}.get(week, 0)} for week in range(1, 13)]
+    chips = [{"name": "wildcard", "event": 7}]
+    assert count_free_transfers(history, chips, next_gameweek=13, started_event=1) == 5
+
+
+def test_late_joiner_counts_free_transfers_from_their_first_week():
+    # A team created for GW11 has made no transfers yet, so it has 1 for
+    # GW12, not the 5 it would bank by counting empty weeks from GW2.
+    history = [{"event": 11, "event_transfers": 0}]
+    assert count_free_transfers(history, [], next_gameweek=12, started_event=11) == 1
+    history.append({"event": 12, "event_transfers": 0})
+    assert count_free_transfers(history, [], next_gameweek=13, started_event=11) == 2
+
+
+def test_late_joiner_purchase_price_comes_from_their_first_week():
+    rows = [{"round": 1, "value": 60}, {"round": 10, "value": 64}, {"round": 11, "value": 65}]
+    lookup = starting_price_lookup_from({7: rows}, started_event=11)
+    assert lookup(7) == 65
+    # Before the team's first gameweek has been played, there's no price to find.
+    assert starting_price_lookup_from({7: rows[:2]}, started_event=11)(7) is None
+
+
+def test_client_adds_trailing_slash_and_reports_missing_paths(sample):
+    fake_http = FakeHttpClient(sample)
+    client = FplClient(min_seconds_between_requests=0, http_client=fake_http)
+    client.get("fixtures")
+    assert fake_http.requested[-1] == "fixtures/"
+    with pytest.raises(FplApiError):
+        client.get("not-a-real-endpoint/")
+
+
+def test_blank_and_double_gameweeks(sample):
+    schedule = fixtures_by_team_and_week(sample["fixtures/"], 13, 17)
+    liverpool, arsenal = 7, 1
+    assert schedule[liverpool].get(16, []) == []
+    assert len(schedule[arsenal][16]) == 2
+
+
+def sample_histories(sample):
+    """The sample's player histories, keyed by player id like storage returns them."""
+    return {
+        int(path.split("/")[1]): body["history"]
+        for path, body in sample.items() if path.startswith("element-summary/")
+    }
+
+
+def test_stronger_team_expects_more_goals(sample):
+    teams = sample["bootstrap-static/"]["teams"]
+    model = FixtureModel(team_ratings(teams, sample["fixtures/"], sample_histories(sample)))
+    assert model.expected_goals(1, 20, True) > model.expected_goals(20, 1, False)
+
+
+def test_ratings_follow_match_xg_and_fall_back_to_fpl_rating():
+    teams = [
+        {"id": 1, "strength_overall_home": 3, "strength_overall_away": 3},
+        {"id": 2, "strength_overall_home": 3, "strength_overall_away": 3},
+        {"id": 3, "strength_overall_home": 5, "strength_overall_away": 5},
+    ]
+    # Club 1 out-creates club 2 in their only match; club 3 hasn't played.
+    fixtures = [{"id": 10, "team_h": 1, "team_a": 2, "finished": True}]
+    histories = {
+        100: [{"fixture": 10, "was_home": True, "expected_goals": "2.5"}],
+        200: [{"fixture": 10, "was_home": False, "expected_goals": "0.5"}],
+    }
+    ratings = team_ratings(teams, fixtures, histories)
+    assert ratings[1]["attack"] > ratings[2]["attack"]
+    assert ratings[1]["concede"] < ratings[2]["concede"]
+    # No matches, so club 3 keeps the guess from its higher FPL rating.
+    assert ratings[3] == starting_ratings(teams)[3]
+    assert ratings[3]["attack"] > 1 > ratings[3]["concede"]
+
+
+def test_full_sync_builds_a_legal_lineup(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", tmp_path / "snapshot.json", client=fake_client)
+
+    assert snapshot["gameweek"] == 13
+    assert len(snapshot["squad"]) == 15
+    lineup = snapshot["lineups"]["13"]
+    starters = [snapshot["players"][str(pid)] for pid in lineup["starters"]]
+    positions = [player["position"] for player in starters]
+    assert len(starters) == 11 and positions.count("GK") == 1 and positions.count("DEF") >= 3
+    assert (tmp_path / "snapshot.json").exists()
+
+
+def test_suggestions_respect_budget(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    for move in snapshot["suggestions"]:
+        assert move["bank_after"] >= 0
+        assert snapshot["players"][str(move["out"])]["position"] == snapshot["players"][str(move["in"])]["position"]
+
+
+def test_best_lineup_counts_captain_twice():
+    players = {pid: {"element_type": pos} for pid, pos in enumerate([1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4])}
+    xp = {pid: {13: float(pid)} for pid in players}
+    lineup = best_lineup(list(players), players, xp, 13)
+    assert rules.is_valid_formation([players[pid] for pid in lineup["starters"]])
+    assert lineup["captain"] == 14
+    assert lineup["expected_points"] == sum(xp[pid][13] for pid in lineup["starters"]) + 14
+
+
+def make_pool():
+    """A small made-up player pool: 3 clubs, enough of each position, varied prices."""
+    pool = []
+    for player_id in range(1, 41):
+        position = [1, 2, 3, 4][player_id % 4]
+        pool.append({"id": player_id, "element_type": position, "team": player_id % 8, "now_cost": 40 + player_id})
+    return pool
+
+
+def test_model_squad_is_legal_and_within_budget():
+    pool = make_pool()
+    players_by_id = {player["id"]: player for player in pool}
+    # Pricier players score more, so the budget is what holds the solver back.
+    expected_points = {player["id"]: {11: player["now_cost"] / 10} for player in pool}
+    squad = pick_best_squad(pool, expected_points, 11, budget=900)
+
+    chosen = [players_by_id[player_id] for player_id in squad]
+    cost = sum(player["now_cost"] for player in chosen)
+    assert len(squad) == 15
+    assert rules.check_squad(chosen, bank=900 - cost) == []
+    lineup = best_lineup(squad, players_by_id, expected_points, 11)
+    assert rules.is_valid_formation([players_by_id[player_id] for player_id in lineup["starters"]])
+
+
+def test_hidden_squad_falls_back_to_a_model_squad(tmp_path, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    # A team created this week: its first gameweek is the next one, so FPL
+    # hasn't published its picks yet.
+    responses = dict(sample)
+    responses[f"entry/{TEAM_ID}/"] = {**sample[f"entry/{TEAM_ID}/"], "started_event": CURRENT_WEEK + 1}
+    fake_http = FakeHttpClient(responses)
+    client = FplClient(min_seconds_between_requests=0, http_client=fake_http)
+
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=client)
+
+    assert snapshot["squadSource"] == "model"
+    assert snapshot["freeTransfers"] is None
+    assert snapshot["suggestions"] == []
+    assert len(snapshot["squad"]) == 15 and snapshot["bank"] >= 0
+    assert not any("picks" in path for path in fake_http.requested)
+
+
+def test_difficulty_splits_matches_into_five_groups():
+    values = [float(value) for value in range(1, 11)]
+    cut_points = difficulty_cut_points(values)
+    # Higher values (more goals, better clean-sheet chance) are easier.
+    assert difficulty(10.0, cut_points) == 1
+    assert difficulty(1.0, cut_points) == 5
+    assert sorted({difficulty(value, cut_points) for value in values}) == [1, 2, 3, 4, 5]
+
+
+def test_ticker_shows_blanks_doubles_and_window_scores(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    ticker = snapshot["fixtureTicker"]
+    teams = {team["name"]: team for team in ticker["teams"]}
+
+    assert ticker["weeks"] == list(range(13, 21))
+    assert teams["LIV"]["matches"]["16"] == []
+    assert len(teams["ARS"]["matches"]["16"]) == 2
+    every_match = [match for team in ticker["teams"] for matches in team["matches"].values() for match in matches]
+    assert all(1 <= match["attackDifficulty"] <= 5 for match in every_match)
+    # A longer window adds more matches, so it can't score lower.
+    assert teams["ARS"]["scores"]["attack"]["8"] >= teams["ARS"]["scores"]["attack"]["3"]
+
+
+def test_prediction_labels_follow_fpl_likelihood():
+    assert prediction_label(5, None) == "Changes tonight"
+    assert prediction_label(-4, None) == "Very likely"
+    assert prediction_label(0, None) == "No change"
+    assert prediction_label(5, "2026-11-21T18:35:54Z") == "Price locked"
+
+
+def test_price_watch_sorts_by_progress_and_flags_the_squad(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    watch = snapshot["priceWatch"]
+
+    progress = [abs(row["progress"]) for row in watch["players"]]
+    assert progress == sorted(progress, reverse=True)
+    assert {row["id"] for row in watch["players"] if row["inSquad"]} == set(snapshot["squad"])
+    rows_by_id = {row["id"]: row for row in watch["players"]}
+    assert all(rows_by_id[player_id]["likelihood"] <= -3 for player_id in watch["atRisk"])
+    assert all(rows_by_id[player_id]["likelihood"] >= 3 for player_id in watch["rising"])
+
+
+def test_recent_gameweeks_adds_up_doubles():
+    rows = [
+        {"round": 9, "total_points": 2, "expected_goals": "0.1", "expected_assists": "0.0", "minutes": 90},
+        {"round": 10, "total_points": 6, "expected_goals": "0.5", "expected_assists": "0.2", "minutes": 90},
+        {"round": 10, "total_points": 3, "expected_goals": "0.3", "expected_assists": "0.1", "minutes": 70},
+    ]
+    weeks = recent_gameweeks(rows)
+    assert [week["gameweek"] for week in weeks] == [9, 10]
+    assert weeks[1] == {"gameweek": 10, "points": 9, "xg": 0.8, "xa": 0.3, "minutes": 160}
+
+
+def test_every_player_gets_a_detail_entry(tmp_path, fake_client, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    details = snapshot["playerDetails"]
+
+    assert len(details) == len(sample["bootstrap-static/"]["elements"])
+    squad_player = details[str(snapshot["squad"][0])]
+    assert squad_player["sellingPrice"] is not None
+    assert len(squad_player["recent"]) == 6
+    assert 1 <= len(squad_player["fixtures"]) <= 6
+
+
+def test_chip_plan_never_puts_two_chips_in_one_week():
+    # Bench Boost and Triple Captain both peak in GW16; only one can have it.
+    values = {
+        "bboost": {16: (13.8, ""), 17: (6.0, "")},
+        "3xc": {16: (17.0, ""), 18: (9.0, "")},
+    }
+    plan = best_chip_weeks(values)
+    assert plan["bboost"] != plan["3xc"]
+    # Best total: TC in GW16 (17.0) with BB moved to GW17 (6.0) beats 13.8 + 9.0.
+    assert plan == {"bboost": 17, "3xc": 16}
+
+
+def test_chip_plan_marks_used_chips_and_recommends_open_weeks(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    chip_plan = snapshot["chipPlan"]
+    cards = {card["chip"]: card for card in chip_plan["cards"]}
+
+    assert (chip_plan["halfStart"], chip_plan["halfStop"]) == (1, 19)
+    assert cards["wildcard"]["status"] == "used" and cards["wildcard"]["usedIn"] == 7
+    best_weeks = [card["bestWeek"] for card in cards.values() if card["bestWeek"] is not None]
+    assert len(best_weeks) == len(set(best_weeks))
+    assert all(13 <= week <= 19 for week in best_weeks)
+    assert chip_plan["timeline"][6]["used"] == ["WC"]
