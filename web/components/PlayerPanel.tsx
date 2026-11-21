@@ -192,15 +192,26 @@ function PanelBody({ detail }: { detail: PlayerDetail }) {
         <h3>News and price</h3>
         <p className="muted">{newsAndPrice(detail)}</p>
       </section>
-      <div>
+      {/* Planner actions first: your own players can be captained or replaced,
+          anyone else can be added to the plan. Every button sits in a
+          two-column grid, so the row edges line up. */}
+      <div className="panel-actions">
+        {detail.sellingPrice !== null ? (
+          <>
+            <a className="btn primary" href={`/planner?captain=${detail.id}`}>Make captain</a>
+            <a className="btn" href={`/planner?sell=${detail.id}`}>Replace in planner</a>
+          </>
+        ) : (
+          <a className="btn primary panel-actions-wide" href={`/planner?buy=${detail.id}`}>Add to plan</a>
+        )}
         <button
           type="button"
-          className={watched ? "btn" : "btn primary"}
+          className="btn"
           onClick={() => setWatchlist(watched ? watchlist.filter((id) => id !== detail.id) : [...watchlist, detail.id])}
         >
-          {watched ? "Remove from watchlist" : "Add to watchlist"}
+          {watched ? "Unwatch" : "Watch"}
         </button>
-        <a className="btn" href={`/compare?ids=${detail.id}`} style={{ marginLeft: 8 }}>Compare</a>
+        <a className="btn" href={`/compare?ids=${detail.id}`}>Compare</a>
       </div>
     </>
   );

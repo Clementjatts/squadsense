@@ -24,6 +24,9 @@ export interface PlannedMove {
 export type PlannerChip = ChipCode;
 export type PlannedChips = Partial<Record<number, PlannerChip>>; // gameweek -> chip
 export type FreeHitSquads = Partial<Record<number, number[]>>; // gameweek -> the one-week squad
+// Captains you chose (gameweek -> player). Weeks without one use the
+// highest-xP starter, as planner.py does.
+export type PlannedCaptains = Partial<Record<number, number>>;
 
 export interface WeekPlan {
   week: number;
@@ -34,6 +37,8 @@ export interface WeekPlan {
   bench: number[];
   captain: number;
   viceCaptain: number;
+  captainChosen: boolean; // true when the captain is your pick, not the model's
+  captainNotStarting: boolean; // you picked a captain who isn't in this week's best eleven
   expectedPoints: number;
   transfersMade: number;
   freeTransfersBefore: number | null;
@@ -110,7 +115,22 @@ function chipBonus(chip: PlannerChip | null, lineup: ReturnType<typeof bestLineu
   return 0;
 }
 
-export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: PlannedChips = {}, freeHitSquads: FreeHitSquads = {}): WeekPlan[] {
+// Puts your chosen captain on the armband, if he starts this week, and
+// makes the model's captain the vice. Expected points change by the
+// difference between the two captains, since the captain's points count twice.
+function withChosenCaptain(lineup: ReturnType<typeof bestLineup>, chosen: number | undefined, players: Record<string, Player>, week: number) {
+  if (chosen === undefined || chosen === lineup.captain || !lineup.starters.includes(chosen)) return lineup;
+  const expectedPoints = lineup.expectedPoints - xpFor(players[lineup.captain], week) + xpFor(players[chosen], week);
+  return { ...lineup, captain: chosen, viceCaptain: lineup.captain, expectedPoints };
+}
+
+export function simulatePlan(
+  snapshot: Snapshot,
+  moves: PlannedMove[],
+  chips: PlannedChips = {},
+  freeHitSquads: FreeHitSquads = {},
+  captains: PlannedCaptains = {},
+): WeekPlan[] {
   const { players } = snapshot;
   const paidInPlan = new Map<number, number>();
   let squad = snapshot.squad;
@@ -134,7 +154,8 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: Pl
     const hitPoints =
       freeTransfers === null || chip === "wildcard" || chip === "freehit" ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
     // In a Free Hit week the one-week squad plays; your own squad sits it out unchanged.
-    const lineup = bestLineup(freeHitSquad ?? squad, players, week);
+    const chosenCaptain = captains[week];
+    const lineup = withChosenCaptain(bestLineup(freeHitSquad ?? squad, players, week), chosenCaptain, players, week);
     const problems = checkRules(squad, players, bank);
     if (freeHitSquad && transfersMade > 0) problems.push("Free Hit week: plan your own transfers for another week");
 
@@ -147,6 +168,8 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: Pl
       bench: lineup.bench,
       captain: lineup.captain,
       viceCaptain: lineup.viceCaptain,
+      captainChosen: chosenCaptain !== undefined && lineup.captain === chosenCaptain,
+      captainNotStarting: chosenCaptain !== undefined && lineup.captain !== chosenCaptain,
       expectedPoints: lineup.expectedPoints + chipBonus(chip, lineup, players, week),
       transfersMade,
       freeTransfersBefore: freeTransfers,
@@ -180,4 +203,23 @@ export function replacementOptions(snapshot: Snapshot, squad: number[], outId: n
   return Object.values(snapshot.players)
     .filter((player) => player.position === outPlayer.position && !squad.includes(player.id))
     .sort((a, b) => b.windowXp - a.windowXp);
+}
+
+// What a link from the player panel asks the Planner to do: ?buy=, ?sell=
+// or ?captain= with a player id.
+export type PlannerRequest = { kind: "buy" | "sell" | "captain"; playerId: number };
+
+// Reads that request from the address. A buy of a player you already own
+// becomes a sell, and a sell or captain of someone you don't own is
+// ignored, since the Planner can't act on it.
+export function plannerRequest(search: string, snapshot: Snapshot): PlannerRequest | null {
+  const params = new URLSearchParams(search);
+  for (const kind of ["buy", "sell", "captain"] as const) {
+    const playerId = Number(params.get(kind));
+    if (!params.has(kind) || !snapshot.players[playerId]) continue;
+    const owned = snapshot.squad.includes(playerId);
+    if (kind === "buy") return { kind: owned ? "sell" : "buy", playerId };
+    return owned ? { kind, playerId } : null;
+  }
+  return null;
 }

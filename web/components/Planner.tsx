@@ -5,13 +5,16 @@
 // Nothing here talks to FPL: it's a sandbox for testing ideas.
 
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { ApplyToFpl } from "./ApplyToFpl";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
-import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type FreeHitSquads, type PlannedChips, type PlannedMove, type PlannerChip } from "@/lib/planning";
+import {
+  MAX_PER_CLUB, planScore, plannerRequest, replacementOptions, simulatePlan,
+  type FreeHitSquads, type PlannedCaptains, type PlannedChips, type PlannedMove, type PlannerChip,
+} from "@/lib/planning";
 import type { Player, SolverPlan, Snapshot } from "@/lib/types";
 
 const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
@@ -54,10 +57,27 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const [chips, setChips] = useState<PlannedChips>({});
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]);
   const [swapOutId, setSwapOutId] = useState<number | null>(null);
+  const [bringInId, setBringInId] = useState<number | null>(null); // a player to buy, waiting for you to pick who he replaces
+  const [captains, setCaptains] = useState<PlannedCaptains>({});
 
-  // Recalculate the whole plan whenever a move is added or removed.
+  // Links from the player panel (?buy=, ?sell= or ?captain=) start the
+  // Planner with that player chosen. The address is then tidied, so a
+  // reload starts fresh.
+  useEffect(() => {
+    const request = plannerRequest(window.location.search, snapshot);
+    if (!request) return;
+    if (request.kind === "sell") setSwapOutId(request.playerId);
+    if (request.kind === "buy") setBringInId(request.playerId);
+    if (request.kind === "captain") setCaptains({ [snapshot.weeks[0]]: request.playerId });
+    window.history.replaceState(null, "", "/planner");
+  }, [snapshot]);
+
+  // Recalculate the whole plan whenever a move, chip or captain changes.
   const freeHitSquads = useMemo(() => freeHitSquadsFrom(snapshot), [snapshot]);
-  const plans = useMemo(() => simulatePlan(snapshot, moves, chips, freeHitSquads), [snapshot, moves, chips, freeHitSquads]);
+  const plans = useMemo(
+    () => simulatePlan(snapshot, moves, chips, freeHitSquads, captains),
+    [snapshot, moves, chips, freeHitSquads, captains],
+  );
   const baselineScore = useMemo(() => planScore(simulatePlan(snapshot, [])), [snapshot]);
   const totalScore = planScore(plans);
   const weekPlan = plans.find((plan) => plan.week === selectedWeek) ?? plans[0];
@@ -72,10 +92,26 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
     setSwapOutId(null);
   }
 
-  function addMove(inId: number) {
-    if (swapOutId === null) return;
-    setMoves([...moves, { week: selectedWeek, outId: swapOutId, inId }]);
+  // Adds a move this week and closes whichever picker led to it.
+  function addMove(outId: number, inId: number) {
+    setMoves([...moves, { week: selectedWeek, outId, inId }]);
     setSwapOutId(null);
+    setBringInId(null);
+  }
+
+  // A pitch click starts a normal "replace this player" search, and drops
+  // any player waiting to be brought in.
+  function pickPlayerToReplace(id: number) {
+    setBringInId(null);
+    setSwapOutId(id);
+  }
+
+  // Why selling `outId` for `inId` this week isn't allowed, or null if it is.
+  function blockedReason(outId: number, inId: number): string | null {
+    const incoming = players[inId];
+    if (incoming.price > bankBeforeWeek + players[outId].sellingPrice) return "Too expensive";
+    const clubCount = weekPlan.squad.filter((id) => id !== outId && players[id].team === incoming.team).length;
+    return clubCount >= MAX_PER_CLUB ? `Already ${MAX_PER_CLUB} from ${incoming.team}` : null;
   }
 
   // Removing a move also removes any later move that sold the player it
@@ -89,6 +125,11 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   }
 
   const outPlayer = swapOutId !== null ? players[swapOutId] : null;
+  const inPlayer = bringInId !== null ? players[bringInId] : null;
+  // Your players he could replace this week, weakest first.
+  const sellOptions = inPlayer
+    ? weekPlan.squad.filter((id) => players[id].position === inPlayer.position).sort((a, b) => players[a].windowXp - players[b].windowXp)
+    : [];
   const options = swapOutId !== null ? replacementOptions(snapshot, weekPlan.squad, swapOutId).slice(0, OPTIONS_SHOWN) : [];
   const incomingIds = weekMoves.map((move) => move.inId);
 
@@ -149,7 +190,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
             week={selectedWeek}
             selectedId={swapOutId}
             incomingIds={incomingIds}
-            onPlayerClick={setSwapOutId}
+            onPlayerClick={pickPlayerToReplace}
           />
 
         </div>
@@ -181,6 +222,21 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 <b className="num">{weekPlan.hitPoints}</b>
               </div>
             </div>
+            <div className="planner-captain">
+              <span className="muted">Captain</span>
+              <b>{players[weekPlan.captain].name}</b>
+              <span className="muted">{weekPlan.captainChosen ? "your pick" : "highest xP"}</span>
+              {captains[selectedWeek] !== undefined && (
+                <button type="button" className="btn" onClick={() => setCaptains({ ...captains, [selectedWeek]: undefined })}>
+                  Use highest xP
+                </button>
+              )}
+            </div>
+            {weekPlan.captainNotStarting && (
+              <span className="chip warn planner-captain-note">
+                {players[captains[selectedWeek]!].name} isn&apos;t in this week&apos;s best eleven
+              </span>
+            )}
             <ChipPicker
               options={plannerChipsFor(snapshot, selectedWeek, freeHitSquads)}
               chips={chips}
@@ -242,7 +298,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 view fades out before the new one fades in. */}
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={outPlayer ? `replace-${outPlayer.id}` : "suggested"}
+                key={outPlayer ? `replace-${outPlayer.id}` : inPlayer ? `bring-${inPlayer.id}` : "suggested"}
                 className="card-body"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -261,39 +317,34 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                       You can spend up to {formatPrice(bankBeforeWeek + outPlayer.sellingPrice)} on a {outPlayer.position}.
                     </p>
                     <div className="table-wrap">
-                      <table>
+                      <table className="planner-table">
                         <thead>
                           <tr>
                             <th scope="col">Player</th>
-                            <th scope="col">Club</th>
                             <th scope="col" className="right">Price</th>
                             <th scope="col" className="right">Owned</th>
                             <th scope="col" className="right">xP next {weeks.length}</th>
-                            <th scope="col" className="right">vs {outPlayer.name}</th>
-                            <th scope="col"><span className="muted">Add</span></th>
+                            <th scope="col" className="right">Gain</th>
+                            <th scope="col"><span className="visually-hidden">Add</span></th>
                           </tr>
                         </thead>
                         <tbody>
                           {options.map((option) => {
-                            const affordable = option.price <= bankBeforeWeek + outPlayer.sellingPrice;
-                            const clubCount = weekPlan.squad.filter((id) => id !== outPlayer.id && players[id].team === option.team).length;
-                            const clubFull = clubCount >= MAX_PER_CLUB;
-                            const blockedReason = !affordable ? "Too expensive" : clubFull ? `Already ${MAX_PER_CLUB} from ${option.team}` : null;
+                            const blocked = blockedReason(outPlayer.id, option.id);
                             return (
-                              <tr key={option.id} style={{ opacity: blockedReason ? 0.5 : 1 }}>
-                                <td><strong>{option.name}</strong></td>
-                                <td className="muted">{option.team}</td>
+                              <tr key={option.id} style={{ opacity: blocked ? 0.5 : 1 }}>
+                                <td><strong>{option.name}</strong> <span className="muted">{option.team}</span></td>
                                 <td className="right">{formatPrice(option.price)}</td>
                                 <td className="right muted">{option.ownership.toFixed(1)}%</td>
                                 <td className="right"><b>{formatXp(option.windowXp)}</b></td>
-                                <td className="right gain">{formatGain(option.windowXp - outPlayer.windowXp)}</td>
+                                <td className={gainClass(option.windowXp - outPlayer.windowXp)}>{formatGain(option.windowXp - outPlayer.windowXp)}</td>
                                 <td>
                                   <button
                                     type="button"
                                     className="btn"
-                                    disabled={blockedReason !== null}
-                                    title={blockedReason ?? undefined}
-                                    onClick={() => addMove(option.id)}
+                                    disabled={blocked !== null}
+                                    title={blocked ?? undefined}
+                                    onClick={() => addMove(outPlayer.id, option.id)}
                                     aria-label={`Bring in ${option.name}`}
                                   >
                                     Add
@@ -306,6 +357,18 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                       </table>
                     </div>
                   </>
+                ) : inPlayer ? (
+                  <BringInView
+                    inPlayer={inPlayer}
+                    sellOptions={sellOptions}
+                    alreadyOwned={weekPlan.squad.includes(inPlayer.id)}
+                    week={selectedWeek}
+                    windowLength={weeks.length}
+                    players={players}
+                    blockedReason={blockedReason}
+                    onSell={(outId) => addMove(outId, inPlayer.id)}
+                    onCancel={() => setBringInId(null)}
+                  />
                 ) : (
                   <>
                     <div className="card-head">
@@ -361,6 +424,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 setMoves(solverMoves(snapshot.solverPlan!));
                 setChips(solverChips(snapshot.solverPlan!));
                 setSwapOutId(null);
+                setBringInId(null);
               }}
             />
           )}
@@ -450,5 +514,80 @@ function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapsho
         </span>
       </div>
     </section>
+  );
+}
+
+// Lime for a gain, grey for no gain or a loss, so a minus never looks good.
+function gainClass(gain: number): string {
+  return gain > 0 ? "right gain" : "right muted";
+}
+
+interface BringInViewProps {
+  inPlayer: Player;
+  sellOptions: number[];
+  alreadyOwned: boolean;
+  week: number;
+  windowLength: number;
+  players: Record<string, Player>;
+  blockedReason: (outId: number, inId: number) => string | null;
+  onSell: (outId: number) => void;
+  onCancel: () => void;
+}
+
+// "Bring in X": your players in his position, weakest first, each with a
+// Sell button. Opened by "Add to plan" in the player panel.
+function BringInView({ inPlayer, sellOptions, alreadyOwned, week, windowLength, players, blockedReason, onSell, onCancel }: BringInViewProps) {
+  return (
+    <>
+      <div className="card-head">
+        <h2>Bring in {inPlayer.name}</h2>
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+      </div>
+      <p className="muted" style={{ margin: 0 }}>
+        {inPlayer.team} {inPlayer.position}, {formatPrice(inPlayer.price)}, {formatXp(inPlayer.windowXp)} xP over the next {windowLength} weeks.
+        {alreadyOwned ? ` He is already in your GW${week} squad.` : ` Pick who he replaces in GW${week}.`}
+      </p>
+      {!alreadyOwned && (
+        <div className="table-wrap">
+          <table className="planner-table">
+            <thead>
+              <tr>
+                <th scope="col">Player</th>
+                <th scope="col" className="right">Sells for</th>
+                <th scope="col" className="right">xP next {windowLength}</th>
+                <th scope="col" className="right">Gain</th>
+                <th scope="col"><span className="visually-hidden">Sell</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sellOptions.map((id) => {
+                const player = players[id];
+                const blocked = blockedReason(id, inPlayer.id);
+                return (
+                  <tr key={id} style={{ opacity: blocked ? 0.5 : 1 }}>
+                    <td><strong>{player.name}</strong> <span className="muted">{player.team}</span></td>
+                    <td className="right">{formatPrice(player.sellingPrice)}</td>
+                    <td className="right"><b>{formatXp(player.windowXp)}</b></td>
+                    <td className={gainClass(inPlayer.windowXp - player.windowXp)}>{formatGain(inPlayer.windowXp - player.windowXp)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={blocked !== null}
+                        title={blocked ?? undefined}
+                        onClick={() => onSell(id)}
+                        aria-label={`Sell ${player.name} for ${inPlayer.name}`}
+                      >
+                        Sell
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   );
 }

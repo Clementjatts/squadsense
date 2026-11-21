@@ -662,6 +662,24 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .account-panel hr { width: 100%; border: 0; border-top: 1px solid var(--panel-line); margin: 2px 0; }
 .account-panel form .btn { width: 100%; }
 
+/* Text for screen readers only, such as a heading over a column of buttons. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The Planner's player tables sit in a narrow column, so their cells are tighter. */
+.planner-table th, .planner-table td { padding-left: 8px; padding-right: 8px; }
+
+/* Player panel buttons: two equal columns; the wide one spans both. */
+.panel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.panel-actions .btn { width: 100%; justify-content: center; text-align: center; text-decoration: none; }
+.panel-actions-wide { grid-column: 1 / -1; }
+
+/* Planner: who captains the selected week. Fixed height, so the button
+   appearing or going doesn't move the cards below. */
+.planner-captain { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px; }
+.planner-captain b { font-family: var(--condensed); font-weight: 800; font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; }
+.planner-captain .btn { margin-left: auto; }
+.planner-captain-note { align-self: flex-start; }
+
 /* Phones. Cards get less padding, filters fill the width, and the pitch
    uses smaller player slots, so five players fit across a 360 px screen
    without anything being cut off or the page scrolling sideways. */
