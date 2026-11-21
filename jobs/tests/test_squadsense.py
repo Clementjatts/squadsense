@@ -311,3 +311,11 @@ def test_free_hit_week_plans_with_the_squad_that_comes_back(tmp_path, sample, mo
 
     assert sorted(snapshot["squad"]) == sorted(real_squad)
     assert snapshot["bank"] == 14
+
+
+def test_players_carry_their_recent_form(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path / "data", None, client=fake_client)
+    player = snapshot["players"][str(snapshot["squad"][0])]
+    assert len(player["form"]) == 6
+    assert all(isinstance(points, int) for points in player["form"])

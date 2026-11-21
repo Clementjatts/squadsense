@@ -27,44 +27,17 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+body { margin: 0; background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.016) 0 2px, transparent 2px 26px), #070b14; color: var(--ink); font-family: Inter, system-ui, sans-serif; }
 h1, h2, h3, .num { font-family: 'Space Grotesk', Inter, sans-serif; }
 a { color: var(--accent); }
 button { font: inherit; color: inherit; cursor: pointer; }
 
-/* App frame: sidebar + main column, stacking on narrow windows. */
-.shell { display: flex; flex-wrap: wrap; min-height: 100vh; }
-.sidebar { flex: 1 1 232px; max-width: 280px; background: var(--surface); border-right: 1px solid var(--line); padding: 24px 16px; display: flex; flex-direction: column; gap: 20px; }
-@media (max-width: 900px) { .sidebar { max-width: none; } }
-.main { flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; }
-.content { padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px; }
+/* The page content under the header. */
+.main { min-width: 0; }
 
-.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-size: 18px; font-weight: 700; }
 .brand-mark { display: block; flex: none; }
-.nav { display: flex; flex-direction: column; gap: 4px; }
-.nav-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); padding: 0 12px 4px; }
-.nav-link { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: var(--muted); text-decoration: none; font-size: 14px; }
-.nav-link[aria-current="page"] { color: var(--ink); font-weight: 600; }
-.nav-link:not(.soon):hover { color: var(--ink); }
-/* The active page's background is a pill that slides between links (Sidebar.tsx). */
-.nav-pill { position: absolute; inset: 0; border-radius: 10px; background: var(--card); z-index: 0; }
-.nav-icon, .nav-text, .nav-link .chip { position: relative; z-index: 1; }
-.nav-icon { flex: none; stroke: currentColor; }
-.nav-link[aria-current="page"] .nav-icon { stroke: var(--accent); }
-.nav-text { flex: 1; }
-.nav-link.soon { opacity: 0.55; cursor: default; }
-.team-box { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); font-size: 13px; }
-.sync-box { margin-top: auto; padding: 12px; border-radius: 12px; border: 1px dashed var(--line); font-size: 12px; color: var(--muted); }
 
-.topbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 24px 32px; border-bottom: 1px solid var(--line); }
-.topbar h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
-.topbar p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-.stats { display: flex; flex-wrap: wrap; align-items: center; }
-.stat { display: flex; flex-direction: column; gap: 2px; padding: 0 16px; border-left: 1px solid var(--line); }
-.stat:first-child { border-left: 0; }
-.stat span { font-size: 11px; color: var(--muted); }
-.stat b { font-size: 16px; }
-.stat .gw-badge { font-size: 12px; font-weight: 700; color: var(--bg); background: var(--accent); padding: 4px 9px; border-radius: 6px; margin-right: 8px; }
+/* The active page's background is a pill that slides between links (Sidebar.tsx). */
 
 .info-banner { background: #10223a; border: 1px solid #24476e; color: #bfe0ff; border-radius: 12px; padding: 12px 16px; font-size: 13px; }
 .demo-banner { background: #2a2210; border: 1px solid #5c4614; color: #ffd68a; border-radius: 12px; padding: 12px 16px; font-size: 13px; }
@@ -77,12 +50,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .card { background: linear-gradient(180deg, rgba(22, 33, 58, 0.32) 0%, rgba(17, 26, 46, 0.96) 100%); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
   box-shadow: var(--shadow-card); transition: border-color var(--dur-fast) var(--ease-out-quart), box-shadow var(--dur-med) var(--ease-out-quart); }
 /* A lime bloom behind the Dashboard's suggested move. */
-.card.highlight { background: radial-gradient(120% 90% at 10% 0%, var(--accent-glow) 0%, transparent 60%), var(--card);
-  border-color: rgba(183, 243, 74, 0.55); box-shadow: inset 0 1px 0 var(--edge-lime), 0 12px 30px -12px rgba(183, 243, 74, 0.18); }
+
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .card-head h2 { margin: 0; font-size: 17px; }
 .muted { color: var(--muted); font-size: 13px; }
-.eyebrow { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; }
+
 .chip { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--card); color: var(--ink); white-space: nowrap; }
 .chip.good { background: var(--accent); color: var(--bg); }
 .chip.bad { background: var(--warn); color: var(--bg); }
@@ -93,33 +65,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .list li:first-child { border-top: 0; }
 .grow { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .big { font-size: 18px; font-weight: 700; }
-.warn-icon { width: 10px; height: 10px; border-radius: 5px; background: var(--warn); flex: none; margin-top: 4px; }
 
-/* The pitch. */
-/* Stripes, a soft spotlight towards the center and faint markings (PitchLines in Pitch.tsx). */
-.pitch { position: relative; overflow: hidden; border-radius: 16px; padding: 24px 10px; display: flex; flex-direction: column; gap: 22px; border: 1px solid #235536;
-  background: radial-gradient(85% 60% at 50% 45%, rgba(183, 243, 74, 0.06) 0%, transparent 70%), repeating-linear-gradient(180deg, var(--pitch-a) 0 64px, var(--pitch-b) 64px 128px);
-  box-shadow: inset 0 1px 0 rgba(207, 232, 214, 0.08), inset 0 0 40px rgba(7, 17, 11, 0.45); }
-.pitch-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-.pitch-row { position: relative; z-index: 1; display: flex; justify-content: space-evenly; }
-.kit { width: 100px; display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: 0; padding: 0; transition: transform var(--dur-fast) var(--ease-spring-soft); }
-.kit:not(:disabled):hover { transform: translateY(-3px); }
-.kit:not(:disabled):hover .kit-shirt { border-color: rgba(232, 237, 247, 0.45); }
-.kit:disabled { cursor: default; color: inherit; }
 .btn:disabled { opacity: 0.4; cursor: default; }
-.kit-shirt { position: relative; width: 52px; height: 52px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line);
-  display: flex; align-items: center; justify-content: center; transition: border-color var(--dur-fast) ease, box-shadow var(--dur-med) ease; }
-/* The player you're replacing in the Planner pulses orange; a new signing gets a lime ring. */
-.kit.selected .kit-shirt { border-color: var(--warn); box-shadow: 0 0 0 4px var(--warn-glow); animation: kit-pulse 1.8s ease-in-out infinite; }
-.kit.incoming .kit-shirt { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
-@keyframes kit-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--warn-glow); } 50% { box-shadow: 0 0 0 7px rgba(255, 162, 76, 0.04); } }
-.kit-name { max-width: 100px; padding: 3px 8px; font-size: 12px; font-weight: 600; background: rgba(11, 18, 32, 0.88); border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kit-meta { font-size: 12px; color: #cfe8d6; }
-.badge { position: absolute; top: -7px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--bg); }
-.badge.captain { right: -9px; background: var(--accent); }
-.badge.flag { left: -10px; background: var(--warn); }
-.bench { display: flex; flex-wrap: wrap; gap: 8px; }
-.bench-item { flex: 1 1 140px; padding: 10px 12px; border-radius: 10px; background: var(--card); font-size: 13px; }
 
 /* Planner. */
 .weeks { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -135,7 +82,7 @@ td { padding: 10px 12px; border-top: 1px solid var(--line); white-space: nowrap;
 .gain { color: var(--accent); font-weight: 600; }
 .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .summary-grid b { font-size: 20px; display: block; }
-.line-item { display: flex; justify-content: space-between; font-size: 13px; }
+
 .moves { display: flex; flex-direction: column; gap: 8px; }
 .moves:empty { display: none; }
 /* Inner wrapper for a card whose content crossfades; keeps the card's spacing. */
@@ -247,14 +194,13 @@ table.prices .right { text-align: right; }
 .chip-card-stats b { font-size: 18px; }
 .chip-card .muted:last-child { font-size: 13px; line-height: 1.5; }
 
-
-/* Polish layer from docs/frontend-upgrade-guide.md. */
+/* Polish layer: fixed-width digits, hover feedback, focus rings and small animations. */
 
 /* Fixed-width digits, so numbers don't shift sideways as they change or sort. */
-.num, .stat b, .big, .kit-meta b, .summary-grid b, table td, .chip-card-stats b, .panel-tile b, .progress b { font-variant-numeric: tabular-nums; }
+.num, .big, .summary-grid b, table td, .chip-card-stats b, .panel-tile b, .progress b { font-variant-numeric: tabular-nums; }
 
 /* Hover and press feedback on buttons and clickable cards. */
-.btn, .week-card, .nav-link { transition: transform var(--dur-fast) var(--ease-out-quart), background-color var(--dur-fast) var(--ease-out-quart), border-color var(--dur-fast) var(--ease-out-quart), color var(--dur-fast) var(--ease-out-quart); }
+.btn, .week-card { transition: transform var(--dur-fast) var(--ease-out-quart), background-color var(--dur-fast) var(--ease-out-quart), border-color var(--dur-fast) var(--ease-out-quart), color var(--dur-fast) var(--ease-out-quart); }
 .btn:hover:not(:disabled) { border-color: #3a4c73; background: rgba(255, 255, 255, 0.04); }
 .btn.primary:hover:not(:disabled) { background: #c8fa6b; transform: translateY(-1px); }
 .btn:active:not(:disabled) { transform: scale(0.98); }
@@ -289,7 +235,234 @@ table.ticker tbody tr { transition: opacity 200ms var(--ease-out-quart); }
 
 /* Everyone who turns on "Reduce motion" in macOS gets instant changes instead. */
 @media (prefers-reduced-motion: reduce) {
-  .btn, .week-card, .nav-link, .card, .kit, .kit-shirt, table.ticker tbody tr, .chip-week-box, .segmented-label { transition: none; }
-  .kit.selected .kit-shirt, .progress.imminent .progress-fill, .skeleton-shimmer { animation: none; }
-  .kit:not(:disabled):hover, .week-card:hover, .btn:active:not(:disabled), .btn.primary:hover:not(:disabled), .chip-week:not(.past):hover .chip-week-box { transform: none; }
+  .btn, .week-card, .card, table.ticker tbody tr, .chip-week-box, .segmented-label { transition: none; }
+  .progress.imminent .progress-fill, .skeleton-shimmer { animation: none; }
+  .week-card:hover, .btn:active:not(:disabled), .btn.primary:hover:not(:disabled), .chip-week:not(.past):hover .chip-week-box { transform: none; }
 }
+
+/* ---- Broadcast redesign (Dashboard first) ---- */
+:root { --condensed: "Barlow Condensed", "Arial Narrow", sans-serif; --panel: #0b1220; --panel-line: #1e2b47; --raised: #121c33; }
+
+/* Top header on every page. */
+.topnav { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 16px 36px; background: #0a1120; border-bottom: 1px solid #1a2540; box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.9); }
+.topnav-brand { display: flex; align-items: center; gap: 12px; height: 42px; color: var(--ink); text-decoration: none; }
+.topnav-wordmark { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 28px; letter-spacing: 0.02em; }
+.topnav-links { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; background: #0f1830; border: 1px solid var(--panel-line); border-radius: 12px; }
+.topnav-link { position: relative; height: 42px; display: inline-flex; align-items: center; padding: 0 18px; color: #b9c3d8; text-decoration: none; font-family: var(--condensed); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; }
+.topnav-link:hover { color: var(--ink); }
+.topnav-link[aria-current="page"] { color: var(--bg); font-weight: 800; }
+/* The active page's slanted lime block, which slides between links. */
+.topnav-pill { position: absolute; inset: 0; background: var(--accent); transform: skewX(-12deg); z-index: 0; }
+.topnav-label { position: relative; z-index: 1; }
+.topnav-deadline { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; background: #0f1830; border: 1px solid var(--panel-line); border-radius: 10px; }
+.topnav-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.topnav-deadline-label { font-family: var(--condensed); font-weight: 700; font-size: 16px; letter-spacing: 0.08em; color: #8c98b3; text-transform: uppercase; }
+.topnav-deadline b { font-family: var(--condensed); font-weight: 800; font-size: 20px; text-transform: uppercase; }
+.site-footer { max-width: 1440px; margin: 0 auto; padding: 8px 36px 32px; font-size: 12px; color: #8c98b3; }
+
+/* Page frame and grids. Rows stretch so neighbouring cards share a height. */
+.bc-page { max-width: 1440px; margin: 0 auto; padding: 28px 36px 24px; display: flex; flex-direction: column; gap: 20px; }
+.bc-grid-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; align-items: stretch; }
+.bc-grid-main, .bc-grid-analysis { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 20px; }
+.bc-grid-main { align-items: stretch; }
+.bc-grid-analysis { align-items: start; }
+@media (max-width: 1100px) { .bc-grid-main, .bc-grid-analysis { grid-template-columns: minmax(0, 1fr); } }
+
+/* Shared card pieces. */
+.bc-card { position: relative; overflow: hidden; border-radius: 18px; background: var(--panel); border: 1px solid var(--panel-line); }
+.bc-eyebrow { font-family: var(--condensed); font-weight: 700; font-size: 15px; line-height: 18px; letter-spacing: 0.16em; color: #8c98b3; }
+.bc-title { font-family: var(--condensed); font-weight: 800; font-size: 24px; letter-spacing: 0.04em; }
+.bc-title-small { font-family: var(--condensed); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; }
+.bc-note { margin: 0; font-size: 14px; line-height: 20px; color: #b9c3d8; }
+.bc-one-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-accent { color: var(--accent); }
+.bc-warn { color: var(--warn); }
+.bc-button { display: inline-flex; align-items: center; height: 44px; padding: 0 22px; background: var(--accent); color: var(--bg); font-family: var(--condensed); font-weight: 800; font-size: 18px; letter-spacing: 0.06em; text-decoration: none; transform: skewX(-12deg); transition: background-color var(--dur-fast) var(--ease-out-quart); }
+.bc-button:hover { background: #c8fa6b; }
+.bc-tag { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 8px; font-family: var(--condensed); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; background: var(--accent); color: var(--bg); transform: skewX(-12deg); }
+.bc-tag-warn { background: var(--warn); }
+.bc-tag-info { background: var(--blue); }
+
+/* Hero: projection. */
+.bc-hero { min-height: 300px; padding: 26px 32px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; background: linear-gradient(118deg, #12203d 0%, #0b1220 62%); }
+.bc-slash { position: absolute; top: 0; bottom: 0; background: var(--accent); transform: skewX(-18deg); pointer-events: none; }
+.bc-slash-wide { right: -110px; width: 200px; opacity: 0.1; }
+.bc-slash-thin { right: 70px; width: 10px; opacity: 0.45; }
+.bc-hero > :not(.bc-slash) { position: relative; z-index: 1; }
+.bc-hero-body { display: flex; align-items: flex-end; gap: 32px; flex-wrap: wrap; }
+.bc-giant { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 132px; line-height: 0.82; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.bc-bars { display: flex; align-items: flex-end; gap: 12px; }
+.bc-bar-col { width: 48px; height: 124px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+.bc-bar-value { font-family: var(--condensed); font-weight: 700; font-size: 17px; line-height: 18px; }
+.bc-bar { width: 34px; border-radius: 3px; background: #2a3a5c; transform: skewX(-12deg); }
+.bc-bar-now { background: var(--accent); }
+.bc-bar-label { font-size: 12px; line-height: 14px; color: #8c98b3; }
+
+/* Hero: squad money. */
+.bc-squad { min-height: 300px; padding: 26px 30px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+.bc-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.bc-stat { height: 104px; padding: 14px 16px; background: var(--raised); border-top: 3px solid var(--accent); display: flex; flex-direction: column; justify-content: space-between; }
+.bc-stat-label { font-size: 12px; line-height: 16px; color: #8c98b3; }
+.bc-stat-value { font-family: var(--condensed); font-weight: 800; font-size: 36px; line-height: 40px; white-space: nowrap; }
+.bc-squad-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* Lineup: pitch and substitutes. */
+.bc-lineup { display: flex; flex-direction: column; border-color: #1e3a2a; }
+.bc-lineup-head { height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(90deg, #0f2a1c, #0b1220); }
+.bc-pitch { position: relative; height: 540px; padding: 30px 16px; display: grid; grid-auto-rows: minmax(0, 1fr); align-items: center;
+  background: radial-gradient(70% 55% at 50% 50%, rgba(183, 243, 74, 0.08) 0%, transparent 70%), repeating-linear-gradient(180deg, #11301f 0 67.5px, #133622 67.5px 135px); }
+.bc-pitch-line { position: absolute; pointer-events: none; border: 1.5px solid rgba(207, 232, 214, 0.16); }
+.bc-pitch-box { inset: 16px; border-radius: 6px; }
+.bc-pitch-half { left: 16px; right: 16px; top: 50%; height: 0; border-width: 1.5px 0 0; }
+.bc-pitch-circle { left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; }
+.bc-pitch-row { position: relative; display: flex; justify-content: space-evenly; }
+/* Every player gets the same slot: shirt, name plate, xP tag. */
+.bc-token { width: 120px; height: 104px; padding: 0; background: none; border: 0; color: inherit; display: grid; grid-template-rows: 52px 26px 22px; justify-items: center; align-items: center; gap: 2px; transition: transform var(--dur-fast) var(--ease-spring-soft); }
+.bc-token:hover { transform: translateY(-3px); }
+.bc-token-sub { height: 122px; grid-template-rows: 16px 48px 26px 22px; }
+.bc-token-order { font-family: var(--condensed); font-weight: 700; font-size: 13px; line-height: 16px; letter-spacing: 0.1em; color: #9db5a6; }
+.bc-token-shirt { position: relative; display: flex; align-items: center; justify-content: center; }
+.bc-token-captain { position: absolute; top: -6px; right: -14px; width: 24px; height: 24px; border-radius: 12px; background: var(--accent); color: var(--bg); font-family: var(--condensed); font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.bc-token-name { max-width: 112px; height: 26px; padding: 3px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #f3f6fb; color: var(--bg); font-family: var(--condensed); font-weight: 700; font-size: 16px; line-height: 20px; letter-spacing: 0.03em; text-transform: uppercase; transform: skewX(-12deg); }
+.bc-token-xp { height: 22px; padding: 1px 10px; background: var(--accent); color: var(--bg); font-family: var(--condensed); font-weight: 800; font-size: 15px; line-height: 20px; transform: skewX(-12deg); font-variant-numeric: tabular-nums; }
+.bc-token-sub .bc-token-name { background: #c9d3e3; }
+.bc-token-sub .bc-token-xp { background: #6e8f3a; }
+.bc-subs { padding: 14px 20px 18px; background: linear-gradient(180deg, #0c1d15 0%, #0a1610 100%); border-top: 2px solid rgba(207, 232, 214, 0.14); display: flex; flex-direction: column; gap: 10px; }
+.bc-subs-head { height: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bc-subs-note { font-size: 12px; color: #9db5a6; }
+.bc-subs-row { display: flex; justify-content: space-evenly; flex-wrap: wrap; }
+
+/* This week: captain and chip, each taking half the card. */
+.bc-thisweek { padding: 0 26px; display: flex; flex-direction: column; background: linear-gradient(160deg, #182a12 0%, #0b1220 45%); border-color: #2e4a1a; }
+.bc-thisweek-head { height: 56px; flex: none; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--panel-line); }
+.bc-decision { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 24px 0; }
+.bc-decision + .bc-decision { border-top: 1px solid var(--panel-line); }
+.bc-decision-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.bc-decision-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bc-decision-name { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 56px; line-height: 52px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-decision-name-small { font-size: 40px; line-height: 40px; }
+.bc-decision-number { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 64px; line-height: 56px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.bc-decision-number-small { font-size: 48px; line-height: 44px; }
+.bc-alternatives { display: flex; flex-direction: column; gap: 8px; }
+.bc-alt { height: 22px; display: grid; grid-template-columns: 96px 92px minmax(0, 1fr) 36px; align-items: center; gap: 10px; font-size: 14px; }
+.bc-alt-role { font-size: 12px; letter-spacing: 0.04em; color: #8c98b3; }
+.bc-alt-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-alt-track { height: 8px; background: #1a2540; }
+.bc-alt-fill { display: block; height: 8px; background: #6e8f3a; }
+.bc-alt-xp { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Section heading. */
+.bc-section-head { display: flex; align-items: center; gap: 16px; padding-top: 28px; }
+.bc-section-slash { width: 12px; height: 46px; flex: none; background: var(--accent); transform: skewX(-18deg); }
+.bc-section-title { margin: 0; font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 44px; line-height: 44px; }
+
+/* Squad analysis table: fixed column widths and 52px rows. */
+.bc-table-card { padding: 0; }
+.bc-table { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.bc-table th { height: 52px; padding: 0 12px; background: #0f1830; font-family: var(--condensed); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; color: #8c98b3; text-align: left; white-space: nowrap; }
+.bc-table th.right, .bc-table td.right { text-align: right; }
+.bc-table td { height: 52px; padding: 0 12px; border-top: 1px solid #16213a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-table tr.bc-bench-row td { background: #090f1c; }
+.bc-table tr.bc-bench-first td { border-top: 1px solid #3a4a6b; }
+.bc-cell-pos { font-family: var(--condensed); font-weight: 700; font-size: 15px; letter-spacing: 0.06em; color: #8c98b3; }
+.bc-cell-name { font-weight: 600; }
+.bc-cell-num { font-family: var(--condensed); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+.bc-cell-strong { font-weight: 800; font-size: 20px; }
+.bc-fixtures { display: grid; grid-template-columns: repeat(3, 54px); gap: 4px; }
+.bc-fixture { height: 24px; display: flex; align-items: center; justify-content: center; font-family: var(--condensed); font-weight: 700; font-size: 14px; letter-spacing: 0.03em; transform: skewX(-10deg); }
+.bc-price-change { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.bc-spark { display: block; }
+.bc-spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.bc-spark circle { fill: var(--accent); }
+
+/* Keep an eye on: every row is exactly two lines at the same height. */
+.bc-eye-head { height: 52px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f1830; }
+.bc-eye-row { height: 72px; padding: 0 20px; display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 14px; border-top: 1px solid #16213a; }
+.bc-eye-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bc-eye-text b { font-weight: 600; font-size: 14px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-eye-text span { font-size: 13px; line-height: 18px; color: #a7b2c9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-eye-empty { margin: 0; padding: 20px; font-size: 14px; color: #a7b2c9; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bc-token, .bc-button { transition: none; }
+  .bc-token:hover { transform: none; }
+}
+
+/* ---- Broadcast look for every other page ---- */
+
+/* Page hero: title on the left, the page's own figures on the right. */
+.bc-page-hero { min-height: 0; padding: 26px 32px; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; }
+.bc-page-hero-text { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 760px; }
+.bc-page-title { margin: 0; font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 72px; line-height: 0.9; letter-spacing: -0.01em; }
+.bc-page-hero-side { display: flex; flex-wrap: wrap; gap: 10px; }
+.bc-hero-figure { width: 176px; height: 96px; padding: 12px 16px; background: var(--raised); border-top: 3px solid var(--accent); display: flex; flex-direction: column; justify-content: space-between; }
+.bc-hero-figure-value { font-family: var(--condensed); font-weight: 800; font-size: 34px; line-height: 38px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Shared pieces, restyled once for every page. */
+.card { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 18px; padding: 22px 24px; box-shadow: none; }
+.card-head { min-height: 32px; }
+.card-head h2 { font-family: var(--condensed); font-weight: 800; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; }
+.btn { border-radius: 0; border-color: #2a3a5c; font-family: var(--condensed); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; transform: skewX(-12deg); }
+.btn:active:not(:disabled), .btn.primary:hover:not(:disabled) { transform: skewX(-12deg); }
+.chip { border-radius: 0; padding: 2px 8px; font-family: var(--condensed); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; transform: skewX(-12deg); }
+th { font-family: var(--condensed); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #8c98b3; }
+.info-banner { border-radius: 12px; background: #0f1830; border: 1px solid #24476e; color: #bfe0ff; }
+.segmented { background: #0f1830; border-color: var(--panel-line); border-radius: 12px; }
+.segmented .segmented-btn { min-height: 38px; font-family: var(--condensed); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: #b9c3d8; }
+.segmented-pill { border-radius: 0; transform: skewX(-12deg); }
+
+/* Planner: week cards, check card, move list and pitch states. */
+.week-card { min-height: 118px; padding: 14px 16px; gap: 4px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 14px; }
+.week-card[aria-pressed="true"] { border: 2px solid var(--accent); background: linear-gradient(160deg, #182a12 0%, #0b1220 60%); }
+.week-card-top { height: 24px; display: flex; align-items: center; justify-content: space-between; }
+.week-card-gw { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 22px; }
+.week-card-xp { font-family: var(--condensed); font-weight: 800; font-size: 40px; line-height: 42px; font-variant-numeric: tabular-nums; }
+.week-card-unit { margin-left: 4px; font-size: 16px; color: #8c98b3; }
+.week-card-meta { font-size: 13px; color: #a7b2c9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.summary-grid > div { height: 84px; padding: 12px 14px; background: var(--raised); border-top: 3px solid var(--accent); display: flex; flex-direction: column; justify-content: space-between; }
+.summary-grid b, .summary-grid b .num { font-family: var(--condensed); font-weight: 800; font-size: 28px; line-height: 32px; }
+.move { border-radius: 0; background: var(--raised); border-left: 3px solid var(--accent); }
+.bc-lineup-meta { display: flex; align-items: center; gap: 14px; }
+.bc-token-selected .bc-token-name { background: var(--warn); }
+.bc-token-selected .bc-token-shirt { filter: drop-shadow(0 0 10px rgba(255, 162, 76, 0.85)); }
+.bc-token-incoming .bc-token-name { background: var(--accent); }
+.bc-token-incoming .bc-token-shirt { filter: drop-shadow(0 0 10px rgba(183, 243, 74, 0.7)); }
+
+/* Fixture Ticker: slanted cells and condensed club names and scores. */
+.fixture { border-radius: 0; font-family: var(--condensed); font-size: 14px; letter-spacing: 0.03em; transform: skewX(-10deg); }
+.fixture-stack .fixture:not(:only-child) { border-radius: 0; font-size: 12px; }
+.fixture.blank { transform: none; font-family: Inter, sans-serif; }
+table.ticker th[scope="row"] { font-family: var(--condensed); font-weight: 800; font-size: 17px; letter-spacing: 0.04em; color: var(--ink); }
+table.ticker td.score { font-family: var(--condensed); font-weight: 800; font-size: 20px; }
+
+/* Price Watch: summary cards and numbers in the condensed face. */
+.summary-cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.summary-card { height: 112px; justify-content: space-between; border-top: 3px solid var(--accent); border-radius: 0 0 14px 14px; }
+.summary-card .big { font-family: var(--condensed); font-size: 40px; line-height: 40px; }
+.summary-card .big.warn { color: var(--warn); }
+table.prices td.right, .progress b { font-family: var(--condensed); font-weight: 700; font-size: 17px; }
+
+/* Chip Planner: condensed week numbers, slanted chip labels, big gains. */
+.chip-week-box { border-radius: 3px; font-family: var(--condensed); font-size: 13px; letter-spacing: 0.04em; }
+.chip-week span { font-family: var(--condensed); font-size: 12px; }
+.chip-card { min-height: 180px; }
+.chip-card h2 { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 30px; letter-spacing: 0.01em; }
+.chip-card-stats b { font-family: var(--condensed); font-weight: 800; font-size: 30px; }
+
+/* Player panel. */
+.player-panel { background: #0a1120; border-left: 1px solid var(--panel-line); }
+.panel-head h2 { font-family: var(--condensed); font-style: italic; font-weight: 800; font-size: 40px; line-height: 40px; text-transform: uppercase; }
+.panel-tile { border-radius: 0; background: var(--raised); border-top: 3px solid var(--accent); }
+.panel-tile b { font-family: var(--condensed); font-weight: 800; font-size: 26px; }
+.panel-section h3 { font-family: var(--condensed); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; }
+.recent-chart { border-radius: 0; background: var(--raised); }
+.recent-points { font-family: var(--condensed); font-size: 14px; }
+.panel-close { border-radius: 0; transform: skewX(-12deg); }
+
+/* Fixes found when checking each page at 1440px. */
+/* The page wrapper fills the width; otherwise "margin: auto" inside the
+   flex column shrinks it to its content and pages start at different places. */
+.bc-page { width: 100%; }
+/* Animated numbers carry the "num" class; inside these, keep the condensed face. */
+.bc-hero-figure-value .num, .week-card-xp .num, .summary-grid b .num { font-family: inherit; font-size: inherit; }
+.ticker-key { font-size: 13px; }

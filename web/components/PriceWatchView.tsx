@@ -4,7 +4,7 @@
 // a price change. Every number is FPL's own predictor, copied into the
 // snapshot by the sync job; this file only filters and draws it.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatCount, formatPrice } from "@/lib/format";
 import type { PriceWatch, PriceWatchRow } from "@/lib/types";
 import { useWatchlist } from "@/lib/watchlist";
@@ -26,10 +26,9 @@ const IMMINENT_PROGRESS = 95;
 
 interface PriceWatchViewProps {
   watch: PriceWatch;
-  checkedAt: string;
 }
 
-export function PriceWatchView({ watch, checkedAt }: PriceWatchViewProps) {
+export function PriceWatchView({ watch }: PriceWatchViewProps) {
   const [filter, setFilter] = useState<Filter>("all");
   const [showAll, setShowAll] = useState(false);
   const [watchlist, setWatchlist] = useWatchlist();
@@ -47,12 +46,6 @@ export function PriceWatchView({ watch, checkedAt }: PriceWatchViewProps) {
       <div className="summary-cards">
         <SquadCard title="Your players at risk" ids={watch.atRisk} rowsById={rowsById} direction="fall" />
         <SquadCard title="Your players rising" ids={watch.rising} rowsById={rowsById} direction="rise" />
-        <CountdownCard />
-        <section className="card summary-card">
-          <span className="muted">Last checked</span>
-          <b className="big">{formatTime(checkedAt)}</b>
-          <span className="muted">Updates each time the sync runs</span>
-        </section>
       </div>
 
       {watch.calibrating && (
@@ -185,38 +178,4 @@ function SquadCard({ title, ids, rowsById, direction }: { title: string; ids: nu
       </span>
     </section>
   );
-}
-
-// Time left until the next change at 00:00 UK. Worked out in the browser
-// after the page loads, so the server and browser never disagree.
-function CountdownCard() {
-  const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
-  useEffect(() => {
-    const update = () => setMinutesLeft(minutesUntilUkMidnight(new Date()));
-    update();
-    const timer = setInterval(update, 30_000);
-    return () => clearInterval(timer);
-  }, []);
-  return (
-    <section className="card summary-card">
-      <span className="muted">Next price change</span>
-      <b className="big">00:00</b>
-      <span className="muted">
-        {minutesLeft === null ? "UK time" : `${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m from now`}
-      </span>
-    </section>
-  );
-}
-
-// Minutes from `now` until the next midnight in London, which handles the
-// clocks changing between GMT and BST.
-function minutesUntilUkMidnight(now: Date): number {
-  const parts = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/London" }).formatToParts(now);
-  const hour = Number(parts.find((part) => part.type === "hour")?.value);
-  const minute = Number(parts.find((part) => part.type === "minute")?.value);
-  return 24 * 60 - (hour * 60 + minute);
-}
-
-function formatTime(isoTime: string): string {
-  return new Date(isoTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 }

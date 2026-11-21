@@ -1,0 +1,54 @@
+"use client";
+
+// The header on every page: logo, page links and the gameweek deadline.
+// It's a client component because it highlights the page you're on, and
+// the lime highlight slides between links when you change page.
+
+import { motion } from "motion/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { formatDeadline } from "@/lib/format";
+import { BrandMark } from "./BrandMark";
+
+const PAGES = [
+  { label: "Dashboard", href: "/" },
+  { label: "Planner", href: "/planner" },
+  { label: "Fixtures", href: "/fixtures" },
+  { label: "Prices", href: "/prices" },
+  { label: "Chips", href: "/chips" },
+];
+
+interface TopNavProps {
+  gameweek: number;
+  deadline: string;
+}
+
+export function TopNav({ gameweek, deadline }: TopNavProps) {
+  const pathname = usePathname();
+  return (
+    <header className="topnav">
+      <Link href="/" className="topnav-brand" aria-label="SquadSense home">
+        <BrandMark size={40} />
+        <span className="topnav-wordmark">SQUADSENSE</span>
+      </Link>
+      <nav className="topnav-links" aria-label="Main">
+        {PAGES.map((page) => {
+          const isActive = pathname === page.href;
+          return (
+            <Link key={page.href} href={page.href} className="topnav-link" aria-current={isActive ? "page" : undefined}>
+              {isActive && (
+                <motion.span className="topnav-pill" layoutId="topnav-active-pill" aria-hidden="true" transition={{ type: "spring", stiffness: 420, damping: 38 }} />
+              )}
+              <span className="topnav-label">{page.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="topnav-deadline">
+        <span className="topnav-dot" aria-hidden="true" />
+        <span className="topnav-deadline-label">GW{gameweek} deadline</span>
+        <b>{formatDeadline(deadline)}</b>
+      </div>
+    </header>
+  );
+}

@@ -13,7 +13,7 @@ from . import flags, planner, rules
 from .chips import build_chip_plan
 from .fixtures import FixtureModel, fixtures_by_team_and_week, team_ratings
 from .model import expected_points_for_week, player_rates
-from .player_detail import build_player_details
+from .player_detail import build_player_details, recent_gameweeks
 from .price_watch import build_price_watch
 from .ticker import build_ticker
 
@@ -60,8 +60,12 @@ def captain_safety(chance_60_minutes):
     return "Some risk"
 
 
-def describe_player(player, teams_by_id, expected_points, weeks, selling_price=None):
-    """The fields the website shows for one player."""
+def describe_player(player, teams_by_id, expected_points, weeks, history_rows, selling_price=None):
+    """The fields the website shows for one player.
+
+    `form` is his points in each of his club's last six gameweeks, for the
+    Dashboard's form sparkline.
+    """
     return {
         "id": player["id"],
         "name": player["web_name"],
@@ -77,6 +81,7 @@ def describe_player(player, teams_by_id, expected_points, weeks, selling_price=N
         "netTransfersToday": player["transfers_in_event"] - player["transfers_out_event"],
         "xp": {str(week): expected_points[player["id"]][week] for week in weeks},
         "windowXp": round(sum(expected_points[player["id"]][week] for week in weeks), 2),
+        "form": [week["points"] for week in recent_gameweeks(history_rows)],
     }
 
 
@@ -136,7 +141,7 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
     players = {
         str(player_id): describe_player(
             players_by_id[player_id], teams_by_id, expected_points, weeks,
-            squad_state.selling_prices.get(player_id),
+            histories.get(player_id, []), squad_state.selling_prices.get(player_id),
         )
         for player_id in included_ids
     }

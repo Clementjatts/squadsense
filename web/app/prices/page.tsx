@@ -1,8 +1,9 @@
-// Price Watch page. The server loads the snapshot; filters, the watchlist
-// and the countdown live in the PriceWatchView client component.
+// Price Watch page. The hero carries the countdown to tonight's change;
+// filters and the watchlist live in the PriceWatchView client component.
 
+import { PageHero } from "@/components/PageHero";
+import { PriceCountdown } from "@/components/PriceCountdown";
 import { PriceWatchView } from "@/components/PriceWatchView";
-import { TopBar } from "@/components/TopBar";
 import { getSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +11,15 @@ export const dynamic = "force-dynamic";
 export default async function PricesPage() {
   const { snapshot } = await getSnapshot();
   return (
-    <>
-      <TopBar title="Price Watch" subtitle="Prices change once a day at 00:00 UK" snapshot={snapshot} />
-      <div className="content">
-        <PriceWatchView watch={snapshot.priceWatch} checkedAt={snapshot.generatedAt} />
-      </div>
-    </>
+    <div className="bc-page">
+      <PageHero
+        eyebrow="FPL'S OWN PRICE PREDICTOR"
+        title="PRICE WATCH"
+        subtitle="Prices change once a day at 00:00 UK. Over 100% means FPL expects a change at the next one."
+      >
+        <PriceCountdown />
+      </PageHero>
+      <PriceWatchView watch={snapshot.priceWatch} />
+    </div>
   );
 }

@@ -47,11 +47,17 @@ function getClubKit(clubCode: string): KitPalette {
   return CLUB_KITS[clubCode.toUpperCase()] ?? DEFAULT_KIT;
 }
 
-export function ClubKit({ clubCode, isGoalkeeper = false }: { clubCode: string; isGoalkeeper?: boolean }) {
+interface ClubKitProps {
+  clubCode: string;
+  isGoalkeeper?: boolean;
+  width?: number; // height follows the shirt's proportions
+}
+
+export function ClubKit({ clubCode, isGoalkeeper = false, width = 42 }: ClubKitProps) {
   const palette = isGoalkeeper ? GOALKEEPER_KIT : getClubKit(clubCode);
   const outline = { stroke: "#0b1220", strokeOpacity: 0.45, strokeWidth: 1.5 };
   return (
-    <svg width="42" height="40" viewBox="0 0 64 60" fill="none" aria-hidden="true">
+    <svg width={width} height={Math.round((width * 60) / 64)} viewBox="0 0 64 60" fill="none" aria-hidden="true">
       {/* Sleeves */}
       <path d="M18 8 L4 18 L10 31 L18 26 Z" fill={palette.sleeves} {...outline} />
       <path d="M46 8 L60 18 L54 31 L46 26 Z" fill={palette.sleeves} {...outline} />

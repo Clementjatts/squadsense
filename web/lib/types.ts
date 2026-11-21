@@ -18,6 +18,7 @@ export interface Player {
   netTransfersToday: number;
   xp: Record<string, number>;
   windowXp: number;
+  form: number[]; // points in each of his club's last six gameweeks, oldest first
 }
 
 export interface Lineup {

@@ -2,7 +2,7 @@
 // one card per chip with its best week and expected gain. Nothing here is
 // interactive, so it renders entirely on the server.
 
-import { TopBar } from "@/components/TopBar";
+import { PageHero } from "@/components/PageHero";
 import { formatGain } from "@/lib/format";
 import { getSnapshot } from "@/lib/snapshot";
 import type { ChipCard, ChipPlan } from "@/lib/types";
@@ -12,22 +12,26 @@ export const dynamic = "force-dynamic";
 export default async function ChipsPage() {
   const { snapshot } = await getSnapshot();
   const plan = snapshot.chipPlan;
+  const half = plan.halfStart === 1 ? "first-half" : "second-half";
   return (
-    <>
-      <TopBar title="Chip Planner" subtitle="When to play each chip" snapshot={snapshot} />
-      <div className="content">
-        <SeasonTimeline plan={plan} />
-        <div className="chip-cards">
-          {plan.cards.map((card) => (
-            <ChipCardView key={card.chip} card={card} />
-          ))}
-        </div>
-        <p className="muted small">
-          FPL allows one chip per gameweek, so the plan never puts two in the same week. Gains assume you keep your
-          current squad and use the model&apos;s expected points, which are still untested guesses.
-        </p>
+    <div className="bc-page">
+      <PageHero
+        eyebrow={`${half.toUpperCase()} CHIPS EXPIRE ${formatWindowDeadline(plan.halfDeadline).toUpperCase()}`}
+        title="CHIP PLANNER"
+        subtitle="When to play each chip. FPL allows one per gameweek, so the plan never puts two in the same week."
+        figures={[
+          { label: "Chips left", value: plan.chipsLeft, accent: true },
+          { label: "Gameweeks left", value: plan.weeksLeft },
+        ]}
+      />
+      <SeasonTimeline plan={plan} />
+      <div className="chip-cards">
+        {plan.cards.map((card) => (
+          <ChipCardView key={card.chip} card={card} />
+        ))}
       </div>
-    </>
+      <p className="bc-note">Gains assume you keep your current squad and use the model&apos;s expected points.</p>
+    </div>
   );
 }
 
@@ -42,16 +46,12 @@ function formatWindowDeadline(isoTime: string): string {
 // week is outlined and a gap marks the end of the first half.
 function SeasonTimeline({ plan }: { plan: ChipPlan }) {
   const isFirstHalf = plan.halfStart === 1;
-  const half = isFirstHalf ? "first-half" : "second-half";
   // The week where the second set of chips starts, from FPL's chip windows.
   const gapWeek = isFirstHalf ? plan.halfStop + 1 : plan.halfStart;
   return (
     <section className="card">
       <div className="card-head">
         <h2>Season timeline</h2>
-        <span className="muted">
-          {plan.weeksLeft} gameweeks left to use {plan.chipsLeft} {half} chips (deadline {formatWindowDeadline(plan.halfDeadline)})
-        </span>
       </div>
       <div className="chip-timeline">
         {plan.timeline.map((week) => {

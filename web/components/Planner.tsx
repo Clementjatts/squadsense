@@ -7,7 +7,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
-import { Pitch } from "./Pitch";
+import { BroadcastPitch } from "./BroadcastPitch";
+import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
 import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type PlannedMove } from "@/lib/planning";
 import type { Snapshot } from "@/lib/types";
@@ -56,54 +57,68 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const options = swapOutId !== null ? replacementOptions(snapshot, weekPlan.squad, swapOutId).slice(0, OPTIONS_SHOWN) : [];
   const incomingIds = weekMoves.map((move) => move.inId);
 
+  const totalHits = plans.reduce((sum, plan) => sum + plan.hitPoints, 0);
+
   return (
     <>
+      {/* The plan's headline numbers. They update as you add or undo moves. */}
+      <PageHero
+        eyebrow={`GW${weeks[0]} TO GW${weeks[weeks.length - 1]}`}
+        title="TRANSFER PLANNER"
+        subtitle={
+          snapshot.squadSource === "model"
+            ? "Model-picked squad until your picks go public. Nothing changes on FPL until you make it there."
+            : "Test moves before you make them. Nothing changes on FPL until you make it there."
+        }
+        figures={[
+          { label: "Plan vs no moves", value: <AnimatedNumber value={totalScore - baselineScore} format={(value) => `${formatGain(value)} xP`} />, accent: true },
+          { label: "Transfers planned", value: moves.length },
+          { label: "Points hit", value: totalHits === 0 ? "0" : `-${totalHits}` },
+        ]}
+      />
+
       <section className="weeks" aria-label="Plan by gameweek">
         {plans.map((plan) => (
           <button key={plan.week} type="button" className="week-card" aria-pressed={plan.week === selectedWeek} onClick={() => chooseWeek(plan.week)}>
-            <span className="card-head">
-              <strong className="num">GW{plan.week}</strong>
+            <span className="week-card-top">
+              <span className="week-card-gw">GW{plan.week}</span>
               {snapshot.doubles[String(plan.week)]?.length > 0 && <span className="chip good">Double</span>}
             </span>
-            <span>{plan.transfersMade === 0 ? "No transfers" : `${plan.transfersMade} transfer${plan.transfersMade > 1 ? "s" : ""}`}</span>
-            <span className="muted">
-              Free {formatFreeTransfers(plan.freeTransfersBefore)} · xP <b><AnimatedNumber value={plan.expectedPoints} format={formatXp} /></b>
-              {plan.hitPoints > 0 && <b style={{ color: "var(--warn)" }}> · -{plan.hitPoints}</b>}
+            <span className="week-card-xp">
+              <AnimatedNumber value={plan.expectedPoints} format={formatXp} />
+              <span className="week-card-unit">xP</span>
+            </span>
+            <span className="week-card-meta">
+              {plan.transfersMade === 0 ? "No transfers" : `${plan.transfersMade} transfer${plan.transfersMade > 1 ? "s" : ""}`} · Free{" "}
+              {formatFreeTransfers(plan.freeTransfersBefore)}
+              {plan.hitPoints > 0 && <b className="bc-warn"> · -{plan.hitPoints}</b>}
             </span>
           </button>
         ))}
       </section>
 
       <div className="row">
-        <div className="col-wide" style={{ flex: "1 1 440px" }}>
+        <div className="col-wide" style={{ flex: "1.25 1 660px" }}>
+          <BroadcastPitch
+            title={`GW${selectedWeek} SQUAD`}
+            hint="Click a player to replace him"
+            starters={weekPlan.starters}
+            bench={weekPlan.bench}
+            captain={weekPlan.captain}
+            players={players}
+            week={selectedWeek}
+            selectedId={swapOutId}
+            incomingIds={incomingIds}
+            onPlayerClick={setSwapOutId}
+          />
+
+        </div>
+
+        <div className="col-narrow" style={{ flex: "1 1 460px" }}>
           <section className="card">
             <div className="card-head">
-              <h2>GW{selectedWeek} squad</h2>
-              <span className="muted">Click a player to replace him</span>
+              <h2>GW{selectedWeek} check</h2>
             </div>
-            <Pitch
-              starters={weekPlan.starters}
-              captain={weekPlan.captain}
-              players={players}
-              week={selectedWeek}
-              selectedId={swapOutId}
-              incomingIds={incomingIds}
-              onPlayerClick={setSwapOutId}
-            />
-            <div className="bench">
-              {weekPlan.bench.map((id) => (
-                <button key={id} type="button" className="bench-item" style={{ textAlign: "left", border: id === swapOutId ? "1px solid var(--warn)" : "0" }} onClick={() => setSwapOutId(id)}>
-                  <strong>{players[id].name}</strong>
-                  <div className="muted">
-                    {players[id].team} · {formatXp(players[id].xp[String(selectedWeek)] ?? 0)} xP
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="card">
-            <h2 style={{ margin: 0, fontSize: 17 }}>GW{selectedWeek} check</h2>
             <div className="summary-grid">
               <div>
                 <span className="muted">Bank after</span>
@@ -113,11 +128,12 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 </b>
               </div>
               <div>
-                <span className="muted">Free used</span>
+                <span className="muted">Free transfers used</span>
                 <b className="num">
+                  {/* "∞" when transfers are unlimited, as in a team's first week. */}
                   {weekPlan.freeTransfersBefore === null
-                    ? `${weekPlan.transfersMade} of unlimited`
-                    : `${Math.min(weekPlan.transfersMade, weekPlan.freeTransfersBefore)} of ${weekPlan.freeTransfersBefore}`}
+                    ? `${weekPlan.transfersMade} / ∞`
+                    : `${Math.min(weekPlan.transfersMade, weekPlan.freeTransfersBefore)} / ${weekPlan.freeTransfersBefore}`}
                 </b>
               </div>
               <div>
@@ -159,16 +175,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 ))}
               </AnimatePresence>
             </div>
-            <div className="line-item" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-              <span className="muted">Whole plan vs making no moves</span>
-              <b className="gain">
-                <AnimatedNumber value={totalScore - baselineScore} format={formatGain} /> xP
-              </b>
-            </div>
           </section>
-        </div>
-
-        <div className="col-narrow" style={{ flex: "1.3 1 520px" }}>
           <section className="card">
             {/* Crossfade between "Suggested moves" and "Replace ...": the old
                 view fades out before the new one fades in. */}
