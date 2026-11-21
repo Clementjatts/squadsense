@@ -118,13 +118,15 @@ Website (`web/`, Next.js 16 since 21 November 2026, React 19, TypeScript, plain 
 
 All 47 Python tests pass (about 6 minutes, mostly the chip plan in the agreement test). `next build` passes with no type errors. On 20 November 2026 the real sync ran against the live API (with a model-picked squad), and every page (Dashboard, Planner, Fixtures, Price Watch, Chips, player panel) loaded on real data with no console errors.
 
+On 21 November 2026 hosting went live: Supabase, the private GitHub repo with its Actions schedule, and Vercel at https://squadsense.vercel.app. The scheduled sync writes to Supabase, and the site reads from it and saves push subscriptions with the new `sb_secret_...` key as `SUPABASE_SERVICE_ROLE_KEY`. Alerts work end to end: a test alert (Run workflow, "Only send a test email and phone alert", which runs `python -m squadsense.alerts --test`) reached Clement's inbox and his iPhone's Home Screen app. The iPhone bell menu checks for push support, not `display-mode: standalone`, which an iPhone opened from its icon reported as false.
+
 ### Not verified
 
 - **Real squad not read yet.** The sync runs against the live API, but Clement's picks stay hidden until the GW11 deadline, so the rebuilt bank, selling prices and free transfers haven't been compared with the FPL site yet. Every other field the code reads matched the live API, except the club attack and defence strengths (now all 0, see `fixtures.py`).
 - Free Hit handling: in a Free Hit week the sync plans with the previous week's picks and bank, and leaves Free Hit transfers out of purchase prices. Tested with sample data only; FPL listing Free Hit transfers in the transfer history is about 85% sure.
 - Mini-leagues, Review and Live haven't been seen with Clement's own picks yet, since his squad is hidden until the GW11 deadline. Review needs GW11 to finish first. Live was only checked against GW10 data (see below for what was verified).
 - The five-week plan hasn't been checked on his real squad for the same reason.
-- Supabase, GitHub Actions and Vercel haven't been connected. Clement does those steps from the README with his own keys.
+- No real alert (deadline, price drop, injury, ban, plan change) has gone out yet, only the test alert.
 
 ## Known gaps and assumptions
 
@@ -141,11 +143,11 @@ All 47 Python tests pass (about 6 minutes, mostly the chip plan in the agreement
 
 ## Next steps, in order
 
-1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data; free transfers still to confirm on the site) and the Next.js 16 upgrade (npm audit now clean). Next, hosting: Supabase, GitHub Actions and Vercel on a Cloudflare subdomain (README steps 3 to 5). Before Supabase, stop the `snapshots` table growing by about 1.4 MB per run (keep the latest per team), prune `price_snapshots`, and batch the `predictions` inserts.
+1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data; free transfers still to confirm on the site) and the Next.js 16 upgrade (npm audit now clean). Hosting is live on Vercel (Supabase and the Actions schedule too). Still open: a Cloudflare subdomain.
 2. Price Watch is done, using FPL's own predictor. Still open: check after a few nights whether projection offsets 1 and 2 are the following nights (about 75% sure), and use `price_snapshots` to measure how often the predictor is right.
 3. Chip Planner and Fixture Ticker are done. The five-week plan now covers pairs and rolls. Still open: backtest the captain haul chance and the plan's untested settings.
 4. Player detail panel is done. Still open: the design's "Add to plan" and "Make captain" buttons.
-5. Alerts are built (`jobs/squadsense/alerts.py`, `web/components/AccountMenu.tsx`, `web/public/sw.js`); Clement still has to add the keys (README step 6) and turn them on per device.
+5. Alerts are built (`jobs/squadsense/alerts.py`, `web/components/AccountMenu.tsx`, `web/public/sw.js`); keys are set and alerts are on for his iPhone. Turn them on for other devices from the bell.
 6. Phone layouts for the built pages.
 7. Champions League page with manual import.
 8. Backtesting is done for the xP model (see `docs/backtest-results.md`). Clement's own past seasons can't be replayed: the API only keeps season totals for past seasons, not weekly picks. Still open: backtest the chip and transfer advice.
