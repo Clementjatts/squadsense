@@ -2,18 +2,23 @@
 # Needs two repository secrets: DATABASE_URL (Supabase connection string)
 # and FPL_TEAM_ID. SQUADSENSE_LEAGUES is optional (see the README).
 # Times are UTC, which matches UK time in winter.
+#
+# The repository is private, so GitHub gives 2,000 free minutes a month and
+# bills each run as at least one minute. This schedule uses roughly 900 to
+# 1,000: 12 runs a day plus a nightly refresh that only downloads players
+# whose club played in the last 36 hours.
 
 name: Sync FPL data
 
 on:
   schedule:
-    - cron: "7 * * * *"          # every hour
-    - cron: "*/15 21-23 * * *"   # every 15 minutes before the midnight price change
-    - cron: "37 1 * * *"         # once a night after prices move: refresh every player
+    - cron: "17 7-21/2 * * *"    # every 2 hours from 07:17 to 21:17
+    - cron: "15,45 22-23 * * *"  # 22:15, 22:45, 23:15 and 23:45, before the midnight price change
+    - cron: "37 1 * * *"         # once a night: refresh players whose club just played
   workflow_dispatch:              # lets you run it by hand from the Actions tab
     inputs:
       full:
-        description: "Refresh every player's history (takes about 13 minutes)"
+        description: "Also refresh players whose club played in the last 36 hours (up to 13 minutes after a full matchday)"
         type: boolean
         default: false
 

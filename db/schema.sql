@@ -1,5 +1,7 @@
--- SquadSense database tables. Paste this into the Supabase SQL editor once.
--- The Python jobs write to these tables; the website only reads snapshots.
+-- SquadSense database tables. Paste this into the Supabase SQL editor once
+-- (it's safe to run again: nothing is created twice).
+-- The Python jobs write to these tables; the website reads snapshots and,
+-- for alerts, saves your devices' push subscriptions.
 
 -- Latest copy of each FPL API response, so the model can be rerun on old data.
 create table if not exists api_cache (
@@ -15,8 +17,6 @@ create table if not exists player_history (
   fetched_at timestamptz not null default now()
 );
 
--- Expected points per player per gameweek. model_version lets us compare
--- old and new versions of the model when backtesting.
 -- Each player's totals from past seasons, used as his starting point in the model.
 create table if not exists player_past (
   player_id integer primary key,
@@ -24,6 +24,8 @@ create table if not exists player_past (
   fetched_at timestamptz not null default now()
 );
 
+-- Expected points per player per gameweek. model_version lets us compare
+-- old and new versions of the model when backtesting.
 create table if not exists predictions (
   player_id integer not null,
   gameweek integer not null,
@@ -56,6 +58,19 @@ create table if not exists snapshots (
 );
 create index if not exists snapshots_team_latest on snapshots (team_id, created_at desc);
 
+-- Alerts: each phone or browser that turned on notifications, one row per device.
+create table if not exists push_subscriptions (
+  endpoint text primary key,
+  subscription jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+-- Alerts already sent, so the same one never goes out twice.
+create table if not exists alerts_sent (
+  alert_key text primary key,
+  sent_at timestamptz not null default now()
+);
+
 -- Lock every table down. Only the jobs (using the database password) and
 -- the website's server code (using the service role key) can read or write.
 -- Nothing is readable straight from a browser.
@@ -65,3 +80,13 @@ alter table player_past enable row level security;
 alter table predictions enable row level security;
 alter table price_snapshots enable row level security;
 alter table snapshots enable row level security;
+alter table push_subscriptions enable row level security;
+alter table alerts_sent enable row level security;
+
+-- The project was created with "grant API access to new tables" turned off,
+-- so give the website's server key (service_role) what it needs, and make
+-- sure the public browser roles get nothing.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
+revoke all on all tables in schema public from anon, authenticated;

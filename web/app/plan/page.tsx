@@ -223,6 +223,8 @@ function WeekDetail({ week, before, snapshot }: { week: SolverWeek; before: numb
                 <span className="plan-move-value">
                   <b className={`num ${move.value >= 0 ? "bc-accent" : "bc-warn"}`}>{formatGain(move.value)}</b>
                   <span className="muted">xP from this move</span>
+                  {move.priceNote && <span className="bc-accent plan-price-note">{move.priceNote}</span>}
+                  {move.sameWeekShare !== undefined && <SureBadge move={move} />}
                 </span>
               </div>
             ))}
@@ -235,6 +237,18 @@ function WeekDetail({ week, before, snapshot }: { week: SolverWeek; before: numb
         </>
       )}
     </section>
+  );
+}
+
+// "In 13 of 15 runs": how often the noisy re-solves made this move, in this week (and in any week).
+function SureBadge({ move }: { move: SolverWeek["moves"][number] }) {
+  const same = Math.round((move.sameWeekShare ?? 0) * 100);
+  const any = Math.round((move.anyWeekShare ?? 0) * 100);
+  const tone = same >= 70 ? "bc-accent" : same >= 40 ? "" : "bc-warn";
+  return (
+    <span className={`plan-sure ${tone}`} title="How often the plan made this move when every player's xP was nudged at random">
+      {same}% of runs{any > same ? ` (${any}% in some week)` : ""}
+    </span>
   );
 }
 
@@ -316,8 +330,9 @@ function Alternative({ plan, snapshot }: { plan: SolverPlan; snapshot: Snapshot 
   );
 }
 
-// What could make the plan wrong, in plain words.
+// What could make the plan wrong, in plain words, plus the moves the noisy re-solves liked instead.
 function HowSure({ plan, snapshot }: { plan: SolverPlan; snapshot: Snapshot }) {
+  const sensitivity = plan.sensitivity;
   const closeCalls = snapshot.chipPlan.cards.filter((card) => card.decision?.closeCall).map((card) => card.label);
   const notes = [
     "Expected points are averages: a single gameweek can swing a long way either side.",
@@ -329,6 +344,17 @@ function HowSure({ plan, snapshot }: { plan: SolverPlan; snapshot: Snapshot }) {
   return (
     <section className="card">
       <div className="card-head"><h2>How sure is this?</h2></div>
+      {sensitivity && (
+        <p className="plan-text">
+          To test how solid the transfers are, the plan was worked out again {sensitivity.runs} times with every player&apos;s xP nudged at
+          random (more for players whose minutes are uncertain), keeping the chips where they are. Each move shows how often it came back.
+          {sensitivity.firstWeekAlternatives.length > 0 && (
+            <> In GW{plan.weeks[0].gameweek}, other runs sometimes chose:{" "}
+              {sensitivity.firstWeekAlternatives.map((alt) => `${nameOf(snapshot, alt.out)} → ${nameOf(snapshot, alt.in)} (${Math.round(alt.share * 100)}%)`).join(", ")}.
+            </>
+          )}
+        </p>
+      )}
       <ul className="plan-weeks">{notes.map((note) => <li key={note}>{note}</li>)}</ul>
     </section>
   );

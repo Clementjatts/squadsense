@@ -32,6 +32,7 @@ def plan_transfers_without_chips(monkeypatch):
     """Planning chips inside the five-week plan takes about 30 seconds a sync,
     so most tests leave it out. The chip test below turns it back on."""
     monkeypatch.setattr("squadsense.strategy.SOLVER_CHIPS", ())
+    monkeypatch.setattr("squadsense.strategy.SENSITIVITY_RUNS", 0)
 
 
 @pytest.fixture(scope="module")
@@ -539,3 +540,105 @@ def test_goals_conceded_penalty_rounds_down_per_two_goals():
     assert expected_goals_conceded_penalty(0.0) == 0
     # At 1.5 expected goals against, rounding down makes it about 0.5, not 0.75.
     assert 0.45 < expected_goals_conceded_penalty(1.5) < 0.6
+
+
+def test_noise_is_bigger_for_players_whose_minutes_are_uncertain():
+    import numpy
+    from squadsense.model import PlayerRates
+    from squadsense.strategy import noisy_expected_points
+    nailed = PlayerRates(0.3, 0.1, 0.3, 0, 0, 1.0, 0.0, 5)
+    rotation = PlayerRates(0.3, 0.1, 0.3, 0, 0, 0.3, 0.4, 5)
+    xp = {1: {12: 5.0}, 2: {12: 5.0}}
+    spread = {1: [], 2: []}
+    rng = numpy.random.default_rng(1)
+    for _ in range(300):
+        noisy = noisy_expected_points(xp, {1: nailed, 2: rotation}, rng)
+        for player in (1, 2):
+            spread[player].append(noisy[player][12])
+    assert numpy.std(spread[2]) > 3 * numpy.std(spread[1])
+
+
+def test_moves_carry_how_often_they_come_back(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr("squadsense.strategy.SENSITIVITY_RUNS", 3)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    plan = snapshot["solverPlan"]
+    assert plan["sensitivity"]["runs"] == 3
+    for week in plan["weeks"]:
+        for move in week["moves"]:
+            assert 0 <= move["sameWeekShare"] <= move["anyWeekShare"] <= 1
+
+
+def test_likely_price_moves_follow_fpl_projections():
+    from squadsense.price_watch import likely_price_moves
+    bootstrap = {"elements": [
+        {"id": 1, "price_change_projections": [{"offset": 0, "likelihood": 4, "projected_percent": "120"}]},
+        {"id": 2, "price_change_projections": [{"offset": 0, "likelihood": -5, "projected_percent": "-130"}]},
+        {"id": 3, "price_change_projections": [{"offset": 0, "likelihood": 2, "projected_percent": "40"}]},
+        {"id": 4, "price_change_projections": [{"offset": 0, "likelihood": 5, "projected_percent": "140"}], "price_change_locked_until": "2026-11-22"},
+    ]}
+    assert likely_price_moves(bootstrap) == {1: 1, 2: -1}
+
+
+def test_price_notes_say_buy_now_before_a_rise():
+    from squadsense.strategy import add_price_notes
+    weeks = [{"moves": [{"out": 5, "in": 1}]}, {"moves": [{"out": 2, "in": 6}]}]
+    add_price_notes(weeks, {1: 1, 2: -1})
+    assert "buy now" in weeks[0]["moves"][0]["priceNote"]
+    assert "sells for less" in weeks[1]["moves"][0]["priceNote"]
+
+
+def feed_summary(**overrides):
+    summary = {
+        "gameweek": 12, "squad": [1, 2], "captain": 1,
+        "players": {"1": {"name": "Haaland", "windowXp": 30.0, "price": 150, "news": ""}, "2": {"name": "Saka", "windowXp": 25.0, "price": 100, "news": ""}},
+        "firstWeekMoves": [[2, 3]], "chips": {"3xc": "save 19"},
+    }
+    summary.update(overrides)
+    return summary
+
+
+def test_feed_describes_what_moved():
+    from squadsense.changes import plan_changes, player_changes
+    before = feed_summary()
+    after = feed_summary(
+        players={"1": {"name": "Haaland", "windowXp": 28.5, "price": 151, "news": "Knock - 75% chance of playing"},
+                 "2": {"name": "Saka", "windowXp": 25.4, "price": 100, "news": ""}},
+        firstWeekMoves=[], chips={"3xc": "play 13"},
+    )
+    lines = player_changes(before, after) + plan_changes(before, after)
+    assert "Haaland: Knock - 75% chance of playing" in lines
+    assert any("Haaland's five-week xP 30.0 → 28.5" in line for line in lines)
+    assert any("£15.0m → £15.1m" in line for line in lines)
+    assert not any(line.startswith("Saka") for line in lines)  # +0.4 is too small to report
+    assert "Triple Captain: now play in GW13 (was save for GW19)" in lines
+    assert any(line.startswith("This week's plan is now no transfer") for line in lines)
+
+
+def test_sync_keeps_a_feed_between_runs(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    first = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    assert first["changes"] == []  # nothing to compare with yet
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    saved = storage.load_raw(f"changes/{TEAM_ID}")
+    saved["summary"]["captain"] = -1  # pretend last run picked someone else
+    storage.save_raw(f"changes/{TEAM_ID}", saved)
+    second = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    assert any("Captain pick is now" in line for line in second["changes"][0]["changes"])
+
+
+def test_full_refresh_only_downloads_clubs_that_just_played():
+    from datetime import datetime, timezone
+    from squadsense.sync import clubs_that_played_recently, histories_to_fetch
+    now = datetime(2026, 11, 22, 1, 37, tzinfo=timezone.utc)
+    fixtures = [
+        {"started": True, "kickoff_time": "2026-11-21T15:00:00Z", "team_h": 1, "team_a": 2},  # yesterday
+        {"started": True, "kickoff_time": "2026-11-15T15:00:00Z", "team_h": 3, "team_a": 4},  # last week
+        {"started": False, "kickoff_time": "2026-11-28T15:00:00Z", "team_h": 5, "team_a": 6},  # not played yet
+    ]
+    assert clubs_that_played_recently(fixtures, now) == {1, 2}
+    bootstrap = {"elements": [{"id": 10, "team": 1}, {"id": 11, "team": 3}, {"id": 12, "team": 5}]}
+    cached = {10: [], 11: [], 12: []}
+    assert histories_to_fetch(bootstrap, cached, cached, [], full_refresh=False, fixtures=fixtures) == []
+    assert 11 not in histories_to_fetch(bootstrap, cached, cached, [], full_refresh=True, fixtures=fixtures)

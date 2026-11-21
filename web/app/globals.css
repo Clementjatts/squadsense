@@ -614,7 +614,7 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .plan-why { white-space: normal !important; height: auto !important; padding-top: 10px !important; padding-bottom: 10px !important; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .plan-chip-tag { margin-left: 10px; vertical-align: 4px; }
 .plan-moves { display: flex; flex-direction: column; gap: 10px; }
-.plan-move { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 96px; align-items: stretch; gap: 10px; }
+.plan-move { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 150px; align-items: stretch; gap: 10px; }
 .plan-player { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--raised); border: 1px solid var(--panel-line); border-radius: 12px; min-width: 0; }
 .plan-player-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
 .plan-player-top .muted { font-size: 12px; white-space: nowrap; }
@@ -641,3 +641,9 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 }
 .plan-decision { white-space: normal !important; height: auto !important; padding-top: 10px !important; padding-bottom: 10px !important; }
 .plan-close { display: inline-block; margin: 4px 0 0; color: var(--warn); border-color: var(--warn); }
+.plan-price-note { margin-top: 4px; font-size: 11px; line-height: 1.3; }
+.plan-sure { margin-top: 4px; font-size: 11px; line-height: 1.3; white-space: nowrap; }
+.bc-side-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.changes-entry { padding: 12px 20px; border-top: 1px solid #16213a; font-size: 13px; line-height: 1.5; }
+.changes-entry ul { margin: 4px 0 0; padding-left: 18px; }
+.changes-when { font-size: 12px; }

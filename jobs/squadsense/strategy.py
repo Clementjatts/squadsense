@@ -29,12 +29,16 @@ players, or the saved plan being MAX_PLAN_AGE_HOURS old.
 
 import json
 import logging
+from collections import Counter
 from datetime import datetime, timedelta, timezone
+
+import numpy
 
 from . import chips
 from .captaincy import outcome_chances
 from .chips import ChipValue, chance_all_play
 from .planner import WEEKLY_DISCOUNT, best_lineup
+from .price_watch import likely_price_moves
 from .squad_builder import pick_best_squad
 from .transfer_solver import SOLVER_CHIPS, TransferSolverError, solve_transfer_plan
 
@@ -43,8 +47,12 @@ log = logging.getLogger("squadsense.strategy")
 WILDCARD_MARGIN = 5.0  # points; a judgement call, about 70% confident, until the transfer plan is backtested
 CLOSE_CALL = 2.0  # points between playing and saving a chip that count as "your call"
 MAX_PLAN_AGE_HOURS = 12  # re-plan at least twice a day, so new matches and form count
+# How sure is each move: the plan is re-solved this many times with random
+# noise on every player's xP, and each move's share of runs is shown.
+SENSITIVITY_RUNS = 15
+SENSITIVITY_SECONDS = 30  # per run; these runs only check the transfers, chips stay as decided
 # Bump this whenever the strategy's rules change, so a saved plan made under old rules isn't reused.
-STRATEGY_VERSION = 4
+STRATEGY_VERSION = 6
 
 
 def scaled(value, keep_share, note):
@@ -139,6 +147,75 @@ def played_chip_details(chip, week_entry, context, gain):
     return f"The plan rebuilds {changes} players that week, worth {gain:.1f} xP more than normal transfers.", {"changes": changes}
 
 
+def add_price_notes(plan_weeks, price_moves):
+    """Labels moves that tonight's likely price changes affect.
+
+    The first week's moves are assumed to be made now, before 00:00 UK;
+    later weeks' prices already include the change.
+    """
+    for index, week in enumerate(plan_weeks):
+        for move in week["moves"]:
+            rise_in, fall_out = price_moves.get(move["in"]) == 1, price_moves.get(move["out"]) == -1
+            notes = []
+            if rise_in:
+                notes.append("buy now: likely to rise £0.1m tonight" if index == 0 else "priced £0.1m higher after tonight's likely rise")
+            if fall_out:
+                notes.append("sell now: likely to fall £0.1m tonight" if index == 0 else "sells for less after tonight's likely fall")
+            move["priceNote"] = "; ".join(notes) or None
+
+
+def noisy_expected_points(expected_points, rates_by_player, rng):
+    """xP with random noise, larger for players whose minutes are less certain.
+
+    The size follows open-fpl-solver's sensitivity runs: xP times
+    (92 - expected minutes) / 134 times a standard normal draw, so a
+    nailed-on 90-minute player moves very little and a rotation risk a lot.
+    """
+    noisy = {}
+    for player_id, by_week in expected_points.items():
+        rates = rates_by_player.get(player_id)
+        minutes = rates.chance_60_minutes * 85 + rates.chance_under_60 * 25 if rates else 45
+        spread = max(0.0, 92 - minutes) / 134
+        noisy[player_id] = {week: max(0.0, xp + xp * spread * rng.standard_normal()) for week, xp in by_week.items()}
+    return noisy
+
+
+def add_sensitivity(plan, state, players_by_id, expected_points, rates_by_player, weeks, free_hit_best, price_moves):
+    """Re-solves the plan SENSITIVITY_RUNS times with noisy xP and records how often each move comes back.
+
+    The chips stay in the weeks the plan chose, so this measures how solid
+    the transfers are, not the chip decisions. Seeded by gameweek, so the
+    same data gives the same numbers.
+    """
+    rng = numpy.random.default_rng(state.gameweek)
+    fixed_chips = {chip: [week] for chip, week in plan["chips"].items()}
+    first_week_moves, any_week_moves, runs = Counter(), Counter(), 0
+    for _ in range(SENSITIVITY_RUNS):
+        noisy = noisy_expected_points(expected_points, rates_by_player, rng)
+        try:
+            run = solve_transfer_plan(state, players_by_id, noisy, weeks, fixed_chips, free_hit_best, None, price_moves, SENSITIVITY_SECONDS)
+        except TransferSolverError:
+            continue  # a run that finds no plan in time just doesn't count
+        runs += 1
+        for week in run["weeks"]:
+            for move in week["moves"]:
+                any_week_moves[(move["out"], move["in"])] += 1
+                first_week_moves[(week["gameweek"], move["out"], move["in"])] += 1
+    if runs == 0:
+        return
+    for week in plan["weeks"]:
+        for move in week["moves"]:
+            move["sameWeekShare"] = round(first_week_moves[(week["gameweek"], move["out"], move["in"])] / runs, 2)
+            move["anyWeekShare"] = round(any_week_moves[(move["out"], move["in"])] / runs, 2)
+    first = weeks[0]
+    alternatives = [
+        {"out": out_id, "in": in_id, "share": round(count / runs, 2)}
+        for (week, out_id, in_id), count in first_week_moves.most_common()
+        if week == first and not any(m["out"] == out_id and m["in"] == in_id for m in plan["weeks"][0]["moves"])
+    ][:3]
+    plan["sensitivity"] = {"runs": runs, "firstWeekAlternatives": alternatives}
+
+
 def chip_gain_in_plan(chip, week_entry, values, players_by_id, expected_points):
     """What a chip adds in the week the plan plays it, read straight from the plan.
 
@@ -213,13 +290,14 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
 
     players_by_id, expected_points = context.players_by_id, model_results.expected_points
     try:
-        normal = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks)
+        price_moves = likely_price_moves(bootstrap)
+        normal = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, price_moves=price_moves)
         gap = chips.wildcard_value(context, first_week).gain
         values, share_left = against_normal_transfers(raw_values, gap, normal["gain"])
         keep = keep_values(values, weeks[-1])
         chip_weeks = chips.available_chip_weeks(bootstrap, squad_state, weeks, [chip for chip in SOLVER_CHIPS if chip in available])
         free_hit_best = free_hit_squads(context, chip_weeks.get("freehit", []))
-        plan = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks, free_hit_best, keep)
+        plan = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks, free_hit_best, keep, price_moves)
         if not plan["chips"]:
             # No chip beats saving it, so this is the normal-transfer problem. Use that
             # plan itself: two separate solves can stop on slightly different
@@ -236,6 +314,9 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
     }
     move_values(plan["weeks"], players_by_id, expected_points)
     move_values(normal["weeks"], players_by_id, expected_points)
+    add_price_notes(plan["weeks"], price_moves)
+    add_price_notes(normal["weeks"], price_moves)
+    add_sensitivity(plan, squad_state, players_by_id, expected_points, model_results.rates_by_player, weeks, free_hit_best, price_moves)
     saved_for = later_weeks({chip: by_week for chip, by_week in values.items() if chip not in plan["chips"]}, weeks[-1])
     decisions = {
         chip: decide(chip, plan["chips"].get(chip), values, keep, marginals.get(chip, 0.0), first_week, saved_for, weeks[-1])

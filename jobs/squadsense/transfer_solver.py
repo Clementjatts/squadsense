@@ -16,6 +16,12 @@ handled by working out the best one-week squad for each week in advance
 (`free_hit_best`): in a Free Hit week that squad scores instead of yours,
 and your own squad can't make transfers, exactly as in FPL.
 
+Prices: the first week's moves are assumed to be made now, before the
+next price change at 00:00 UK. For later weeks, players FPL expects to
+rise or fall tonight (`price_moves`) cost or sell for £0.1m more or less,
+so the plan can see the point of buying before a rise or selling before
+a fall.
+
 Each chip also has a "keep" value: what it's worth if saved for later in
 the half (see strategy.py). Not playing a chip earns that value, so the
 plan only spends a chip inside these five weeks when that beats saving it.
@@ -40,6 +46,7 @@ SOLVER_SECONDS = 300
 # every chip took about 45 seconds.
 SOLVER_GAP = 0.002
 BIG_NUMBER = 20  # larger than any possible count of free transfers or moves
+NEGATIVE_GAIN_TOLERANCE = 0.5  # xP; an unfinished plan worse than doing nothing by more than this is rejected
 SOLVER_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
 
 
@@ -63,8 +70,9 @@ def candidate_pool(squad_ids, players_by_id, expected_points, weeks):
 class PlanProblem:
     """The integer problem: variables for every player in every week, plus rules."""
 
-    def __init__(self, squad_state, players_by_id, expected_points, weeks, pool, chip_weeks=None, free_hit_best=None, keep_values=None):
+    def __init__(self, squad_state, players_by_id, expected_points, weeks, pool, chip_weeks=None, free_hit_best=None, keep_values=None, price_moves=None):
         self.state = squad_state
+        self.price_moves = price_moves or {}  # {player_id: +1 or -1}, tonight's likely change
         self.chip_weeks = chip_weeks or {}  # {chip: [weeks it may be played]}
         self.free_hit_best = free_hit_best or {}  # {week: {"points": xP, "squad": [ids]}}
         self.keep_values = keep_values or {}  # {chip: points it's worth saved for later}
@@ -104,9 +112,24 @@ class PlanProblem:
         """The yes/no for `chip` in `week`, or 0 when it can't be played then."""
         return self.chip.get((chip, week), 0)
 
-    def sale_price(self, player_id):
-        """What selling him raises: his selling price if owned now, his current price if bought in the plan."""
-        return self.state.selling_prices.get(player_id, self.players[player_id]["now_cost"])
+    def buy_price(self, player_id, week_index):
+        """His price in the plan's `week_index`-th week: today's for the first week, after tonight's likely change later."""
+        change = self.price_moves.get(player_id, 0) if week_index > 0 else 0
+        return self.players[player_id]["now_cost"] + change
+
+    def sale_price(self, player_id, week_index):
+        """What selling him raises in that week.
+
+        Owned now: today's selling price in the first week; later, the
+        selling price worked out again after tonight's likely change.
+        Bought during the plan: roughly what he cost.
+        """
+        if player_id not in self.state.selling_prices:
+            return self.buy_price(player_id, week_index)
+        purchase = self.state.purchase_prices.get(player_id)
+        if week_index == 0 or purchase is None or player_id not in self.price_moves:
+            return self.state.selling_prices[player_id]
+        return rules.selling_price(purchase, self.buy_price(player_id, week_index))
 
     def transfers(self, week):
         return pulp.lpSum(self.buy[p, week] for p in self.players)
@@ -143,8 +166,8 @@ class PlanProblem:
                 before = (1 if p in self.state.player_ids else 0) if index == 0 else self.squad[p, self.weeks[index - 1]]
                 self.problem += self.squad[p, week] == before + self.buy[p, week] - self.sell[p, week]
                 self.problem += self.buy[p, week] + self.sell[p, week] <= 1
-            money_in = pulp.lpSum(self.sale_price(p) * self.sell[p, week] for p in self.players)
-            money_out = pulp.lpSum(self.players[p]["now_cost"] * self.buy[p, week] for p in self.players)
+            money_in = pulp.lpSum(self.sale_price(p, index) * self.sell[p, week] for p in self.players)
+            money_out = pulp.lpSum(self.buy_price(p, index) * self.buy[p, week] for p in self.players)
             self.problem += self.bank[week] == previous_bank + money_in - money_out
             previous_bank = self.bank[week]
 
@@ -214,14 +237,17 @@ class PlanProblem:
                 from_club = [p for p, player in self.players.items() if player["team"] == club]
                 self.problem += pulp.lpSum(self.squad[p, week] for p in from_club) <= rules.MAX_PER_CLUB
 
-    def solve(self):
-        """Builds and solves the problem. Raises TransferSolverError if no plan is found."""
+    def solve(self, seconds=None):
+        """Builds and solves the problem within `seconds` (SOLVER_SECONDS if not given).
+
+        Raises TransferSolverError if no plan is found.
+        """
         self.add_objective()
         self.add_squad_flow()
         self.add_free_transfer_rules()
         self.add_chip_rules()
         self.add_lineup_rules()
-        self.problem.solve(pulp.HiGHS(msg=False, timeLimit=SOLVER_SECONDS, gapRel=SOLVER_GAP))
+        self.problem.solve(pulp.HiGHS(msg=False, timeLimit=seconds or SOLVER_SECONDS, gapRel=SOLVER_GAP))
         if self.problem.sol_status not in (pulp.LpSolutionOptimal, pulp.LpSolutionIntegerFeasible):
             raise TransferSolverError(f"No transfer plan found (solver status: {pulp.LpStatus[self.problem.status]})")
 
@@ -272,13 +298,15 @@ def read_plan(plan, players_by_id):
     return weeks
 
 
-def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks=None, free_hit_best=None, keep_values=None):
+def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks=None, free_hit_best=None, keep_values=None, price_moves=None, seconds=None):
     """The best transfer plan over `weeks`, or None for a squad the model picked.
 
     `chip_weeks` is {chip: [weeks it may be played]} for the chips still
     available; leave it out to plan transfers only. `free_hit_best` is
     needed when Free Hit is allowed, and `keep_values` gives each chip's
-    worth if saved (see strategy.py).
+    worth if saved (see strategy.py). `price_moves` is tonight's likely
+    price changes (price_watch.likely_price_moves); `seconds` overrides
+    the time limit.
 
     `gain` compares the plan's discounted xP (after hits) with keeping the
     squad as it is, using the same discounting as the single-move suggestions.
@@ -286,8 +314,8 @@ def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip
     if squad_state.squad_source == "model":
         return None
     pool = candidate_pool(squad_state.player_ids, players_by_id, expected_points, weeks)
-    plan = PlanProblem(squad_state, players_by_id, expected_points, weeks, pool, chip_weeks, free_hit_best, keep_values)
-    plan.solve()
+    plan = PlanProblem(squad_state, players_by_id, expected_points, weeks, pool, chip_weeks, free_hit_best, keep_values, price_moves)
+    plan.solve(seconds)
     plan_weeks = read_plan(plan, players_by_id)
 
     plan_value = sum(
@@ -297,8 +325,11 @@ def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip
     keep_value = squad_points_over_window(squad_state.player_ids, players_by_id, expected_points, weeks)
     gain = plan_value - keep_value
     # When time runs out early, the solver can hand back a poor plan that
-    # merely follows the rules. Never show one worse than doing nothing.
-    if gain < 0:
+    # merely follows the rules. Never show one clearly worse than doing
+    # nothing. A finished search is trusted: its tiny negative gains come
+    # from rounding, or from the bench and banked-transfer values the
+    # plan also weighs.
+    if not plan.finished_search() and gain < -NEGATIVE_GAIN_TOLERANCE:
         raise TransferSolverError(f"Time ran out before finding a plan better than making no moves ({gain:.1f} xP)")
     return {
         "weeks": plan_weeks,

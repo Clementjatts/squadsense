@@ -9,13 +9,14 @@ Without DATABASE_URL set, everything goes to jobs/.data/ as JSON files.
 """
 
 import argparse
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import sys
 from pathlib import Path
 
-from . import leagues, odds, review
+from . import changes, leagues, odds, review
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
@@ -120,16 +121,37 @@ def pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_
     return model_squad_state(team_id, next_week, player_ids, lineup, players_by_id)
 
 
-def histories_to_fetch(bootstrap, cached, cached_pasts, priority_ids, full_refresh):
+RECENT_MATCH_HOURS = 36  # a full refresh re-downloads players whose club played this recently
+
+
+def clubs_that_played_recently(fixtures, now=None):
+    """Club ids with a match that kicked off in the last RECENT_MATCH_HOURS."""
+    now = now or datetime.now(timezone.utc)
+    clubs = set()
+    for fixture in fixtures:
+        kickoff = fixture.get("kickoff_time")
+        if fixture.get("started") and kickoff:
+            hours_ago = (now - datetime.fromisoformat(kickoff.replace("Z", "+00:00"))).total_seconds() / 3600
+            if 0 <= hours_ago <= RECENT_MATCH_HOURS:
+                clubs.update((fixture["team_h"], fixture["team_a"]))
+    return clubs
+
+
+def histories_to_fetch(bootstrap, cached, cached_pasts, priority_ids, full_refresh, fixtures=()):
     """Player ids whose match history needs downloading this run.
 
-    A full refresh gets everyone. Otherwise it's the priority players
-    (the squad) plus anyone whose history or past seasons we don't have.
+    Always: the priority players (the squad) and anyone whose history or
+    past seasons we don't have. A full refresh adds every player whose
+    club played in the last RECENT_MATCH_HOURS, which is everyone after a
+    full matchday and almost nobody on a quiet night, so the nightly run
+    only spends time when there's something new.
     """
-    if full_refresh:
-        return [player["id"] for player in bootstrap["elements"]]
     missing = [player["id"] for player in bootstrap["elements"] if player["id"] not in cached or player["id"] not in cached_pasts]
-    return list(dict.fromkeys(priority_ids + missing))
+    recent = []
+    if full_refresh:
+        clubs = clubs_that_played_recently(fixtures)
+        recent = [player["id"] for player in bootstrap["elements"] if player["team"] in clubs]
+    return list(dict.fromkeys(priority_ids + missing + recent))
 
 
 def review_inputs(client, storage, team_id, team_entry, bootstrap, is_public):
@@ -218,7 +240,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     picks = squad_picks(client, team_id, current_week, team_entry["started_event"]) if is_public else None
     squad_ids = [pick["element"] for pick in picks["picks"]] if picks else []
 
-    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), storage.load_player_pasts(), squad_ids, full_refresh)
+    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), storage.load_player_pasts(), squad_ids, full_refresh, fixtures)
     log.info("Refreshing %d player histories", len(to_fetch))
     refresh_histories(client, storage, to_fetch)
     histories = storage.load_player_histories()
@@ -245,6 +267,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
         ),
     )
 
+    snapshot["changes"] = changes.update_feed(storage, team_id, snapshot)
     lineup = snapshot["lineups"][str(next_week)]
     review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)
     storage.save_predictions(expected_points, MODEL_VERSION)

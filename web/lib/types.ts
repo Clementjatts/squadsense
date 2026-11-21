@@ -41,7 +41,9 @@ export interface Lineup {
 // The multi-week transfer plan from the solver: one entry per gameweek.
 export interface SolverWeek {
   gameweek: number;
-  moves: { out: number; in: number; value: number }[]; // value: five-week xP lost if only this move were undone
+  // value: five-week xP lost if only this move were undone; priceNote: tonight's likely price change, if it matters
+  // sameWeekShare / anyWeekShare: share of noisy re-solves that made this move that week / in any week
+  moves: { out: number; in: number; value: number; priceNote?: string | null; sameWeekShare?: number; anyWeekShare?: number }[];
   squad: number[]; // your own squad after this week's moves
   freeHitSquad: number[] | null; // the one-week squad in a Free Hit week
   hits: number;
@@ -63,6 +65,9 @@ export interface SolverPlan {
   normalShareOfGap: number; // share of that gap normal transfers close
   wildcardMargin: number;
   closeCallPoints: number;
+  // How sure: the plan re-solved `runs` times with random noise on xP, and the
+  // first-week moves those runs chose instead of the plan's.
+  sensitivity?: { runs: number; firstWeekAlternatives: { out: number; in: number; share: number }[] };
 }
 
 export interface Suggestion {
@@ -252,6 +257,7 @@ export interface Snapshot {
   solverPlan: SolverPlan | null; // null for a squad the model picked
   leagues: League[];
   review: GameweekReview | null;
+  changes?: { at: string; changes: string[] }[]; // the "What changed" feed, newest first
 
   flags: { playerId: number; kind: "injury" | "suspension" | "rotation"; message: string }[];
   doubles: Record<string, string[]>;

@@ -190,3 +190,27 @@ weeks ahead   past top20  past captain   now top20  now captain
 ```
 
 The top20 holds up well; the single captain pick gets less reliable further out, as you'd expect.
+
+## The five-week plan and chip strategy (21 November 2026)
+
+`python -m squadsense.plan_backtest` replays each half of the three downloaded seasons week by week. Four managers start from the same model-picked squad, decide each week with only earlier matches, and score the real points of the lineup the model would pick, with automatic subs and the vice-captain stepping in. Hits are taken off.
+
+```
+half            strategy      plan    single      hold
+2022-23 4-19         931       918       890       892
+2022-23 20-38       1279      1237      1138      1163
+2023-24 4-19         964       935       857       730
+2023-24 20-38       1289      1308      1171       987
+2024-25 4-19         964      1005       940       948
+2024-25 20-38       1138      1077      1100      1147
+average           1094.2    1080.0    1016.0     977.8
+```
+
+strategy is the app's full strategy (transfers and chips), plan is the five-week transfer plan with no chips, single is the best single transfer each week, hold never transfers.
+
+What it shows:
+
+- Planning transfers five weeks ahead clearly beats one move at a time: 64 more real points per half on average (about 3.4 a gameweek), and 102 more than never transferring. It won 4 of 6 halves against single transfers.
+- The chip strategy adds much less than expected: 14 points per half over the plan without chips, for four chips, and it lost 2 of the 6 halves. In every half it played all four chips within about the first eight weeks. The 90% "play now" rule came from testing one chip at a time and seems to make the plan spend chips too early when all four are decided together.
+- Hits are sometimes overused: 52 and 56 points of hits in two halves. In 2024-25 GW20-38 holding beat every manager.
+- Six halves with one stand-in squad is a small sample, so treat the chip and hit findings as a reason to retest, not as settled. The next things worth testing with this backtest are a stricter chip rule (a margin for every chip, not just the Wildcard) and a larger hit penalty. Each full run takes about an hour.

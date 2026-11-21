@@ -2,7 +2,7 @@
 // so you stay signed in for SESSION_DAYS. The cookie holds only an expiry
 // time and a signature made with SITE_SECRET, so it can't be forged or
 // stretched without the secret. Uses Web Crypto, which works both in the
-// middleware and in API routes.
+// proxy (web/proxy.ts) and in API routes.
 
 export const SESSION_COOKIE = "squadsense_session";
 export const SESSION_DAYS = 30;

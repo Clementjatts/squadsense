@@ -34,6 +34,22 @@ def next_change(player):
     return min(projections, key=lambda projection: projection["offset"]) if projections else None
 
 
+def likely_price_moves(bootstrap):
+    """{player_id: +1 or -1} for players FPL expects to rise or fall at the next change (00:00 UK).
+
+    Only bands of ALERT_LIKELIHOOD or more count, and locked prices are
+    left out. Prices are in tenths of a million, so +1 is £0.1m.
+    """
+    moves = {}
+    for player in bootstrap["elements"]:
+        projection = next_change(player)
+        if projection is None or player.get("price_change_locked_until"):
+            continue
+        if abs(projection["likelihood"]) >= ALERT_LIKELIHOOD:
+            moves[player["id"]] = 1 if projection["likelihood"] > 0 else -1
+    return moves
+
+
 def watch_row(player, teams_by_id, position_names, squad_ids):
     """One player's row for the Price Watch table."""
     projection = next_change(player)

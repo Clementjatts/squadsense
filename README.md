@@ -5,6 +5,8 @@ A personal Fantasy Premier League planner. It pulls your team from the public FP
 Built so far, all on real FPL data:
 
 - Dashboard, Transfer Planner (with a five-week plan of transfers and chips from a solver, explained in full on "Your plan explained"), Fixture Ticker, Price Watch and Chip Planner (risk, known blanks and doubles, and your rivals' chips).
+- How sure each move is: the plan is worked out again 15 times with every player's expected points nudged at random, and each move shows how often it came back. Moves affected by tonight's likely price changes say so ("buy now: likely to rise £0.1m tonight").
+- What changed: after each sync the Dashboard lists what moved since earlier syncs, such as a player's expected points, injury news, prices, the plan's moves and chip decisions.
 - One chip strategy for every page: chips are planned together with your transfers, measured against the free transfers you'd make anyway, and played only when they beat saving them for later in the half. A Wildcard also needs a 5-point margin, and anything within 2 points is shown as a close call.
 - Leagues: your mini-league tables, what rivals own and captain, threats and differentials.
 - Review: last gameweek's points next to the model's expected points, and your captain against the best one you had.
