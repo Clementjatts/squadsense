@@ -6,7 +6,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, sessionIsValid } from "@/lib/session";
 
-const OPEN_PATHS = ["/login", "/api/login"];
+// The sign-in page, plus the files a phone fetches without the login
+// cookie: the service worker, the app manifest and the icons.
+const OPEN_PATHS = ["/login", "/api/login", "/sw.js", "/manifest.webmanifest", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

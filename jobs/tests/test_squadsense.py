@@ -642,3 +642,73 @@ def test_full_refresh_only_downloads_clubs_that_just_played():
     cached = {10: [], 11: [], 12: []}
     assert histories_to_fetch(bootstrap, cached, cached, [], full_refresh=False, fixtures=fixtures) == []
     assert 11 not in histories_to_fetch(bootstrap, cached, cached, [], full_refresh=True, fixtures=fixtures)
+
+
+def alert_snapshot(**overrides):
+    snapshot = {
+        "gameweek": 12, "deadline": "2026-11-27T18:30:00Z", "squad": [1, 2],
+        "players": {"1": {"name": "Haaland", "news": "", "yellowCards": 4}, "2": {"name": "Saka", "news": "Knock - 75% chance of playing", "yellowCards": 1},
+                    "3": {"name": "Palmer", "news": ""}},
+        "captainOptions": [{"playerId": 1}], "priceWatch": {"atRisk": [2]},
+        "flags": [{"playerId": 1, "kind": "suspension", "message": "On 4 yellows. One more before match 19 means a ban."}],
+        "solverPlan": {"weeks": [{"moves": [{"out": 2, "in": 3}], "chip": None}]}, "changes": [],
+    }
+    snapshot.update(overrides)
+    return snapshot
+
+
+class FakeResend:
+    """Stands in for httpx.Client: records every email instead of sending it."""
+
+    def __init__(self):
+        self.sent = []
+
+    def post(self, url, headers, json):
+        self.sent.append(json)
+        return type("Response", (), {"status_code": 200, "text": "ok"})()
+
+
+def test_deadline_alert_only_inside_the_window():
+    from datetime import datetime, timezone
+    from squadsense.alerts import deadline_alert
+    snapshot = alert_snapshot()
+    two_hours_before = datetime(2026, 11, 27, 16, 30, tzinfo=timezone.utc)
+    alert = deadline_alert(snapshot, two_hours_before)[0]
+    assert "Saka → Palmer" in alert.body and "Captain: Haaland" in alert.body
+    assert deadline_alert(snapshot, datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)) == []
+    assert deadline_alert(snapshot, datetime(2026, 11, 27, 19, 0, tzinfo=timezone.utc)) == []
+
+
+def test_alerts_send_once_and_skip_old_news_on_the_first_run(tmp_path):
+    from datetime import datetime, timezone
+    from squadsense.alerts import Channels, run_alerts
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    channels = Channels(resend_key="test", email_to="me@example.com")
+    resend = FakeResend()
+    now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
+    first = run_alerts(storage, alert_snapshot(), now, channels, resend, now)
+    # First run: the price drop goes out, but existing injury and ban news is only recorded.
+    assert first == ["Price drop likely tonight"]
+    assert run_alerts(storage, alert_snapshot(), now, channels, resend, now) == []  # nothing twice
+    newer = alert_snapshot(players={**alert_snapshot()["players"], "1": {"name": "Haaland", "news": "Hamstring - 50% chance of playing", "yellowCards": 4}})
+    assert run_alerts(storage, newer, now, channels, resend, now) == ["Haaland: injury news"]
+    assert len(resend.sent) == 2 and resend.sent[0]["to"] == ["me@example.com"]
+
+
+def test_plan_changes_alert_only_for_this_run():
+    from datetime import datetime, timezone
+    from squadsense.alerts import plan_change_alert
+    started = datetime(2026, 11, 27, 9, 0, tzinfo=timezone.utc)
+    feed = [{"at": "2026-11-27T09:01:00+00:00", "changes": ["Haaland's price £15.0m → £15.1m", "Triple Captain: now play in GW13 (was save for GW19)"]}]
+    alert = plan_change_alert(alert_snapshot(changes=feed), started)[0]
+    assert "Triple Captain" in alert.body and "price" not in alert.body
+    assert plan_change_alert(alert_snapshot(changes=feed), datetime(2026, 11, 27, 10, 0, tzinfo=timezone.utc)) == []
+
+
+def test_no_alert_settings_means_nothing_is_sent(tmp_path):
+    from datetime import datetime, timezone
+    from squadsense.alerts import Channels, run_alerts
+    from squadsense.storage import FileStorage
+    now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
+    assert run_alerts(FileStorage(tmp_path), alert_snapshot(), now, Channels(), FakeResend(), now) == []

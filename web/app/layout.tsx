@@ -11,6 +11,10 @@ import { getSnapshot } from "@/lib/snapshot";
 export const metadata: Metadata = {
   title: "SquadSense",
   description: "Personal FPL squad planner",
+  // So the site can be added to a phone's Home Screen, which iPhones need for alerts.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "SquadSense", statusBarStyle: "black-translucent" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 // Fonts load from Google in the browser. next/font would bundle them at

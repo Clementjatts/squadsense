@@ -51,6 +51,20 @@ class FileStorage:
         """Saves a player's past-season totals (element-summary `history_past`)."""
         self._write(self.folder / "career" / f"{player_id}.json", seasons)
 
+    def alert_was_sent(self, key):
+        """True if an alert with this key has gone out before (see alerts.py)."""
+        return key in (self.load_raw("alerts-sent") or [])
+
+    def mark_alerts_sent(self, keys):
+        self.save_raw("alerts-sent", sorted(set(self.load_raw("alerts-sent") or []) | set(keys)))
+
+    def load_push_subscriptions(self):
+        """Devices that turned alerts on. Only the hosted site saves these, so locally there are none."""
+        return []
+
+    def delete_push_subscription(self, endpoint):
+        """Nothing to delete locally: subscriptions only live in Supabase."""
+
     def load_player_pasts(self):
         """Returns {player_id: past-season rows} for every player saved so far."""
         return {int(path.stem): json.loads(path.read_text()) for path in (self.folder / "career").glob("*.json")}
@@ -162,6 +176,23 @@ class PostgresStorage:
                 "delete from price_snapshots where taken_at < now() - make_interval(days => %s)",
                 (PRICE_HISTORY_DAYS,),
             )
+
+    def alert_was_sent(self, key):
+        with self.connection.cursor() as cursor:
+            cursor.execute("select 1 from alerts_sent where alert_key = %s", (key,))
+            return cursor.fetchone() is not None
+
+    def mark_alerts_sent(self, keys):
+        with self.connection.cursor() as cursor:
+            cursor.executemany("insert into alerts_sent (alert_key) values (%s) on conflict do nothing", [(key,) for key in keys])
+
+    def load_push_subscriptions(self):
+        with self.connection.cursor() as cursor:
+            cursor.execute("select subscription from push_subscriptions")
+            return [row[0] for row in cursor.fetchall()]
+
+    def delete_push_subscription(self, endpoint):
+        self._execute("delete from push_subscriptions where endpoint = %s", (endpoint,))
 
     def save_snapshot(self, team_id, gameweek, snapshot):
         """Saves the new snapshot and deletes all but the newest SNAPSHOTS_KEPT for this team."""

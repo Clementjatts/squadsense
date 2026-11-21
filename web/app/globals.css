@@ -647,3 +647,12 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .changes-entry { padding: 12px 20px; border-top: 1px solid #16213a; font-size: 13px; line-height: 1.5; }
 .changes-entry ul { margin: 4px 0 0; padding-left: 18px; }
 .changes-when { font-size: 12px; }
+
+/* Account and alerts menu in the header */
+.account-menu { position: relative; }
+.account-button { width: 42px; padding: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+.account-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.account-dot { position: absolute; top: 9px; right: 10px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.account-panel { position: absolute; right: 0; top: 50px; z-index: 50; width: 290px; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.5; }
+.account-panel hr { width: 100%; border: 0; border-top: 1px solid var(--panel-line); margin: 2px 0; }
+.account-panel form .btn { width: 100%; }

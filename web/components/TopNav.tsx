@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDeadline } from "@/lib/format";
 import { BrandMark } from "./BrandMark";
+import { AccountMenu } from "./AccountMenu";
 import { SearchPalette } from "./SearchPalette";
 
 const PAGES = [
@@ -49,9 +50,7 @@ export function TopNav({ gameweek, deadline }: TopNavProps) {
         })}
       </nav>
       <SearchPalette />
-      <form method="post" action="/api/logout">
-        <button type="submit" className="topnav-signout">Sign out</button>
-      </form>
+      <AccountMenu />
       <div className="topnav-deadline">
         <span className="topnav-dot" aria-hidden="true" />
         <span className="topnav-deadline-label">GW{gameweek} deadline</span>

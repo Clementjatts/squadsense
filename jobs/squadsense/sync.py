@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import changes, leagues, odds, review
+from . import alerts, changes, leagues, odds, review
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
@@ -224,7 +224,8 @@ def market_expected_goals(storage, bootstrap, fixtures, first_week, odds_client=
 
 
 def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odds_client=None):
-    """Does one complete sync. Split out from main() so tests can call it."""
+    """Does one complete sync, then sends any new alerts. Split out from main() so tests can call it."""
+    run_started = datetime.now(timezone.utc)
     client = client or FplClient()
     storage = choose_storage(local_folder)
 
@@ -272,6 +273,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)
     storage.save_predictions(expected_points, MODEL_VERSION)
     storage.save_snapshot(team_id, next_week, snapshot)
+    alerts.run_alerts(storage, snapshot, run_started)
     if web_snapshot_path:
         Path(web_snapshot_path).write_text(json.dumps(snapshot, indent=1))
         log.info("Wrote website snapshot to %s", web_snapshot_path)

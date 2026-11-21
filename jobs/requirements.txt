@@ -3,3 +3,4 @@ psycopg[binary]>=3.2
 # Squad optimizer. Kept on 2.x because the newest major version changed its API.
 pulp>=2.9,<3
 highspy>=1.7  # the solver PuLP calls
+pywebpush>=2.0,<3  # phone and browser notifications (alerts.py)

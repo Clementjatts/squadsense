@@ -1,6 +1,7 @@
 # Runs the SquadSense data job on a schedule.
 # Needs two repository secrets: DATABASE_URL (Supabase connection string)
-# and FPL_TEAM_ID. SQUADSENSE_LEAGUES is optional (see the README).
+# and FPL_TEAM_ID. SQUADSENSE_LEAGUES and the alert secrets are optional
+# (see the README).
 # Times are UTC, which matches UK time in winter.
 #
 # The repository is private, so GitHub gives 2,000 free minutes a month and
@@ -46,6 +47,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FPL_TEAM_ID: ${{ secrets.FPL_TEAM_ID }}
           SQUADSENSE_LEAGUES: ${{ secrets.SQUADSENSE_LEAGUES }}
+          # Alerts (all optional; without them nothing is sent). See the README.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          SITE_URL: ${{ secrets.SITE_URL }}
         run: |
           if [ "${{ github.event.schedule }}" = "37 1 * * *" ] || [ "${{ inputs.full }}" = "true" ]; then
             python -m squadsense.sync --full

@@ -88,6 +88,15 @@ A private repository gets 2,000 free Actions minutes a month, and this schedule 
 
 Import the repository in Vercel, set the root directory to `web`, and add `FPL_TEAM_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD` and `SITE_SECRET` as environment variables. Don't add `FPL_EMAIL` or `FPL_PASSWORD` there. The free Hobby plan covers personal use.
 
+## 6. Turn on alerts
+
+Alerts arrive by email and as phone or browser notifications: the deadline in 2 hours (with this week's plan), your players likely to drop in price tonight, new injury news on your players, a player one yellow card from a ban, and the plan or a chip decision changing. Each one is sent once.
+
+1. **Push keys.** From `jobs/`, run `python -m squadsense.make_push_keys`. Add the public key to Vercel as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (then redeploy, since Next.js builds it into the page) and the private key to GitHub as the secret `VAPID_PRIVATE_KEY`. Add `VAPID_SUBJECT` too: `mailto:` followed by your email address.
+2. **Email.** Make a free account at resend.com (100 emails a day, 3,000 a month), create an API key and add it to GitHub as `RESEND_API_KEY`. Add `ALERT_EMAIL_TO` with the address alerts should go to. Until you verify a domain in Resend, emails come from Resend's test address and can only go to the address you signed up with. Once your domain is verified (Resend gives you DNS records to add in Cloudflare), add `ALERT_EMAIL_FROM`, for example `SquadSense <alerts@yourdomain.com>`.
+3. **Links.** Add `SITE_URL` to GitHub with the site's address, so tapping a notification opens the right page.
+4. **Your phone.** Open the site, tap the bell in the header and choose "Turn on alerts". On an iPhone, first add the site to your Home Screen (Share, then Add to Home Screen) and open it from there; iPhones only allow notifications for sites added that way.
+
 ## Applying a plan to your FPL team
 
 On the copy of the site running on your Mac, the Planner can send the coming gameweek's plan to your real FPL team: transfers, starting eleven, bench order, captain, vice-captain and chips. Add `FPL_EMAIL` and `FPL_PASSWORD` to `web/.env.local` to turn it on. Then plan the week and click "Apply GWxx to FPL".
