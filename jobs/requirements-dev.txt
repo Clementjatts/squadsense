@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest>=8
+# Only for the challenger model backtest (python -m squadsense.challenger), not the sync job.
+scikit-learn>=1.5

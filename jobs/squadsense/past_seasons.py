@@ -70,6 +70,7 @@ def convert_fixtures(rows):
         {
             "id": int(row["id"]), "event": as_int_or_none(row["event"]), "finished": as_bool(row["finished"]),
             "team_h": int(row["team_h"]), "team_a": int(row["team_a"]),
+            "kickoff_time": row.get("kickoff_time") or None,
             "team_h_difficulty": as_int_or_none(row["team_h_difficulty"]),
             "team_a_difficulty": as_int_or_none(row["team_a_difficulty"]),
         }

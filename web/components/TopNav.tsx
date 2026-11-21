@@ -49,6 +49,9 @@ export function TopNav({ gameweek, deadline }: TopNavProps) {
         })}
       </nav>
       <SearchPalette />
+      <form method="post" action="/api/logout">
+        <button type="submit" className="topnav-signout">Sign out</button>
+      </form>
       <div className="topnav-deadline">
         <span className="topnav-dot" aria-hidden="true" />
         <span className="topnav-deadline-label">GW{gameweek} deadline</span>

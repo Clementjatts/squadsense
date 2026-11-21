@@ -1,9 +1,11 @@
-// The app frame shared by every page: sidebar on the left, page on the right.
+// The app frame shared by every page: header on top, page below, sync note in the footer.
 
 import type { Metadata } from "next";
 import "./globals.css";
 import { PlayerPanelProvider } from "@/components/PlayerPanel";
 import { TopNav } from "@/components/TopNav";
+import { cookies } from "next/headers";
+import { SESSION_COOKIE, sessionIsValid } from "@/lib/session";
 import { getSnapshot } from "@/lib/snapshot";
 
 export const metadata: Metadata = {
@@ -22,6 +24,19 @@ function formatSyncTime(isoTime: string): string {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Signed-out visitors only ever see the sign-in page, so don't load any team data for them.
+  const signedIn = await sessionIsValid((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!signedIn) {
+    return (
+      <html lang="en">
+        <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="stylesheet" href={FONT_URL} />
+        </head>
+        <body>{children}</body>
+      </html>
+    );
+  }
   const { snapshot, isDemo } = await getSnapshot();
   return (
     <html lang="en">

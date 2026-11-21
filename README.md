@@ -41,7 +41,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Until the sync job (step 2) has run, it shows made-up sample data and says so at the top. After that it shows real FPL data from `web/data/snapshot.json`.
+Copy `web/.env.example` to `web/.env.local` and set `SITE_PASSWORD` (what you'll sign in with) and `SITE_SECRET` (a long random string; the file says how to make one). Every page needs that password.
+
+Open http://localhost:3000 and sign in. Until the sync job (step 2) has run, it shows made-up sample data and says so at the top. After that it shows real FPL data from `web/data/snapshot.json`.
 
 ## 2. Run the job against the real FPL API
 
@@ -81,11 +83,19 @@ A private repository gets 2,000 free Actions minutes a month, and this schedule 
 
 ## 5. Put the website on Vercel
 
-Import the repository in Vercel, set the root directory to `web`, and add `FPL_TEAM_ID`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as environment variables. The free Hobby plan covers personal use.
+Import the repository in Vercel, set the root directory to `web`, and add `FPL_TEAM_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD` and `SITE_SECRET` as environment variables. Don't add `FPL_EMAIL` or `FPL_PASSWORD` there. The free Hobby plan covers personal use.
+
+## Applying a plan to your FPL team
+
+On the copy of the site running on your Mac, the Planner can send the coming gameweek's plan to your real FPL team: transfers, starting eleven, bench order, captain, vice-captain and chips. Add `FPL_EMAIL` and `FPL_PASSWORD` to `web/.env.local` to turn it on. Then plan the week and click "Apply GWxx to FPL".
+
+It first signs in and shows exactly what will change, using FPL's own selling prices and free transfers, and lists anything that blocks it. It only sends the changes after you type APPLY. Transfers can't be undone.
+
+Signing in copies the steps of AIrsenal (github.com/alan-turing-institute/AIrsenal). It doesn't pretend to be a browser, so FPL may refuse it. If that happens, the error says which step failed. Playing Bench Boost or Triple Captain this way may not work either; if it doesn't, play the chip on the FPL site. Automated access may also be against FPL's terms, so use it knowing that.
 
 ## How the numbers are worked out
 
-xP for one match adds up appearance points, goals and assists scaled by how many goals his team should score, clean sheets, saves, defensive contribution points and bonus. FPL stopped publishing club attack and defence ratings in 2026/27, so the fixture model builds its own from this season's matches: each club's xG for and against per game, compared with the league average. With few games played, it leans on FPL's 1-5 overall club rating instead. Recent matches count more than older ones, and players with few minutes are pulled towards a starting point: a typical player in their position, moved towards the player's own numbers from last season. Section 3 of the planning doc has the formula.
+xP for one match adds up appearance points, goals and assists scaled by how many goals his team should score, clean sheets, goals-conceded deductions (1 per 2 goals, rounded down), saves, defensive contribution points and bonus. When bookmakers have priced the match (free odds from football-data.co.uk), each team's expected goals are half ours and half the bookmakers'. FPL stopped publishing club attack and defence ratings in 2026/27, so the fixture model builds its own from this season's matches: each club's xG for and against per game, compared with the league average. With few games played, it leans on FPL's 1-5 overall club rating instead. Recent matches count more than older ones, and players with few minutes are pulled towards a starting point: a typical player in their position, moved towards the player's own numbers from last season. Section 3 of the planning doc has the formula.
 
 The model's weights were checked against three past seasons (see `docs/backtest-results.md`). The model's top pick each week averaged about 7 real points, and its top 20 about 5, against roughly 3.2 for a typical starter. A few weights in `fixtures.py`, `planner.py` and `squad_builder.py` are still untested guesses and say so in their comments.
 
@@ -100,6 +110,14 @@ for season in 2022-23 2023-24 2024-25; do mkdir -p .data/past/$season; for file 
 ```
 
 Then run `python -m squadsense.backtest`. It also checks this season, using the history the sync job has already saved. Add `--tune` to search for better weights. Only keep a change if it also improves this season's numbers.
+
+To test the odds and Elo options (`--odds`, `--elo`), download football-data.co.uk's season files too:
+
+```bash
+mkdir -p .data/odds; for s in 1920 2021 2122 2223 2324 2425 2526 2627; do curl -fsSL -o ".data/odds/E0_$s.csv" "https://www.football-data.co.uk/mmz4281/$s/E0.csv"; done
+```
+
+`python -m squadsense.challenger` backtests a second, machine-learning points model (needs `pip install -r requirements-dev.txt`). `python -m squadsense.chip_backtest` tests chip timing.
 
 ## Known gaps and assumptions
 

@@ -22,6 +22,12 @@ from tests.sample_data import CURRENT_WEEK, TEAM_ID, FakeHttpClient, build_sampl
 
 
 @pytest.fixture(autouse=True)
+def no_odds_download(monkeypatch):
+    """Tests never call football-data.co.uk; the odds tests below use made-up files."""
+    monkeypatch.setattr("squadsense.sync.market_expected_goals", lambda *args, **kwargs: {})
+
+
+@pytest.fixture(autouse=True)
 def plan_transfers_without_chips(monkeypatch):
     """Planning chips inside the five-week plan takes about 30 seconds a sync,
     so most tests leave it out. The chip test below turns it back on."""
@@ -450,3 +456,60 @@ def test_plan_chips_follow_the_rules(tmp_path, fake_client, sample, monkeypatch)
         assert week["chip"] in (None, "bboost", "3xc", "wildcard")
     chips = [week["chip"] for week in snapshot["solverPlan"]["weeks"] if week["chip"]]
     assert chips and len(chips) == len(set(chips))
+
+
+ODDS_CSV = """Div,Date,Time,HomeTeam,AwayTeam,FTHG,FTAG,AvgH,AvgD,AvgA,Avg>2.5,Avg<2.5
+E0,05/12/2026,15:00,Man City,Tottenham,3,1,1.40,5.00,7.50,1.45,2.80
+E0,05/12/2026,17:30,Arsenal,Man United,,,2.10,3.40,3.60,1.90,1.95
+"""
+
+
+def test_odds_turn_into_expected_goals():
+    from squadsense.odds import expected_goals_from_odds, fair_probabilities
+    assert abs(sum(fair_probabilities([1.4, 5.0, 7.5])) - 1) < 1e-9
+    home, away = expected_goals_from_odds([1.40, 5.00, 7.50, 1.45, 2.80])
+    assert home > 2 > away  # a big favourite at home in a high-scoring match
+    assert expected_goals_from_odds([None, 3.0, 3.0, 2.0, 2.0]) is None
+
+
+def test_odds_rows_match_fpl_fixtures_by_club_and_date():
+    from squadsense.odds import market_goals, parse_matches
+    teams = [{"id": 1, "name": "Man City"}, {"id": 2, "name": "Spurs"}, {"id": 3, "name": "Arsenal"}, {"id": 4, "name": "Man Utd"}]
+    fixtures = [
+        {"event": 14, "team_h": 1, "team_a": 2, "kickoff_time": "2026-12-05T15:00:00Z"},
+        {"event": 14, "team_h": 3, "team_a": 4, "kickoff_time": "2026-12-05T17:30:00Z"},
+    ]
+    goals = market_goals(parse_matches(ODDS_CSV), teams, fixtures, 14, 14)
+    # football-data.co.uk writes "Tottenham" and "Man United"; FPL writes "Spurs" and "Man Utd".
+    assert set(goals) == {(1, 2, True), (2, 1, False), (3, 4, True), (4, 3, False)}
+    assert goals[(1, 2, True)] > goals[(2, 1, False)]
+
+
+def test_fixture_model_blends_in_the_market():
+    from squadsense import fixtures as fixtures_module
+    from squadsense.fixtures import FixtureModel
+    ratings = {1: {"attack": 1.0, "concede": 1.0}, 2: {"attack": 1.0, "concede": 1.0}}
+    ours = FixtureModel(ratings).expected_goals(1, 2, True)
+    blended = FixtureModel(ratings, {(1, 2, True): 3.0}).expected_goals(1, 2, True)
+    assert blended == pytest.approx((1 - fixtures_module.MARKET_WEIGHT) * ours + fixtures_module.MARKET_WEIGHT * 3.0)
+
+
+def test_elo_rewards_winners_and_welcomes_promoted_clubs():
+    from squadsense.elo import ratings_before
+    results = [
+        {"date": "2025-08-16", "home": "A", "away": "B", "home_goals": 3, "away_goals": 0},
+        {"date": "2025-08-23", "home": "C", "away": "A", "home_goals": 0, "away_goals": 1},
+        {"date": "2026-08-15", "home": "A", "away": "D", "home_goals": 1, "away_goals": 1},
+    ]
+    ratings, latest = ratings_before(results, "2026-08-14")
+    assert ratings["A"] > 1500 > ratings["B"]
+    ratings, latest = ratings_before(results, "2026-08-20")
+    assert latest == {"A", "D"}
+    assert "D" in ratings
+
+
+def test_goals_conceded_penalty_rounds_down_per_two_goals():
+    from squadsense.model import expected_goals_conceded_penalty
+    assert expected_goals_conceded_penalty(0.0) == 0
+    # At 1.5 expected goals against, rounding down makes it about 0.5, not 0.75.
+    assert 0.45 < expected_goals_conceded_penalty(1.5) < 0.6

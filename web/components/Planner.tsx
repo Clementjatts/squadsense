@@ -7,6 +7,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
+import { ApplyToFpl } from "./ApplyToFpl";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
@@ -164,6 +165,19 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               week={selectedWeek}
               onChange={setChips}
             />
+            {selectedWeek === weeks[0] && snapshot.squadSource === "fpl" && weekPlan.problems.length === 0 && (
+              <ApplyToFpl
+                plan={{
+                  gameweek: selectedWeek,
+                  moves: weekMoves.map((move) => ({ outId: move.outId, inId: move.inId })),
+                  starters: weekPlan.starters,
+                  bench: weekPlan.bench,
+                  captain: weekPlan.captain,
+                  viceCaptain: weekPlan.viceCaptain,
+                  chip: weekPlan.chip,
+                }}
+              />
+            )}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {weekPlan.problems.length === 0 ? (
                 <span className="chip good">Budget and club limits OK</span>

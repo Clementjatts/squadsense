@@ -15,7 +15,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import leagues, review
+from . import leagues, odds, review
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
@@ -180,7 +180,28 @@ def live_picks(storage, client, team_id, current_week, is_public, league_data, b
     }
 
 
-def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None):
+def season_start_year(bootstrap):
+    """The year the season started in, from GW1's deadline (2026 for 2026/27)."""
+    return int(bootstrap["events"][0]["deadline_time"][:4])
+
+
+def market_expected_goals(storage, bootstrap, fixtures, first_week, odds_client=None):
+    """Expected goals from bookmaker odds for the planning window, or {} if they can't be read.
+
+    Odds are a bonus: if football-data.co.uk is down, the sync carries on
+    with our own ratings and logs a warning.
+    """
+    try:
+        data = odds.load_odds_data(storage, season_start_year(bootstrap), odds_client)
+    except odds.OddsError as error:
+        log.warning("No bookmaker odds this run: %s", error)
+        return {}
+    market = odds.market_goals(data["upcoming"], bootstrap["teams"], fixtures, first_week, first_week + 4)
+    log.info("Bookmaker odds found for %d matches", len(market) // 2)
+    return market
+
+
+def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odds_client=None):
     """Does one complete sync. Split out from main() so tests can call it."""
     client = client or FplClient()
     storage = choose_storage(local_folder)
@@ -202,7 +223,8 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None):
     refresh_histories(client, storage, to_fetch)
     histories = storage.load_player_histories()
 
-    model_results = run_model(bootstrap, fixtures, histories, next_week, storage.load_player_pasts())
+    market = market_expected_goals(storage, bootstrap, fixtures, next_week, odds_client)
+    model_results = run_model(bootstrap, fixtures, histories, next_week, storage.load_player_pasts(), market)
     expected_points = model_results.expected_points
     players_by_id = {player["id"]: player for player in bootstrap["elements"]}
     entry_history = client.entry_history(team_id) if is_public else None

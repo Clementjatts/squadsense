@@ -106,3 +106,87 @@ What it showed:
 - Playing when this week is worth at least 90% of the best week left (`PLAY_SHARE` in `chips.py`) did better for both chips: Triple Captain 11.3 to 12.8, Bench Boost 9.3 to 14.5. 0.7 and 0.8 gave similar totals; 0.9 was kept as the smallest change.
 - Both beat a random week, but neither beat "first double gameweek" (14.0 and 17.7). The Chips page says so, and a known double deserves extra weight.
 - Six half-seasons is a small sample, and the kept squad is a stand-in for a real one, which changes every week. Treat these as direction, not precision.
+
+## Ideas from GitHub (21 November 2026)
+
+Each idea below was tested on the three downloaded seasons (2022-23 to 2024-25, "past") and on 2026-27 GW4-10 ("now"). Numbers are top20 and captain real points, as above.
+
+### Scoring by real points ("buckets", from OpenFPL)
+
+Predicted minus real points, split by what the player really scored:
+
+```
+            blank (0-2)  return (3-5)  big (6-9)  haul (10+)
+past           +1.89        0.00         -3.26       -8.24
+now            +2.23        +0.27        -3.15       -7.63
+```
+
+Like every points model, ours is drawn towards the middle: it can't know in advance which starter hauls, so hauls are under-predicted and blanks over-predicted. This is expected (the slope of 0.96 on past seasons says the spread is right on average), and it's the reason the captain haul chance exists. These numbers are the baseline future changes should be checked against.
+
+### Goals conceded, rounded down per two goals
+
+FPL takes one point per two goals conceded, rounded down; the model used goals/2. Counting it properly:
+
+```
+                  past top20  past captain  past DEF bias   now top20  now captain  now DEF bias
+goals / 2            5.10         6.94          -0.01          5.02        7.43         -0.24
+rounded down         5.07         7.12          +0.19          5.11        7.43         -0.04
+```
+
+Kept: it's FPL's actual rule, and it fixes most of this season's defender under-rating.
+
+### Bookmaker odds (football-data.co.uk)
+
+Expected goals from the average 1X2 and over/under 2.5 odds, blended with ours:
+
+```
+odds share   past top20  past captain   now top20  now captain
+0               5.07         7.12          5.11        7.43
+0.25            5.07         7.32          5.09        7.43
+0.5             5.10         7.39          5.10        6.86
+0.75            5.07         7.41          5.14        6.86
+```
+
+Kept at 0.5 (`MARKET_WEIGHT`). The past seasons are the bigger sample (about 100 weeks against 7), and there the captain pick rose by 0.27 points a week. This season's drop is one week's captain changing. Odds are only published for the next round, so they only affect the coming gameweek.
+
+### Elo starting guesses
+
+Our own Elo ratings (ClubElo's API was down) in place of FPL's 1-5 rating as each club's starting guess:
+
+```
+Elo scale     past top20  past captain   now top20  now captain
+off (1-5)        5.07         7.12          5.11        7.43
+0.001            5.04         7.01          5.00        6.71
+0.0015           5.08         7.13          5.00        6.86
+0.0025           5.10         7.17          5.21        6.86
+```
+
+Not used: no clear gain, and the captain pick got worse this season. The 1-5 rating already carries most of what Elo knows, and own xG takes over after a few games anyway.
+
+### A second model (gradient boosting, from OpenFPL)
+
+`python -m squadsense.challenger`: rolling 1, 3, 5, 10 and 38-appearance averages and our fixture expected goals, fitted by scikit-learn's gradient boosting. Each season is predicted by a model trained on the other seasons.
+
+```
+              top20  captain  slope   mae
+2022-23        4.59    6.35   0.86   2.27
+2023-24        5.14    9.17   0.98   2.38
+2024-25        5.18    6.17   0.88   2.30
+past average   4.97    7.23            
+2026-27        5.04    4.86   0.75   2.31
+```
+
+Not used. Its average error is a little lower than ours, but it ranks players worse (top20 4.97 against 5.07 on past seasons, 5.04 against 5.11 now), and ranking is what picks transfers and captains.
+
+### Predicting further ahead
+
+The transfer plan looks five weeks out, so predictions made two and three weeks early were scored too:
+
+```
+weeks ahead   past top20  past captain   now top20  now captain
+1                5.07         7.12          5.11        7.43
+2                5.11         7.00          5.04        6.33
+3                5.02         6.34          5.01        5.20
+```
+
+The top20 holds up well; the single captain pick gets less reliable further out, as you'd expect.

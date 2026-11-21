@@ -38,14 +38,16 @@ class ModelResults:
     pasts: dict  # {player_id: history_past rows}, as given to run_model()
 
 
-def run_model(bootstrap, fixtures, histories, first_week, pasts=None):
+def run_model(bootstrap, fixtures, histories, first_week, pasts=None, market=None):
     """Works out xP for every player for the next PLANNING_WINDOW gameweeks.
 
-    `pasts` is {player_id: history_past rows}, used as each player's starting point.
+    `pasts` is {player_id: history_past rows}, used as each player's
+    starting point. `market` is expected goals from bookmaker odds (see
+    odds.market_goals), blended in for the matches it covers.
     """
     pasts = pasts or {}
     last_week = first_week + PLANNING_WINDOW - 1
-    fixture_model = FixtureModel(team_ratings(bootstrap["teams"], fixtures, histories))
+    fixture_model = FixtureModel(team_ratings(bootstrap["teams"], fixtures, histories), market)
     schedule = fixtures_by_team_and_week(fixtures, first_week, last_week)
 
     expected_points = {}

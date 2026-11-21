@@ -26,8 +26,8 @@ export function SearchPalette() {
 
   return (
     <>
-      <button type="button" className="topnav-search" onClick={() => setIsOpen(true)} aria-label="Search players">
-        <span>Search</span>
+      <button type="button" className="topnav-search" onClick={() => setIsOpen(true)} aria-label="Search players" title="Search players">
+        <span aria-hidden="true">⌕</span>
         <kbd>⌘K</kbd>
       </button>
       {isOpen && <SearchDialog onClose={() => setIsOpen(false)} />}

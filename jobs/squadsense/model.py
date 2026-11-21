@@ -190,6 +190,21 @@ def player_rates(player, history_rows, past_seasons=None):
     )
 
 
+def expected_goals_conceded_penalty(goals_against, max_goals=12):
+    """Expected points lost to goals conceded: 1 for every 2 goals, rounded down.
+
+    Taking goals_against / 2 overstates it, because one goal costs nothing
+    and three cost the same as two. This adds up floor(goals / 2) over a
+    Poisson spread of scorelines instead.
+    """
+    chance = math.exp(-goals_against)
+    expected = 0.0
+    for goals in range(1, max_goals + 1):
+        chance *= goals_against / goals
+        expected += (goals // 2) * chance
+    return expected
+
+
 def expected_points_for_match(position, team_id, rates, match, fixture_model):
     """xP for one match. Follows the formula in the planning doc, section 3."""
     expected_minutes_share = (
@@ -210,7 +225,7 @@ def expected_points_for_match(position, team_id, rates, match, fixture_model):
     clean_sheet_points = rates.chance_60_minutes * math.exp(-goals_against) * rules.POINTS_FOR_CLEAN_SHEET[position]
     conceded_penalty = 0.0
     if position in (rules.GOALKEEPER, rules.DEFENDER):
-        conceded_penalty = rates.chance_60_minutes * goals_against / 2
+        conceded_penalty = rates.chance_60_minutes * expected_goals_conceded_penalty(goals_against)
     save_points = expected_minutes_share * rates.saves_per_90 / 3
     defensive_points = (
         rates.chance_60_minutes * rates.defensive_contribution_rate * rules.POINTS_FOR_DEFENSIVE_CONTRIBUTION

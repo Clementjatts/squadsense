@@ -4,8 +4,12 @@ FPL used to publish attack and defence strength ratings, but in 2026/27
 they're all zero. The only rating left is an overall 1-5 score. So we
 build our own ratings from this season's matches: how much xG each club
 creates and allows per game, compared with the league average. Early in
-the season that's a small sample, so each club starts from a guess based
-on FPL's 1-5 rating and moves towards its own numbers as games pile up.
+the season that's a small sample, so each club starts from a guess and
+moves towards its own numbers as games pile up. The guess comes from Elo
+ratings (elo.py) when we have results, and FPL's 1-5 rating otherwise.
+
+When bookmaker odds exist for a match (odds.py), the expected goals are
+a blend of ours and the market's.
 
 The expected goals number drives both attacker and defender scores:
 
@@ -28,6 +32,15 @@ WEEKLY_DISCOUNT = 0.9
 PRIOR_GAMES = 6  # starting assumption
 # How far one step on FPL's 1-5 overall rating moves the starting guess.
 RATING_STEP = 0.12  # starting assumption
+# How much 100 Elo points above average raise a club's attack (and lower
+# what it concedes), as a power of e: exp(0.15) is about 16% more.
+# Elo starting guesses are only used by the backtest (--elo): they didn't
+# beat FPL's 1-5 rating there, so the sync doesn't use them.
+ELO_SCALE = 0.0015
+# Share of the bookmakers' expected goals in the blend, for matches with odds.
+# Backtest on 2022-23 to 2024-25: captain pick 7.12 to 7.39 real points,
+# top20 5.07 to 5.10 (see docs/backtest-results.md).
+MARKET_WEIGHT = 0.5
 
 
 def _average(values):
@@ -40,13 +53,22 @@ def _blend(own_rate, guessed_rate, games_played):
     return (games_played * own_rate + PRIOR_GAMES * guessed_rate) / (games_played + PRIOR_GAMES)
 
 
-def starting_ratings(teams):
-    """A first guess at each club's ratings from FPL's 1-5 overall score.
+def starting_ratings(teams, elo=None):
+    """A first guess at each club's ratings, from Elo if given, else FPL's 1-5 overall score.
 
     Ratings are multipliers where 1.0 is league average. "attack" above 1
     means the club scores more than average; "concede" above 1 means it
-    lets in more than average.
+    lets in more than average. `elo` is {team_id: rating} from elo.py.
     """
+    if elo:
+        mean_elo = _average(elo.values())
+        return {
+            team["id"]: {
+                "attack": math.exp(ELO_SCALE * (elo[team["id"]] - mean_elo)),
+                "concede": math.exp(-ELO_SCALE * (elo[team["id"]] - mean_elo)),
+            }
+            for team in teams
+        }
     overall = {team["id"]: (team["strength_overall_home"] + team["strength_overall_away"]) / 2 for team in teams}
     mean_overall = _average(overall.values())
     return {
@@ -80,9 +102,9 @@ def team_match_xg(fixtures, histories):
     return matches
 
 
-def team_ratings(teams, fixtures, histories):
+def team_ratings(teams, fixtures, histories, elo=None):
     """Each club's attack and concede ratings, blending real xG with the starting guess."""
-    guesses = starting_ratings(teams)
+    guesses = starting_ratings(teams, elo)
     matches = team_match_xg(fixtures, histories)
     all_xg = [xg_for for games in matches.values() for xg_for, _ in games]
     if not all_xg or sum(all_xg) == 0:
@@ -102,20 +124,24 @@ def team_ratings(teams, fixtures, histories):
 
 
 class FixtureModel:
-    """Expected goals for and against for any fixture, from team ratings."""
+    """Expected goals for and against for any fixture, from team ratings and, where available, odds."""
 
-    def __init__(self, ratings):
+    def __init__(self, ratings, market=None):
         self.ratings = ratings
+        # {(team_id, opponent_id, is_home): expected goals from bookmaker odds}
+        self.market = market or {}
 
     def expected_goals(self, team_id, opponent_id, is_home):
-        """Goals `team_id` should score against `opponent_id`."""
+        """Goals `team_id` should score against `opponent_id`, blended with the odds if there are any."""
         venue = HOME_BOOST if is_home else AWAY_PENALTY
-        return (
+        ours = (
             LEAGUE_AVERAGE_GOALS
             * self.ratings[team_id]["attack"]
             * self.ratings[opponent_id]["concede"]
             * venue
         )
+        market = self.market.get((team_id, opponent_id, is_home))
+        return ours if market is None else (1 - MARKET_WEIGHT) * ours + MARKET_WEIGHT * market
 
     def clean_sheet_chance(self, team_id, opponent_id, is_home):
         """Chance `team_id` keeps a clean sheet, using a Poisson model."""
