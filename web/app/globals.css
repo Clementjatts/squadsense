@@ -273,7 +273,7 @@ table.ticker tbody tr { transition: opacity 200ms var(--ease-out-quart); }
 
 /* Page frame and grids. Rows stretch so neighbouring cards share a height. */
 .bc-page { max-width: 1440px; margin: 0 auto; padding: 28px 36px 24px; display: flex; flex-direction: column; gap: 20px; }
-.bc-grid-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; align-items: stretch; }
+.bc-grid-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 20px; align-items: stretch; }
 .bc-grid-main, .bc-grid-analysis { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 20px; }
 .bc-grid-main { align-items: stretch; }
 .bc-grid-analysis { align-items: start; }
@@ -413,12 +413,13 @@ table.ticker tbody tr { transition: opacity 200ms var(--ease-out-quart); }
 
 /* Shared pieces, restyled once for every page. */
 .card { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 18px; padding: 22px 24px; box-shadow: none; }
-/* The title never wraps. A side note sits on the right only if it fits on
-   one line; otherwise flex-wrap drops it to its own line under the title,
-   where space-between leaves a lone item on the left. Neither ever breaks
-   into a squeezed two-line column. */
+/* A side note sits on the right only if it fits on one line beside the
+   title; otherwise flex-wrap drops it to its own line under the title,
+   where space-between leaves a lone item on the left. Neither is squeezed
+   into a two-line column. A title only wraps if it is wider than the
+   whole card, which happens on phones. */
 .card-head { min-height: 32px; flex-wrap: wrap; row-gap: 4px; }
-.card-head h2 { font-family: var(--condensed); font-weight: 800; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.card-head h2 { font-family: var(--condensed); font-weight: 800; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; }
 .btn { border-radius: 0; border-color: #2a3a5c; font-family: var(--condensed); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; transform: skewX(-12deg); }
 .btn:active:not(:disabled), .btn.primary:hover:not(:disabled) { transform: skewX(-12deg); }
 .chip { border-radius: 0; padding: 2px 8px; font-family: var(--condensed); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; transform: skewX(-12deg); }
@@ -660,3 +661,38 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .account-panel { position: absolute; right: 0; top: 50px; z-index: 50; width: 290px; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.5; }
 .account-panel hr { width: 100%; border: 0; border-top: 1px solid var(--panel-line); margin: 2px 0; }
 .account-panel form .btn { width: 100%; }
+
+/* Phones. Cards get less padding, filters fill the width, and the pitch
+   uses smaller player slots, so five players fit across a 360 px screen
+   without anything being cut off or the page scrolling sideways. */
+@media (max-width: 560px) {
+  /* Header, page and footer share one 12 px edge, so everything lines up on the left. */
+  .topnav { padding: 12px; }
+  .topnav-links { width: 100%; }
+  .bc-page, .site-footer { padding-left: 12px; padding-right: 12px; }
+  .card, .bc-hero, .bc-squad { padding: 18px 16px; }
+  .bc-hero-body { gap: 20px; }
+  .bc-bars { gap: 8px; }
+  .bc-bar-col { width: 40px; }
+  .segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .segmented::-webkit-scrollbar { display: none; }
+  .card-head > .segmented { width: 100%; }
+  .segmented .segmented-btn { flex: 1 0 auto; padding: 0 10px; font-size: 14px; }
+  .bc-lineup-head { padding: 0 16px; }
+  .bc-pitch { height: 440px; padding: 20px 2px; }
+  .bc-pitch-box { inset: 10px; }
+  .bc-pitch-half { left: 10px; right: 10px; }
+  .bc-pitch-circle { width: 84px; height: 84px; margin: -42px 0 0 -42px; }
+  /* Slots share the row's width (up to 66 px each), so a back five fits any phone. */
+  .bc-token { width: auto; flex: 0 1 66px; min-width: 0; height: 80px; grid-template-rows: 38px 20px 18px; }
+  .bc-token-sub { height: 96px; grid-template-rows: 14px 36px 20px 18px; }
+  .bc-token-shirt svg { width: 32px; height: auto; }
+  .bc-token-captain, .bc-token-pen { width: 18px; height: 18px; font-size: 12px; top: -4px; }
+  .bc-token-captain { right: -10px; }
+  .bc-token-pen { left: -10px; }
+  .bc-token-name { max-width: calc(100% - 4px); height: 20px; padding: 2px 5px; font-size: 12px; line-height: 16px; }
+  .bc-token-xp { height: 18px; padding: 1px 6px; font-size: 12px; line-height: 16px; }
+  .bc-token-order { font-size: 11px; line-height: 14px; }
+  .bc-subs { padding: 12px 8px 14px; }
+  .bc-subs-head { height: auto; flex-wrap: wrap; padding: 0 8px; }
+}
