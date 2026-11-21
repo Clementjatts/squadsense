@@ -26,11 +26,16 @@ function keyBytes(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 // Why this device can't get alerts, or null if it can.
+// We test for push support itself rather than asking whether the page runs
+// as a Home Screen app: iPhones only offer push inside a Home Screen app,
+// and their answer to the "running as an app" question isn't reliable.
 function unsupportedReason(): string | null {
+  const canPush = "serviceWorker" in navigator && "PushManager" in window;
   const iPhone = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const installed = window.matchMedia("(display-mode: standalone)").matches;
-  if (iPhone && !installed) return "On iPhone, add SquadSense to your Home Screen first (Share, then Add to Home Screen), then open it from there.";
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "This browser can't receive alerts.";
+  if (!canPush && iPhone) {
+    return "On iPhone, alerts only work in the Home Screen app: Share, then Add to Home Screen, with Open as Web App switched on. Open it from that icon (no Safari address bar) and sign in again.";
+  }
+  if (!canPush) return "This browser can't receive alerts.";
   if (!PUBLIC_KEY) return "Alerts aren't set up on this copy of the site yet.";
   return null;
 }

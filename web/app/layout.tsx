@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "SquadSense", statusBarStyle: "black-translucent" },
   icons: { apple: "/apple-touch-icon.png" },
+  // Next.js 16 only writes the newer mobile-web-app-capable tag. Older
+  // iPhone versions still look for Apple's own name before opening the
+  // site as an app, so it is added by hand.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 // Fonts load from Google in the browser. next/font would bundle them at
