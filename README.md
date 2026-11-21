@@ -96,6 +96,7 @@ Alerts arrive by email and as phone or browser notifications: the deadline in 2 
 2. **Email.** Make a free account at resend.com (100 emails a day, 3,000 a month), create an API key and add it to GitHub as `RESEND_API_KEY`. Add `ALERT_EMAIL_TO` with the address alerts should go to. Until you verify a domain in Resend, emails come from Resend's test address and can only go to the address you signed up with. Once your domain is verified (Resend gives you DNS records to add in Cloudflare), add `ALERT_EMAIL_FROM`, for example `SquadSense <alerts@yourdomain.com>`.
 3. **Links.** Add `SITE_URL` to GitHub with the site's address, so tapping a notification opens the right page.
 4. **Your phone.** Open the site, tap the bell in the header and choose "Turn on alerts". On an iPhone, first add the site to your Home Screen (Share, then Add to Home Screen) and open it from there; iPhones only allow notifications for sites added that way.
+5. **Test.** On GitHub, open Actions, then Sync FPL data, then Run workflow, tick "Only send a test email and phone alert" and run it. You should get one email and one notification on each device with alerts on. If one doesn't arrive, the run's log says why.
 
 ## Applying a plan to your FPL team
 

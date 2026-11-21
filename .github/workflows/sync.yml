@@ -26,6 +26,10 @@ on:
         description: "Also run the test suite (about 10 minutes)"
         type: boolean
         default: false
+      test_alert:
+        description: "Only send a test email and phone alert (skips the sync)"
+        type: boolean
+        default: false
 
 jobs:
   sync:
@@ -55,7 +59,9 @@ jobs:
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           SITE_URL: ${{ secrets.SITE_URL }}
         run: |
-          if [ "${{ github.event.schedule }}" = "37 1 * * *" ] || [ "${{ inputs.full }}" = "true" ]; then
+          if [ "${{ inputs.test_alert }}" = "true" ]; then
+            python -m squadsense.alerts --test
+          elif [ "${{ github.event.schedule }}" = "37 1 * * *" ] || [ "${{ inputs.full }}" = "true" ]; then
             python -m squadsense.sync --full
           else
             python -m squadsense.sync

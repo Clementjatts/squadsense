@@ -240,3 +240,49 @@ def run_alerts(storage, snapshot, run_started, channels=None, client=None, now=N
         storage.mark_alerts_sent([PRIMED_KEY])
     log.info("Alerts sent: %s", ", ".join(sent) or "none")
     return sent
+
+
+def send_test_alert(storage, channels=None, client=None):
+    """Sends one test message by email and push, to check the settings work.
+
+    Uses the same send functions as real alerts but records nothing, so it
+    can be run any number of times. Returns {"email": ..., "push": ...},
+    each True (accepted), False (failed, reason in the log) or None (not set up).
+    """
+    channels = channels or Channels.from_environment()
+    client = client or httpx.Client(timeout=20)
+    site_url = os.environ.get("SITE_URL", "").rstrip("/")
+    alert = Alert([], "Test alert", "Alerts are working. Real ones arrive like this one.", "/")
+    results = {
+        "email": send_email(channels, alert, client) if channels.email_ready() else None,
+        "push": send_push(channels, alert, storage, site_url) if channels.push_ready() else None,
+    }
+    if channels.push_ready() and not results["push"] and not storage.load_push_subscriptions():
+        log.warning("No devices have alerts turned on yet: tap the bell on the website first")
+    return results
+
+
+def main():
+    """Command line: `python -m squadsense.alerts --test` sends a test alert."""
+    import argparse
+
+    from .sync import choose_storage
+
+    parser = argparse.ArgumentParser(description="Send a test alert by email and push.")
+    parser.add_argument("--test", action="store_true", required=True, help="Send one test message")
+    parser.add_argument("--local-folder", default=".data", help="Folder for local runs without Postgres")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    results = send_test_alert(choose_storage(args.local_folder))
+    log.info("Test alert: email %s, push %s", *(describe_result(results[way]) for way in ("email", "push")))
+    if not any(results.values()):
+        raise SystemExit("The test alert didn't reach anyone. See the messages above.")
+
+
+def describe_result(result):
+    """True/False/None as words for the log."""
+    return {True: "sent", False: "failed", None: "not set up"}[result]
+
+
+if __name__ == "__main__":
+    main()

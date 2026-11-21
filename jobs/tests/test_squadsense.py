@@ -706,6 +706,17 @@ def test_plan_changes_alert_only_for_this_run():
     assert plan_change_alert(alert_snapshot(changes=feed), datetime(2026, 11, 27, 10, 0, tzinfo=timezone.utc)) == []
 
 
+def test_test_alert_sends_email_and_records_nothing(tmp_path):
+    from squadsense.alerts import Channels, send_test_alert
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    resend = FakeResend()
+    results = send_test_alert(storage, Channels(resend_key="test", email_to="me@example.com"), resend)
+    assert results == {"email": True, "push": None}
+    assert resend.sent[0]["subject"] == "SquadSense: Test alert"
+    assert not storage.alert_was_sent("alerts-primed")  # a test never counts as the first real run
+
+
 def test_no_alert_settings_means_nothing_is_sent(tmp_path):
     from datetime import datetime, timezone
     from squadsense.alerts import Channels, run_alerts
