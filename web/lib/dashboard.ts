@@ -52,3 +52,20 @@ export function tableOrder(starters: number[], bench: number[], players: Record<
 export function priceRow(snapshot: Snapshot, playerId: number): PriceWatchRow | undefined {
   return snapshot.priceWatch.players.find((row) => row.id === playerId);
 }
+
+/** Short tags for the set pieces he's first choice on: PEN, then SP for corners or free kicks. */
+export function setPieceTags(player: Player): string[] {
+  const tags: string[] = [];
+  if (player.setPieces?.penalties === 1) tags.push("PEN");
+  if (player.setPieces?.corners === 1 || player.setPieces?.freeKicks === 1) tags.push("SP");
+  return tags;
+}
+
+// How far apart our xP and FPL's own can be before it's worth pointing out.
+export const FPL_GAP_TO_FLAG = 1.5;
+
+/** Our xP minus FPL's for one week, or null when FPL gives no number. */
+export function fplGap(player: Player, week: number): number | null {
+  if (player.fplXp === null || player.fplXp === undefined) return null;
+  return (player.xp[String(week)] ?? 0) - player.fplXp;
+}

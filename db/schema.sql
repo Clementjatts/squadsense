@@ -17,6 +17,13 @@ create table if not exists player_history (
 
 -- Expected points per player per gameweek. model_version lets us compare
 -- old and new versions of the model when backtesting.
+-- Each player's totals from past seasons, used as his starting point in the model.
+create table if not exists player_past (
+  player_id integer primary key,
+  seasons jsonb not null,
+  fetched_at timestamptz not null default now()
+);
+
 create table if not exists predictions (
   player_id integer not null,
   gameweek integer not null,
@@ -54,6 +61,7 @@ create index if not exists snapshots_team_latest on snapshots (team_id, created_
 -- Nothing is readable straight from a browser.
 alter table api_cache enable row level security;
 alter table player_history enable row level security;
+alter table player_past enable row level security;
 alter table predictions enable row level security;
 alter table price_snapshots enable row level security;
 alter table snapshots enable row level security;

@@ -163,12 +163,17 @@ function PanelBody({ detail }: { detail: PlayerDetail }) {
   return (
     <>
       <div className="panel-tiles">
-        <Tile label={`xP GW${detail.nextGameweek}`} value={formatXp(detail.xpNext)} />
+        <Tile
+          label={`xP GW${detail.nextGameweek}`}
+          value={formatXp(detail.xpNext)}
+          note={detail.fplXp === null ? undefined : `FPL says ${formatXp(detail.fplXp)}`}
+        />
         <Tile label="Owned" value={`${detail.ownership.toFixed(1)}%`} />
         <Tile label="Mins/match" value={String(detail.minutesPerMatch)} />
         <Tile label={detail.sellingPrice === null ? "Price" : "Sells for"} value={formatPrice(detail.sellingPrice ?? detail.price)} />
       </div>
       <RecentChart detail={detail} />
+      <SeasonSection detail={detail} />
       <section className="panel-section">
         <h3>Next fixtures</h3>
         <div className="panel-fixtures">
@@ -195,17 +200,47 @@ function PanelBody({ detail }: { detail: PlayerDetail }) {
         >
           {watched ? "Remove from watchlist" : "Add to watchlist"}
         </button>
+        <a className="btn" href={`/compare?ids=${detail.id}`} style={{ marginLeft: 8 }}>Compare</a>
       </div>
     </>
   );
 }
 
-function Tile({ label, value }: { label: string; value: string }) {
+// One stat tile; `note` is an optional small line under the number.
+function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="panel-tile">
       <span className="muted">{label}</span>
       <b className="num">{value}</b>
+      {note && <span className="muted panel-tile-note">{note}</span>}
     </div>
+  );
+}
+
+// This season's totals and his last few full seasons, for a longer view than the six-week chart.
+function SeasonSection({ detail }: { detail: PlayerDetail }) {
+  const season = detail.season;
+  return (
+    <section className="panel-section">
+      <h3>Season so far and past seasons</h3>
+      <table className="panel-seasons">
+        <thead>
+          <tr><th scope="col">Season</th><th scope="col" className="right">Pts</th><th scope="col" className="right">Mins</th><th scope="col" className="right">xG</th><th scope="col" className="right">xA</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>This season</td><td className="right num">{season.points}</td><td className="right num">{season.minutes}</td>
+            <td className="right num">{season.xg.toFixed(2)}</td><td className="right num">{season.xa.toFixed(2)}</td>
+          </tr>
+          {detail.pastSeasons.map((past) => (
+            <tr key={past.season} className="muted">
+              <td>{past.season}</td><td className="right num">{past.points}</td><td className="right num">{past.minutes}</td>
+              <td className="right num">{past.xg.toFixed(2)}</td><td className="right num">{past.xa.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

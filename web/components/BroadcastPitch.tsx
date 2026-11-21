@@ -85,12 +85,13 @@ function PlayerToken({ player, week, isCaptain = false, subLabel, state, onClick
       className={classes.join(" ")}
       onClick={() => onClick(player.id)}
       aria-pressed={state === "selected" ? true : undefined}
-      aria-label={`${player.name}, ${player.team}, ${xp} expected points${isCaptain ? ", captain" : ""}`}
+      aria-label={`${player.name}, ${player.team}, ${xp} expected points${isCaptain ? ", captain" : ""}${player.setPieces?.penalties === 1 ? ", takes penalties" : ""}`}
     >
       {subLabel && <span className="bc-token-order">{subLabel}</span>}
       <span className="bc-token-shirt">
         <ClubKit clubCode={player.team} isGoalkeeper={player.position === "GK"} width={subLabel ? 48 : 54} />
         {isCaptain && <span className="bc-token-captain">C</span>}
+        {player.setPieces?.penalties === 1 && <span className="bc-token-pen" title="First-choice penalty taker">P</span>}
       </span>
       <span className="bc-token-name">{player.name}</span>
       <span className="bc-token-xp">{xp}</span>

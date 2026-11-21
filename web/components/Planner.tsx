@@ -11,7 +11,7 @@ import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
 import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type PlannedMove } from "@/lib/planning";
-import type { Snapshot } from "@/lib/types";
+import type { SolverPlan, Snapshot } from "@/lib/types";
 
 const OPTIONS_SHOWN = 12;
 
@@ -267,6 +267,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                             </strong>
                             <span className="muted">
                               {formatGain(suggestion.gain)} xP · {suggestion.advice === "make" ? "make it" : "roll instead"}
+                              {suggestion.priceNote && <> · <span className="bc-accent">{suggestion.priceNote}</span></>}
                             </span>
                           </span>
                           <button
@@ -291,8 +292,56 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               </motion.div>
             </AnimatePresence>
           </section>
+          {snapshot.solverPlan && (
+            <SolverPlanCard
+              plan={snapshot.solverPlan}
+              snapshot={snapshot}
+              onApply={() => {
+                setMoves(solverMoves(snapshot.solverPlan!));
+                setSwapOutId(null);
+              }}
+            />
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+// The solver's moves in the Planner's own format, so they can be loaded in one click.
+function solverMoves(plan: SolverPlan): PlannedMove[] {
+  return plan.weeks.flatMap((week) => week.moves.map((move) => ({ week: week.gameweek, outId: move.out, inId: move.in })));
+}
+
+// The best plan for every week at once, from the solver. One fixed-height
+// row per gameweek, so a week with no moves takes the same space as a busy one.
+function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapshot: Snapshot; onApply: () => void }) {
+  const { players } = snapshot;
+  return (
+    <section className="card solver-card">
+      <div className="card-head">
+        <h2>Best {plan.weeks.length}-week plan</h2>
+        <span className="muted">{formatGain(plan.gain)} xP vs no moves{plan.totalHits > 0 ? ` · -${plan.totalHits * 4} in hits` : ""}</span>
+      </div>
+      <ol className="solver-weeks">
+        {plan.weeks.map((week) => (
+          <li key={week.gameweek} className="solver-week">
+            <span className="solver-gw">GW{week.gameweek}</span>
+            <span className="solver-moves">
+              {week.moves.length === 0
+                ? <span className="muted">Roll the transfer</span>
+                : week.moves.map((move) => `${players[String(move.out)].name} → ${players[String(move.in)].name}`).join(", ")}
+            </span>
+            <span className="solver-meta muted">
+              {week.hits > 0 ? <b className="bc-warn">-{week.hits * 4}</b> : `C ${players[String(week.captain)].name}`}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button type="button" className="btn primary" onClick={onApply}>Load into planner</button>
+        <span className="muted">Replaces the moves you&apos;ve planned so far.</span>
+      </div>
+    </section>
   );
 }

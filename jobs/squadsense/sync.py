@@ -15,9 +15,10 @@ import os
 import sys
 from pathlib import Path
 
+from . import leagues, review
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
-from .snapshot import MODEL_VERSION, build_snapshot, run_model
+from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
 from .squad_builder import SquadBuilderError, pick_best_squad
 from .squad_state import build_squad_state, model_squad_state
 from .storage import FileStorage, PostgresStorage
@@ -45,7 +46,7 @@ def find_gameweeks(bootstrap):
 
 
 def refresh_histories(client, storage, player_ids):
-    """Downloads match-by-match history for the given players.
+    """Downloads match-by-match history and past-season totals for the given players.
 
     About one player a second, so a full refresh of ~750 players takes
     roughly 13 minutes. Hourly runs only refresh your squad.
@@ -53,6 +54,7 @@ def refresh_histories(client, storage, player_ids):
     for count, player_id in enumerate(player_ids, start=1):
         summary = client.element_summary(player_id)
         storage.save_player_history(player_id, summary["history"])
+        storage.save_player_past(player_id, summary.get("history_past", []))
         if count % 50 == 0:
             log.info("Fetched %d of %d player histories", count, len(player_ids))
 
@@ -98,12 +100,12 @@ def squad_picks(client, team_id, current_week, started_event):
     return client.entry_picks(team_id, previous_week)
 
 
-def read_real_squad(client, team_id, next_week, picks, team_entry, players_by_id, histories):
+def read_real_squad(client, team_id, next_week, picks, team_entry, entry_history, players_by_id, histories):
     """Rebuilds the team's actual squad, bank and transfers from public data."""
     started_event = team_entry["started_event"]
     return build_squad_state(
         team_id, next_week, started_event, picks,
-        client.entry_history(team_id),
+        entry_history,
         client.entry_transfers(team_id),
         players_by_id,
         starting_price_lookup_from(histories, started_event),
@@ -118,16 +120,64 @@ def pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_
     return model_squad_state(team_id, next_week, player_ids, lineup, players_by_id)
 
 
-def histories_to_fetch(bootstrap, cached, priority_ids, full_refresh):
+def histories_to_fetch(bootstrap, cached, cached_pasts, priority_ids, full_refresh):
     """Player ids whose match history needs downloading this run.
 
     A full refresh gets everyone. Otherwise it's the priority players
-    (the squad) plus anyone we've never fetched.
+    (the squad) plus anyone whose history or past seasons we don't have.
     """
     if full_refresh:
         return [player["id"] for player in bootstrap["elements"]]
-    missing = [player["id"] for player in bootstrap["elements"] if player["id"] not in cached]
+    missing = [player["id"] for player in bootstrap["elements"] if player["id"] not in cached or player["id"] not in cached_pasts]
     return list(dict.fromkeys(priority_ids + missing))
+
+
+def review_inputs(client, storage, team_id, team_entry, bootstrap, is_public):
+    """The picks, history and forecast the gameweek review needs, or Nones.
+
+    The picks are only read if the team had started by the reviewed week.
+    """
+    event = review.last_finished_week(bootstrap)
+    if event is None or not is_public or team_entry["started_event"] > event["id"]:
+        return None, None
+    picks = leagues.cached_picks(client, storage, team_id, event["id"])
+    return picks, storage.load_raw(review.forecast_name(team_id, event["id"]))
+
+
+def live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap):
+    """Every team's picks for the gameweek being played, for the Live page.
+
+    The website adds up live points from these, so it needs the
+    multipliers (captain, bench), each team's total before the week (FPL
+    has already taken this week's hits off it) and your own hits. `elements` gives every player's club and position, which
+    the automatic substitutions need.
+    """
+    mine = leagues.cached_picks(client, storage, team_id, current_week) if is_public else None
+    for league in league_data:
+        league["picks"][team_id] = mine
+    hits = lambda picks: ((picks or {}).get("entry_history") or {}).get("event_transfers_cost", 0)
+    return {
+        "gameweek": current_week,
+        "elements": {str(player["id"]): [player["team"], player["element_type"]] for player in bootstrap["elements"]},
+        "mine": {"picks": mine["picks"], "active_chip": mine.get("active_chip"), "hits": hits(mine)} if mine else None,
+        "leagues": [
+            {
+                "id": league["info"]["id"],
+                "name": league["info"]["name"],
+                "teams": [
+                    {
+                        "entry": row["entry"],
+                        "teamName": row["entry_name"],
+                        "totalBefore": row["total"] - row["event_total"],
+                        "picks": (league["picks"].get(row["entry"]) or {}).get("picks", []),
+                        "chip": (league["picks"].get(row["entry"]) or {}).get("active_chip"),
+                    }
+                    for row in league["standings"]
+                ],
+            }
+            for league in league_data
+        ],
+    }
 
 
 def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None):
@@ -147,20 +197,33 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None):
     picks = squad_picks(client, team_id, current_week, team_entry["started_event"]) if is_public else None
     squad_ids = [pick["element"] for pick in picks["picks"]] if picks else []
 
-    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), squad_ids, full_refresh)
+    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), storage.load_player_pasts(), squad_ids, full_refresh)
     log.info("Refreshing %d player histories", len(to_fetch))
     refresh_histories(client, storage, to_fetch)
     histories = storage.load_player_histories()
 
-    model_results = run_model(bootstrap, fixtures, histories, next_week)
+    model_results = run_model(bootstrap, fixtures, histories, next_week, storage.load_player_pasts())
     expected_points = model_results.expected_points
     players_by_id = {player["id"]: player for player in bootstrap["elements"]}
+    entry_history = client.entry_history(team_id) if is_public else None
     if is_public:
-        squad_state = read_real_squad(client, team_id, next_week, picks, team_entry, players_by_id, histories)
+        squad_state = read_real_squad(client, team_id, next_week, picks, team_entry, entry_history, players_by_id, histories)
     else:
         squad_state = pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_id)
-    snapshot = build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, team_entry)
 
+    league_data = leagues.fetch_leagues(client, storage, team_entry, current_week, leagues.league_ids_from_env())
+    review_picks, forecast = review_inputs(client, storage, team_id, team_entry, bootstrap, is_public)
+    snapshot = build_snapshot(
+        bootstrap, fixtures, histories, model_results, squad_state, team_entry,
+        extras=SnapshotExtras(
+            league_data=league_data,
+            review=review.build_review(bootstrap, histories, entry_history, review_picks, forecast),
+            live_picks=live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap),
+        ),
+    )
+
+    lineup = snapshot["lineups"][str(next_week)]
+    review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)
     storage.save_predictions(expected_points, MODEL_VERSION)
     storage.save_snapshot(team_id, next_week, snapshot)
     if web_snapshot_path:

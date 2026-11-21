@@ -2,7 +2,15 @@
 
 A personal Fantasy Premier League planner. It pulls your team from the public FPL API, works out expected points (xP) for every player over the next five gameweeks, and shows the results in a website built from the SquadSense design.
 
-Built so far: the Dashboard, Transfer Planner, Fixture Ticker, Price Watch, Chip Planner and a player detail panel, all on real FPL data. Champions League and alerts are designed but not built yet; they show as "Soon" in the sidebar.
+Built so far, all on real FPL data:
+
+- Dashboard, Transfer Planner (with a five-week plan from a solver), Fixture Ticker, Price Watch and Chip Planner.
+- Leagues: your mini-league tables, what rivals own and captain, threats and differentials.
+- Review: last gameweek's points next to the model's expected points, and your captain against the best one you had.
+- Live: points during a gameweek, with provisional bonus, automatic subs and live league tables, refreshed every minute.
+- Compare: up to three players side by side. Press ⌘K on any page to search for a player.
+
+Champions League and alerts are designed but not built yet.
 
 ## How it fits together
 
@@ -77,7 +85,7 @@ Import the repository in Vercel, set the root directory to `web`, and add `FPL_T
 
 ## How the numbers are worked out
 
-xP for one match adds up appearance points, goals and assists scaled by how many goals his team should score, clean sheets, saves, defensive contribution points and bonus. FPL stopped publishing club attack and defence ratings in 2026/27, so the fixture model builds its own from this season's matches: each club's xG for and against per game, compared with the league average. With few games played, it leans on FPL's 1-5 overall club rating instead. Recent matches count more than older ones, and players with few minutes are pulled towards a typical player in their position. Section 3 of the planning doc has the formula.
+xP for one match adds up appearance points, goals and assists scaled by how many goals his team should score, clean sheets, saves, defensive contribution points and bonus. FPL stopped publishing club attack and defence ratings in 2026/27, so the fixture model builds its own from this season's matches: each club's xG for and against per game, compared with the league average. With few games played, it leans on FPL's 1-5 overall club rating instead. Recent matches count more than older ones, and players with few minutes are pulled towards a starting point: a typical player in their position, moved towards the player's own numbers from last season. Section 3 of the planning doc has the formula.
 
 The model's weights were checked against three past seasons (see `docs/backtest-results.md`). The model's top pick each week averaged about 7 real points, and its top 20 about 5, against roughly 3.2 for a typical starter. A few weights in `fixtures.py`, `planner.py` and `squad_builder.py` are still untested guesses and say so in their comments.
 
@@ -98,8 +106,17 @@ Then run `python -m squadsense.backtest`. It also checks this season, using the 
 - Bank, selling prices and free transfers are rebuilt from public data. Transfers made for a gameweek whose deadline hasn't passed won't show up.
 - Free transfers after a Wildcard or Free Hit: I've assumed you keep your banked ones and still get +1 the next week. I'm about 70% sure. It's one setting at the top of `squad_state.py`.
 - Players in your original squad get their price from their first match in your team's first gameweek, which can be off by £0.1m if the price moved between picking the squad and that match. Until that first gameweek has been played, they're priced at today's price and marked as estimates.
-- The planner doesn't model chips yet.
+- The planner and the five-week plan don't model chips yet.
+- Captain "chance of 10+" comes from a simulation with a rough bonus guess. It hasn't been backtested.
+- The live page's automatic subs follow FPL's main rules (keeper for keeper, formation stays legal, bench order). Rare cases may differ until FPL settles the week.
+- Mini-league totals before the current week are worked out as the league total minus this week's points. That matches FPL's standings once a week is over.
+
+## Mini-leagues
+
+The sync picks your four smallest private leagues with 50 teams or fewer. To choose your own, set `SQUADSENSE_LEAGUES` to their ids, for example `SQUADSENSE_LEAGUES=1242405,1586906`. Each rival's picks are fetched once per gameweek and then cached, so a new gameweek costs about one second per rival.
+
+Rival team and manager names come from FPL's public standings. They're saved in the snapshot, so anyone who can open your website can see them. Keep that in mind before putting the site on a public address.
 
 ## Next build
 
-Hosting first (Supabase, GitHub Actions and Vercel, steps 3 to 5), then phone push and email alerts, the Champions League import and phone layouts. Transfer suggestions will also learn to test pairs of transfers, not just one.
+Hosting first (Supabase, GitHub Actions and Vercel, steps 3 to 5), then phone push and email alerts, the Champions League import and phone layouts.

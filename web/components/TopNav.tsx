@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDeadline } from "@/lib/format";
 import { BrandMark } from "./BrandMark";
+import { SearchPalette } from "./SearchPalette";
 
 const PAGES = [
   { label: "Dashboard", href: "/" },
@@ -16,6 +17,9 @@ const PAGES = [
   { label: "Fixtures", href: "/fixtures" },
   { label: "Prices", href: "/prices" },
   { label: "Chips", href: "/chips" },
+  { label: "Leagues", href: "/leagues" },
+  { label: "Review", href: "/review" },
+  { label: "Live", href: "/live" },
 ];
 
 interface TopNavProps {
@@ -44,6 +48,7 @@ export function TopNav({ gameweek, deadline }: TopNavProps) {
           );
         })}
       </nav>
+      <SearchPalette />
       <div className="topnav-deadline">
         <span className="topnav-dot" aria-hidden="true" />
         <span className="topnav-deadline-label">GW{gameweek} deadline</span>

@@ -59,7 +59,7 @@ Python data job (`jobs/`):
 - `squad_state.py`: rebuilds bank, selling prices and banked free transfers from public endpoints.
 - `fixtures.py`: club attack and concede ratings built from this season's match xG, blended with FPL's 1-5 overall rating while the sample is small (FPL's attack and defence strengths are all 0 in 2026/27); expected goals per fixture; clean-sheet chance; window scores for attackers and defenders.
 - `squad_builder.py`: picks the best 15 for one gameweek with an integer programming solver (PuLP 2.x calling HiGHS). Used while a team's picks are still hidden. PuLP's bundled CBC solver is Intel-only on Macs, so it isn't used.
-- `model.py`: per-player xP per gameweek (recency-weighted per-90 rates, pulled towards a position baseline for small samples, scaled by fixture).
+- `model.py`: per-player xP per gameweek (recency-weighted per-90 rates, pulled towards a starting point for small samples, scaled by fixture). The starting point is the position average moved towards his own per-90 from last season (`history_past`, up to `PAST_MINUTES_CAP` = 900 minutes; under 270 minutes is ignored). Backtested on 2026-27 GW4-10: captain 6.43 to 7.43, top20 4.84 to 5.02.
 - `flags.py`: injury, yellow-card ban and rotation warnings.
 - `planner.py`: best eleven and captain, legal transfer checks, best single-transfer suggestions with "make it or roll" advice.
 - `chips.py`: Chip Planner. Chip windows come from bootstrap `chips` (each chip twice: GW1-19 and GW20-38). For each week left in the current half it values Bench Boost (bench xP), Triple Captain (captain xP once more) and Free Hit (best one-week squad within budget, via `squad_builder`, minus your lineup), then tries every week combination so no two chips share a gameweek. Wildcard gets no value. Free Hit and Wildcard are skipped in a team's first week, when transfers are unlimited.
@@ -68,8 +68,12 @@ Python data job (`jobs/`):
 - `player_detail.py`: one detail entry per player (header, last 6 gameweeks with doubles added together, per-90 rates, next 6 fixtures rated like the ticker, price status). Stored in the snapshot as `playerDetails`.
 - `price_watch.py`: Price Watch rows from FPL's own predictor fields (progress, next-change projection and its -5 to 5 likelihood, price locks), sorted by progress, plus the squad's at-risk and rising players (likelihood 3 or more). The likelihood bands were read from live data, not documentation.
 - `ticker.py`: Fixture Ticker data for the next 8 gameweeks: each match's attack and defence difficulty (1 easiest to 5 hardest, split into five equal groups across all matches shown) and window scores for 3, 5 and 8 weeks.
-- `snapshot.py`: runs the model and packs everything the website needs into one JSON snapshot.
-- `storage.py`: the same methods for local JSON files or Supabase.
+- `captaincy.py`: plays each captain option's week 4,000 times with random goals, assists and clean sheets from the model's rates (seeded per player) and gives `haulChance` (10+ points) and `blankChance` (2 or fewer). The bonus guess inside it is rough and the numbers aren't backtested.
+- `transfer_solver.py`: the five-week transfer plan (`solverPlan`). One integer problem over every week at once (PuLP plus HiGHS, 30-second limit): squad flow with buys and sells, bank, free transfers banking to 5 (a yes/no `carries_any` stops fake banking through extra hits), -4 hits, a legal eleven and captain each week. The pool is the squad plus the top 12 per position. Later weeks are discounted with `planner.WEEKLY_DISCOUNT`; `END_FREE_TRANSFER_VALUE` (1.0) and `MAX_TRANSFERS_PER_WEEK` (3) are untested guesses. Skipped for a model-picked squad.
+- `leagues.py`: picks the four smallest private leagues (50 teams or fewer) or the ids in `SQUADSENSE_LEAGUES`, reads standings and each rival's picks for the last deadline (cached per team and gameweek through `storage.load_raw`), and builds the table, rival ownership and captaincy, threats (owned by 30%+ of rivals, not by you) and differentials (yours, owned by 25% or less).
+- `review.py`: each sync saves a forecast for the coming week (lineup, captain, each squad player's xP) as raw `forecast/{team}/{gw}`. Once that week's points are final, the review shows points, rank move, bench points, hits, captain against the best captain in the eleven and xP against points per starter, plus the FPL average, highest, most captained and top 5 players. Teams that hadn't started get the league-wide part only.
+- `snapshot.py`: runs the model and packs everything the website needs into one JSON snapshot. Also carries `livePicks` (every team's picks for the week being played, plus each player's club and position) for the Live page; `getSnapshot()` strips it like `playerDetails`.
+- `storage.py`: the same methods for local JSON files or Supabase, including past seasons (`career/` folder or the `player_past` table) and `load_raw` for cached responses.
 - `sync.py`: the job's entry point (`python -m squadsense.sync`).
 - `tests/`: 27 pytest tests and a made-up FPL dataset (`sample_data.py`) used by the tests and the website's demo mode. The sample mirrors the 2026/27 API shape (zeroed strengths, `fixture` and `was_home` on history rows).
 
@@ -88,16 +92,21 @@ Website (`web/`, Next.js 15, React 19, TypeScript, plain CSS):
 - Price Watch (`/prices`): summary cards (at risk, rising, countdown to 00:00 UK, last sync), All/Rising/Falling/My squad/Watchlist filters, progress bars and FPL's projection for tonight. The watchlist is saved in the browser's local storage, so it's per device.
 - Transfer Planner: gameweek strip, clickable pitch and bench, replacement table filtered by budget and club limit, live bank, free transfers, hits and plan total. `web/lib/planning.ts` mirrors the Python rules for live checks.
 - Data: with Supabase settings it reads the latest snapshot there. Without them it reads `web/data/snapshot.json` (written by the sync, git-ignored), and only falls back to `web/data/sample-snapshot.json` (demo mode) if that file doesn't exist.
+- New pages (21 November 2026): Leagues (`/leagues`), Review (`/review`), Live (`/live`) and Compare (`/compare?ids=1,2,3`), all linked from the header. ⌘K search (`SearchPalette.tsx`) opens any player's panel; the player list loads once from `/api/players` (`lib/playerIndex.ts`). The panel has a Compare button, FPL's own xP under ours, and season and past-season totals.
+- Live (`/api/live`, `lib/live.ts`): fetches `event/{gw}/live/` and `fixtures/?event={gw}` through Next's cache (60 seconds) and works out provisional bonus from BPS (matched FPL's confirmed bonus in all 100 finished matches so far; live totals matched FPL's GW10 score for all 95 rival teams checked), automatic subs, vice-captain switch and live league totals (league total minus this week's points, plus live points). The page asks for fresh numbers every minute.
+- Dashboard and Planner additions: PEN badge on pitch shirts and PEN/SP tags in the squad table (first-choice penalty, corner or free kick taker from bootstrap), an FPL GW column (`ep_next`, lit up when it differs from ours by 1.5 or more), captain chance of 10+, a price note on transfer suggestions when a player is likely to rise or fall at 00:00, and the five-week plan card with "Load into planner".
 - Snapshot field `squadSource` is `"model"` when the squad was picked by `squad_builder.py`; `freeTransfers` is `null` for a team's first gameweek, meaning unlimited.
 
 ### Verified
 
-All 27 Python tests pass. `next build` passes with no type errors. On 20 November 2026 the real sync ran against the live API (with a model-picked squad), and every page (Dashboard, Planner, Fixtures, Price Watch, Chips, player panel) loaded on real data with no console errors.
+All 37 Python tests pass. `next build` passes with no type errors. On 20 November 2026 the real sync ran against the live API (with a model-picked squad), and every page (Dashboard, Planner, Fixtures, Price Watch, Chips, player panel) loaded on real data with no console errors.
 
 ### Not verified
 
 - **Real squad not read yet.** The sync runs against the live API, but Clement's picks stay hidden until the GW11 deadline, so the rebuilt bank, selling prices and free transfers haven't been compared with the FPL site yet. Every other field the code reads matched the live API, except the club attack and defence strengths (now all 0, see `fixtures.py`).
 - Free Hit handling: in a Free Hit week the sync plans with the previous week's picks and bank, and leaves Free Hit transfers out of purchase prices. Tested with sample data only; FPL listing Free Hit transfers in the transfer history is about 85% sure.
+- Mini-leagues, Review and Live haven't been seen with Clement's own picks yet, since his squad is hidden until the GW11 deadline. Review needs GW11 to finish first. Live was only checked against GW10 data (see below for what was verified).
+- The five-week plan hasn't been checked on his real squad for the same reason.
 - Supabase, GitHub Actions and Vercel haven't been connected. Clement does those steps from the README with his own keys.
 
 ## Known gaps and assumptions
@@ -108,7 +117,8 @@ All 27 Python tests pass. `next build` passes with no type errors. On 20 Novembe
 - Players kept from the original squad get their purchase price from their first match in the team's first gameweek (`started_event`), which can be £0.1m off.
 - Clement's 2026/27 team was created on 20 November 2026 and starts in GW11. Its squad isn't public until the GW11 deadline (21 November, 11:00 UTC), so `sync` fails with a 404 on `picks` before then. Free transfers and starting prices now count from `started_event`.
 - Transfers made for a gameweek whose deadline hasn't passed aren't visible in public data.
-- Transfer suggestions only test single transfers, not pairs or roll-then-double sequences. The Chip Planner values chips separately; the transfer suggestions don't consider them.
+- The single-transfer suggestions only test one move; the five-week plan covers pairs and rolls. Neither considers chips.
+- Rival names from mini-league standings are stored in the snapshot, so anyone who can open the hosted site can read them.
 - FPL scoring values are hardcoded in `rules.py`. The research doc suggests reading them from `game_settings` instead.
 - A private GitHub repo gets 2,000 Actions minutes a month and this schedule uses about that. Either make the repo public or drop the 15-minute runs.
 
@@ -116,7 +126,7 @@ All 27 Python tests pass. `next build` passes with no type errors. On 20 Novembe
 
 1. After the GW11 deadline (21 November, 11:00 UTC), run the sync and compare bank, squad value and free transfers with the FPL site. Then hosting: upgrade Next.js 15 to 16 (2 npm security warnings), then Supabase, GitHub Actions and Vercel on a Cloudflare subdomain (README steps 3 to 5). Before Supabase, stop the `snapshots` table growing by about 1.4 MB per run (keep the latest per team), prune `price_snapshots`, and batch the `predictions` inserts.
 2. Price Watch is done, using FPL's own predictor. Still open: check after a few nights whether projection offsets 1 and 2 are the following nights (about 75% sure), and use `price_snapshots` to measure how often the predictor is right.
-3. Chip Planner and Fixture Ticker are done. The backtest showed the narrow xP range is realistic (slope 0.97 over 20,079 past starts), so chip values need no special fix. Still open: suggest pairs of transfers, not just one.
+3. Chip Planner and Fixture Ticker are done. The five-week plan now covers pairs and rolls. Still open: backtest the captain haul chance and the plan's untested settings.
 4. Player detail panel is done. Still open: the design's "Add to plan" and "Make captain" buttons.
 5. Alerts: phone push and email (deadline reminders, price risks on owned players, injury news, yellow-card risk).
 6. Phone layouts for the built pages.

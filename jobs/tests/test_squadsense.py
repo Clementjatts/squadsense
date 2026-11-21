@@ -6,12 +6,14 @@ Run from the jobs/ folder with:  python -m pytest
 import pytest
 
 from squadsense import rules
+from squadsense.captaincy import outcome_chances
 from squadsense.chips import best_chip_weeks
 from squadsense.fixtures import FixtureModel, fixtures_by_team_and_week, starting_ratings, team_ratings
 from squadsense.fpl_client import FplApiError, FplClient
 from squadsense.planner import best_lineup
 from squadsense.player_detail import recent_gameweeks
-from squadsense.price_watch import prediction_label
+from squadsense.model import POSITION_PRIORS, starting_rates
+from squadsense.price_watch import prediction_label, price_timing_note
 from squadsense.squad_builder import pick_best_squad
 from squadsense.ticker import difficulty, difficulty_cut_points
 from squadsense.squad_state import build_squad_state, count_free_transfers
@@ -182,7 +184,7 @@ def test_hidden_squad_falls_back_to_a_model_squad(tmp_path, sample, monkeypatch)
     assert snapshot["freeTransfers"] is None
     assert snapshot["suggestions"] == []
     assert len(snapshot["squad"]) == 15 and snapshot["bank"] >= 0
-    assert not any("picks" in path for path in fake_http.requested)
+    assert not any(path.startswith(f"entry/{TEAM_ID}/event/") for path in fake_http.requested)
 
 
 def test_difficulty_splits_matches_into_five_groups():
@@ -319,3 +321,87 @@ def test_players_carry_their_recent_form(tmp_path, fake_client, monkeypatch):
     player = snapshot["players"][str(snapshot["squad"][0])]
     assert len(player["form"]) == 6
     assert all(isinstance(points, int) for points in player["form"])
+
+
+def test_past_season_moves_the_starting_point_towards_his_own_numbers():
+    striker_last_season = [{"season_name": "2025/26", "minutes": 2700, "expected_goals": "21.00", "expected_assists": "3.00", "bonus": 20, "saves": 0}]
+    start = starting_rates(rules.FORWARD, striker_last_season)
+    assert POSITION_PRIORS[rules.FORWARD]["xg"] < start["xg"] < 0.7
+    # Too few minutes last season, so only the position average is used.
+    cameo = [dict(striker_last_season[0], minutes=100)]
+    assert starting_rates(rules.FORWARD, cameo) == POSITION_PRIORS[rules.FORWARD]
+
+
+def test_snapshot_carries_set_pieces_fpl_xp_and_past_seasons(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    player = next(iter(snapshot["players"].values()))
+    assert set(player["setPieces"]) == {"penalties", "corners", "freeKicks"}
+    assert player["fplXp"] is not None
+    details = snapshot["playerDetails"]
+    assert any(detail["pastSeasons"] for detail in details.values())
+    assert all("season" in detail for detail in details.values())
+
+
+def test_captain_options_carry_haul_and_blank_chances(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    for option in snapshot["captainOptions"]:
+        assert 0 <= option["haulChance"] <= 1 and 0 <= option["blankChance"] <= 1
+
+
+def test_blank_week_means_no_haul():
+    assert outcome_chances({"id": 1, "element_type": 4, "team": 1}, None, [], None) == {"haulChance": 0.0, "blankChance": 1.0}
+
+
+def test_price_note_warns_about_a_rise_before_buying():
+    rows = {1: {"name": "Out", "likelihood": 0, "lockedUntil": None}, 2: {"name": "In", "likelihood": 4, "lockedUntil": None}}
+    assert "In may rise" in price_timing_note({"out": 1, "in": 2}, rows)
+    rows[2]["lockedUntil"] = "2026-11-22T00:00:00Z"
+    assert price_timing_note({"out": 1, "in": 2}, rows) is None
+
+
+def test_transfer_plan_keeps_every_week_legal(tmp_path, fake_client, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    plan = snapshot["solverPlan"]
+    players = {player["id"]: player for player in sample["bootstrap-static/"]["elements"]}
+    squad = list(snapshot["squad"])
+    for week in plan["weeks"]:
+        for move in week["moves"]:
+            assert players[move["out"]]["element_type"] == players[move["in"]]["element_type"]
+            squad[squad.index(move["out"])] = move["in"]
+        assert week["bank"] >= 0
+        assert not rules.check_squad([players[player_id] for player_id in squad], bank=week["bank"])
+    assert plan["gain"] >= 0
+
+
+def test_league_summary_finds_threats_and_differentials(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    league = snapshot["leagues"][0]
+    assert league["name"] == "Family League" and league["size"] == 4 and league["rivalsWithPicks"] == 3
+    squad = set(snapshot["squad"])
+    assert all(line["playerId"] not in squad for line in league["threats"])
+    assert all(line["share"] <= 0.25 for line in league["differentials"])
+    assert all(str(line["playerId"]) in snapshot["players"] for line in league["threats"])
+
+
+def test_rival_picks_are_cached_after_the_first_run(tmp_path, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    fake_http = FakeHttpClient(sample)
+    client = FplClient(min_seconds_between_requests=0, http_client=fake_http)
+    run(TEAM_ID, False, tmp_path, None, client=client)
+    fake_http.requested.clear()
+    run(TEAM_ID, False, tmp_path, None, client=client)
+    assert not any(path.startswith("entry/1001/") for path in fake_http.requested)
+
+
+def test_review_compares_the_captain_with_the_best_pick(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    review = snapshot["review"]
+    assert review["gameweek"] == CURRENT_WEEK and review["average"] is not None
+    team = review["team"]
+    assert team["bestCaptain"]["points"] >= team["captain"]["points"]
+    assert len(team["starters"]) == 11

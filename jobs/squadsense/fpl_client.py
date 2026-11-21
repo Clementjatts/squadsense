@@ -98,3 +98,10 @@ class FplClient:
 
     def entry_picks(self, team_id, gameweek):
         return self.get(f"entry/{team_id}/event/{gameweek}/picks/")
+
+    def league_standings(self, league_id):
+        """First page (up to 50 teams) of a classic league's table."""
+        return self.get(f"leagues-classic/{league_id}/standings/")
+
+    def event_live(self, gameweek):
+        return self.get(f"event/{gameweek}/live/")

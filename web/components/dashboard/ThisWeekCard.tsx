@@ -33,7 +33,7 @@ function TransferBlock({ snapshot }: { snapshot: Snapshot }) {
               {snapshot.players[String(move.out)].name} → {snapshot.players[String(move.in)].name}
             </span>
             <span className="bc-note bc-one-line">
-              Over {snapshot.weeks.length} gameweeks · {move.advice === "make" ? "worth making now" : "worth less than rolling the transfer"}
+              {move.priceNote ?? `Over ${snapshot.weeks.length} gameweeks`} · {move.advice === "make" ? "worth making now" : "worth less than rolling the transfer"}
             </span>
           </div>
           <span className="bc-decision-number bc-decision-number-small">{formatGain(move.gain)}</span>
@@ -66,7 +66,7 @@ function CaptainBlock({ snapshot }: { snapshot: Snapshot }) {
           <span className="bc-decision-name">{captain.name}</span>
           <span className="bc-note bc-one-line">
             {captain.team}
-            {fixture ? ` v ${fixture.label.replace(/ ([HA])$/, " ($1)")}` : ""} · {top.safety.toLowerCase()}
+            {fixture ? ` v ${fixture.label.replace(/ ([HA])$/, " ($1)")}` : ""} · {top.safety.toLowerCase()} · {Math.round(top.haulChance * 100)}% for 10+
           </span>
         </div>
         <span className="bc-decision-number">{formatXp(top.xp)}</span>

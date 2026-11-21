@@ -8,6 +8,39 @@ time, which keeps pages light.
 RECENT_GAMEWEEKS = 6
 NEXT_FIXTURES = 6
 RECENT_MINUTES_MATCHES = 6
+PAST_SEASONS_SHOWN = 3
+
+
+def season_totals(player):
+    """His totals so far this season, straight from bootstrap-static."""
+    return {
+        "points": player.get("total_points", 0),
+        "minutes": player.get("minutes", 0),
+        "starts": player.get("starts", 0),
+        "goals": player.get("goals_scored", 0),
+        "assists": player.get("assists", 0),
+        "xg": round(float(player.get("expected_goals") or 0), 2),
+        "xa": round(float(player.get("expected_assists") or 0), 2),
+        "cleanSheets": player.get("clean_sheets", 0),
+        "bonus": player.get("bonus", 0),
+        "defensiveContribution": player.get("defensive_contribution", 0),
+        "saves": player.get("saves", 0),
+    }
+
+
+def past_season_lines(past_seasons, count=PAST_SEASONS_SHOWN):
+    """His last few full seasons: name, points, minutes, xG and xA, newest first."""
+    lines = [
+        {
+            "season": season["season_name"],
+            "points": season.get("total_points", 0),
+            "minutes": season.get("minutes", 0),
+            "xg": round(float(season.get("expected_goals") or 0), 2),
+            "xa": round(float(season.get("expected_assists") or 0), 2),
+        }
+        for season in past_seasons or []
+    ]
+    return list(reversed(lines))[:count]
 
 
 def recent_gameweeks(history_rows, count=RECENT_GAMEWEEKS):
@@ -79,6 +112,9 @@ def build_player_details(bootstrap, histories, model_results, squad_state, ticke
             "news": player.get("news") or "",
             "yellowCards": player.get("yellow_cards", 0),
             "penaltyOrder": player.get("penalties_order"),
+            "fplXp": float(player["ep_next"]) if player.get("ep_next") not in (None, "") else None,
+            "season": season_totals(player),
+            "pastSeasons": past_season_lines(model_results.pasts.get(player["id"])),
             "nextGameweek": first_week,
             "xpNext": model_results.expected_points[player["id"]].get(first_week, 0.0),
             "minutesPerMatch": minutes_per_match(history_rows),

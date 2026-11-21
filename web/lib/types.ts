@@ -19,6 +19,15 @@ export interface Player {
   xp: Record<string, number>;
   windowXp: number;
   form: number[]; // points in each of his club's last six gameweeks, oldest first
+  setPieces: SetPieces;
+  fplXp: number | null; // FPL's own expected points for next week (ep_next)
+}
+
+/** His place in his club's order for each set piece; 1 is first choice, null means not listed. */
+export interface SetPieces {
+  penalties: number | null;
+  corners: number | null;
+  freeKicks: number | null;
 }
 
 export interface Lineup {
@@ -27,6 +36,23 @@ export interface Lineup {
   captain: number;
   vice_captain: number;
   expected_points: number;
+}
+
+// The multi-week transfer plan from the solver: one entry per gameweek.
+export interface SolverWeek {
+  gameweek: number;
+  moves: { out: number; in: number }[];
+  hits: number;
+  freeTransfers: number | null; // before this week's moves; null means unlimited
+  bank: number; // after this week's moves
+  captain: number;
+  xp: number; // lineup xP, captain counted twice
+}
+
+export interface SolverPlan {
+  weeks: SolverWeek[];
+  totalHits: number;
+  gain: number; // discounted xP after hits, compared with making no moves
 }
 
 export interface Suggestion {
@@ -38,6 +64,7 @@ export interface Suggestion {
   roll_value: number;
   net_gain: number;
   advice: "make" | "roll";
+  priceNote: string | null; // set when tonight's price change makes it worth moving before 00:00
 }
 
 // One match in the Fixture Ticker. Difficulty runs from 1 (easiest) to 5
@@ -106,6 +133,9 @@ export interface PlayerDetail {
   news: string;
   yellowCards: number;
   penaltyOrder: number | null;
+  fplXp: number | null; // FPL's own expected points for next week
+  season: SeasonTotals;
+  pastSeasons: { season: string; points: number; minutes: number; xg: number; xa: number }[]; // newest first
   nextGameweek: number;
   xpNext: number;
   minutesPerMatch: number;
@@ -115,6 +145,21 @@ export interface PlayerDetail {
   fixtures: { gameweek: number; opponent: string; isHome: boolean; difficulty: number }[];
   priceProgress: number;
   pricePrediction: string;
+}
+
+// A player's totals so far this season.
+export interface SeasonTotals {
+  points: number;
+  minutes: number;
+  starts: number;
+  goals: number;
+  assists: number;
+  xg: number;
+  xa: number;
+  cleanSheets: number;
+  bonus: number;
+  defensiveContribution: number;
+  saves: number;
 }
 
 // One chip's card on the Chip Planner. gain is extra expected points.
@@ -156,12 +201,93 @@ export interface Snapshot {
   squadSource: "fpl" | "model";
   players: Record<string, Player>;
   lineups: Record<string, Lineup>;
-  captainOptions: { playerId: number; xp: number; safety: string; chance60: number }[];
+  // haulChance: chance of 10+ points of his own; blankChance: 2 or fewer. Both from a simulation.
+  captainOptions: { playerId: number; xp: number; safety: string; chance60: number; haulChance: number; blankChance: number }[];
   suggestions: Suggestion[];
+  solverPlan: SolverPlan | null; // null for a squad the model picked
+  leagues: League[];
+  review: GameweekReview | null;
+
   flags: { playerId: number; kind: "injury" | "suspension" | "rotation"; message: string }[];
   doubles: Record<string, string[]>;
   fixtureTicker: FixtureTicker;
   priceWatch: PriceWatch;
   chipPlan: ChipPlan;
   chipsUsed: { name: string; gameweek: number }[];
+}
+
+// Mini-leagues. Shares are the fraction of rivals (not counting you) who own or captain him.
+export interface LeaguePlayerLine {
+  playerId: number;
+  share: number;
+  captainShare: number;
+  xp: number; // next gameweek
+}
+
+export interface LeagueRow {
+  entry: number;
+  teamName: string;
+  manager: string;
+  rank: number;
+  lastRank: number;
+  total: number;
+  eventPoints: number;
+  chip: string | null;
+  captain: number | null;
+}
+
+export interface League {
+  id: number;
+  name: string;
+  size: number;
+  rivalsWithPicks: number;
+  myRank: number | null;
+  table: LeagueRow[];
+  mySquad: LeaguePlayerLine[];
+  threats: LeaguePlayerLine[];
+  differentials: LeaguePlayerLine[];
+  topCaptains: LeaguePlayerLine[];
+}
+
+// The review of the last finished gameweek. `team` is null if your team hadn't started yet.
+export interface GameweekReview {
+  gameweek: number;
+  average: number | null;
+  highest: number | null;
+  mostCaptained: { playerId: number; points: number } | null;
+  topPlayers: { playerId: number; points: number }[];
+  team: {
+    points: number;
+    transferCost: number;
+    benchPoints: number;
+    overallRank: number;
+    previousRank: number | null;
+    chip: string | null;
+    captain: { playerId: number; points: number };
+    bestCaptain: { playerId: number; points: number };
+    predictedTotal: number | null;
+    starters: { playerId: number; points: number; xp: number | null }[];
+  } | null;
+}
+
+// Every team's picks for the gameweek being played, for the Live page.
+export interface LivePick {
+  element: number;
+  position: number; // 1-11 start, 12-15 bench in order
+  multiplier: number;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+}
+
+export interface LiveTeamPicks {
+  picks: LivePick[];
+  active_chip: string | null;
+  hits: number; // points spent on extra transfers this week
+}
+
+export interface LivePicks {
+  gameweek: number;
+  elements: Record<string, [number, number]>; // player id -> [club id, position 1-4]
+  mine: LiveTeamPicks | null;
+  leagues: { id: number; name: string; teams: { entry: number; teamName: string; totalBefore: number; picks: LivePick[]; chip: string | null }[] }[];
 }

@@ -25,6 +25,11 @@ PRIOR_MINUTES = 450  # backtest: 90 to 720 made no clear difference
 # Share of the final number that comes from recent actual FPL points.
 RECENT_POINTS_WEIGHT = 0.15  # backtest: 0 to 0.3 made no clear difference
 RECENT_MATCHES = 5
+# Most minutes of last season's numbers that count towards a player's
+# starting point. 0 turns the past-season prior off.
+PAST_MINUTES_CAP = 900  # backtest 2026-27 GW4-10: captain 6.43 to 7.43, top20 4.84 to 5.02 (450 to 3400 all similar)
+# Fewer minutes than this last season and his past numbers are ignored.
+PAST_MINUTES_MINIMUM = 270
 
 # Typical per-90 rates by position, used to steady small samples.
 POSITION_PRIORS = {
@@ -75,6 +80,46 @@ def _blend_with_prior(weighted_total, weighted_minutes, prior_per_90):
     return 90 * (weighted_total + prior_total) / (weighted_minutes + PRIOR_MINUTES)
 
 
+def past_season_rates(past_seasons):
+    """Last season's per-90 xG, xA, bonus and saves, plus the minutes behind them.
+
+    `past_seasons` is element-summary `history_past`, oldest first. Returns
+    None when he played too little last season for the numbers to mean much.
+    """
+    if not past_seasons:
+        return None
+    last = past_seasons[-1]
+    minutes = last.get("minutes", 0)
+    if minutes < PAST_MINUTES_MINIMUM:
+        return None
+    per_90 = {
+        "xg": _as_float(last.get("expected_goals")) * 90 / minutes,
+        "xa": _as_float(last.get("expected_assists")) * 90 / minutes,
+        "bonus": last.get("bonus", 0) * 90 / minutes,
+        "saves": last.get("saves", 0) * 90 / minutes,
+    }
+    return per_90, minutes
+
+
+def starting_rates(position, past_seasons):
+    """The per-90 rates a player starts from before this season's matches count.
+
+    That's the typical rate for his position, moved towards his own rate
+    last season. Up to PAST_MINUTES_CAP minutes of last season count, set
+    against PRIOR_MINUTES of the position average.
+    """
+    prior = POSITION_PRIORS[position]
+    past = past_season_rates(past_seasons)
+    if past is None or PAST_MINUTES_CAP == 0:
+        return prior
+    per_90, minutes = past
+    past_weight = min(minutes, PAST_MINUTES_CAP)
+    return {
+        stat: (prior[stat] * PRIOR_MINUTES + per_90[stat] * past_weight) / (PRIOR_MINUTES + past_weight)
+        for stat in prior
+    }
+
+
 def playing_chances(player, history_rows):
     """Chance of playing 60+ minutes and chance of a shorter appearance.
 
@@ -104,14 +149,15 @@ def defensive_contribution_rate(position, history_rows):
     return hits / len(full_games)
 
 
-def player_rates(player, history_rows):
+def player_rates(player, history_rows, past_seasons=None):
     """Builds PlayerRates from bootstrap data plus element-summary history.
 
     `history_rows` must be oldest first, one row per club match, which is
-    how FPL returns them.
+    how FPL returns them. `past_seasons` is his `history_past`; without it
+    he starts from his position's typical numbers.
     """
     position = player["element_type"]
-    prior = POSITION_PRIORS[position]
+    prior = starting_rates(position, past_seasons)
     appearances = [row for row in history_rows if row["minutes"] > 0]
 
     totals = {"xg": 0.0, "xa": 0.0, "bonus": 0.0, "saves": 0.0}

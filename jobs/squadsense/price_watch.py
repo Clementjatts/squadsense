@@ -56,6 +56,34 @@ def watch_row(player, teams_by_id, position_names, squad_ids):
     }
 
 
+def price_timing_note(move, rows_by_id):
+    """A line about tonight's price change for one transfer, or None.
+
+    Buying a player before he rises saves £0.1m; selling one before he
+    falls keeps £0.1m. Both only matter if the move happens before the
+    next change at 00:00 UK time.
+    """
+    incoming = rows_by_id.get(move["in"])
+    outgoing = rows_by_id.get(move["out"])
+    buy_rises = incoming is not None and not incoming["lockedUntil"] and incoming["likelihood"] >= ALERT_LIKELIHOOD
+    sell_falls = outgoing is not None and not outgoing["lockedUntil"] and outgoing["likelihood"] <= -ALERT_LIKELIHOOD
+    if buy_rises and sell_falls:
+        return f'Before 00:00: {incoming["name"]} may rise and {outgoing["name"]} may fall'
+    if buy_rises:
+        return f'Before 00:00: {incoming["name"]} may rise £0.1m'
+    if sell_falls:
+        return f'Before 00:00: {outgoing["name"]} may fall £0.1m'
+    return None
+
+
+def add_price_timing(suggestions, price_watch):
+    """Adds `priceNote` to each transfer suggestion (None when prices are steady)."""
+    rows_by_id = {row["id"]: row for row in price_watch["players"]}
+    for move in suggestions:
+        move["priceNote"] = price_timing_note(move, rows_by_id)
+    return suggestions
+
+
 def build_price_watch(bootstrap, squad_ids, position_names):
     """Every player FPL is tracking, closest to a change first, plus the summary cards.
 

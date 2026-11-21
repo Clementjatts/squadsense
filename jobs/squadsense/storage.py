@@ -20,13 +20,22 @@ class FileStorage:
     def __init__(self, folder):
         self.folder = Path(folder)
         (self.folder / "history").mkdir(parents=True, exist_ok=True)
+        (self.folder / "career").mkdir(parents=True, exist_ok=True)
 
     def _write(self, path, data):
         path.write_text(json.dumps(data, indent=1, default=str))
 
     def save_raw(self, name, data):
         """Saves an API response as-is, so the model can be rerun on old data."""
-        self._write(self.folder / f"raw_{name.replace('/', '_')}.json", data)
+        self._write(self._raw_path(name), data)
+
+    def load_raw(self, name):
+        """A response saved with save_raw, or None if there isn't one."""
+        path = self._raw_path(name)
+        return json.loads(path.read_text()) if path.exists() else None
+
+    def _raw_path(self, name):
+        return self.folder / f"raw_{name.replace('/', '_')}.json"
 
     def save_player_history(self, player_id, rows):
         self._write(self.folder / "history" / f"{player_id}.json", rows)
@@ -37,6 +46,14 @@ class FileStorage:
         for path in (self.folder / "history").glob("*.json"):
             histories[int(path.stem)] = json.loads(path.read_text())
         return histories
+
+    def save_player_past(self, player_id, seasons):
+        """Saves a player's past-season totals (element-summary `history_past`)."""
+        self._write(self.folder / "career" / f"{player_id}.json", seasons)
+
+    def load_player_pasts(self):
+        """Returns {player_id: past-season rows} for every player saved so far."""
+        return {int(path.stem): json.loads(path.read_text()) for path in (self.folder / "career").glob("*.json")}
 
     def save_predictions(self, expected_points, model_version):
         self._write(self.folder / f"predictions_{model_version}.json", expected_points)
@@ -79,6 +96,12 @@ class PostgresStorage:
             (name, json.dumps(data)),
         )
 
+    def load_raw(self, name):
+        with self.connection.cursor() as cursor:
+            cursor.execute("select body from api_cache where path = %s", (name,))
+            row = cursor.fetchone()
+            return row[0] if row else None
+
     def save_player_history(self, player_id, rows):
         self._execute(
             """insert into player_history (player_id, rows, fetched_at) values (%s, %s, now())
@@ -90,6 +113,18 @@ class PostgresStorage:
         with self.connection.cursor() as cursor:
             cursor.execute("select player_id, rows from player_history")
             return {player_id: rows for player_id, rows in cursor.fetchall()}
+
+    def save_player_past(self, player_id, seasons):
+        self._execute(
+            """insert into player_past (player_id, seasons, fetched_at) values (%s, %s, now())
+               on conflict (player_id) do update set seasons = excluded.seasons, fetched_at = now()""",
+            (player_id, json.dumps(seasons)),
+        )
+
+    def load_player_pasts(self):
+        with self.connection.cursor() as cursor:
+            cursor.execute("select player_id, seasons from player_past")
+            return {player_id: seasons for player_id, seasons in cursor.fetchall()}
 
     def save_predictions(self, expected_points, model_version):
         with self.connection.cursor() as cursor:

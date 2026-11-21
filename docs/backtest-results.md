@@ -58,3 +58,18 @@ The main finding: over 20,079 past starts the slope was 0.97, so the narrow spre
 - The 1-5 club ratings in the old files are end-of-season values, so the starting guess for each club carries a little hindsight in early weeks. It fades as clubs play games and doesn't affect the 2026-27 check.
 - This season's check covers GW4-10 only (1,435 starts), and it's the first season with defensive contribution points. Defenders are still under-rated by about 0.3 this season; rerun the backtest in a few weeks before changing anything for that.
 - Clement's own past seasons can't be replayed: the FPL API only keeps season totals for past seasons, not weekly picks.
+
+## Past-season starting point (21 November 2026)
+
+Each player now starts from his position's typical numbers moved towards his own per-90 numbers from last season (FPL's `history_past`), using up to 900 minutes of last season against 450 minutes of the position average. Players with fewer than 270 minutes last season start from the position average, as before. Only this season can test it, since the downloaded past seasons don't include the season before each one.
+
+```
+setting (PAST_MINUTES_CAP)   top20  captain  slope   mae
+0 (off, the old model)        4.84     6.43   0.70  2.38
+450                           5.01     7.43   0.68  2.37
+900 (kept)                    5.02     7.43   0.67  2.37
+1800                          5.02     7.43   0.66  2.38
+3400                          4.99     6.71   0.65  2.38
+```
+
+The captain pick gained a point a week and top20 rose by 0.18, larger than the 0.1 noise level, and every cap from 450 to 1800 gave about the same result. This is still only GW4-10 (1,435 starts), so recheck it in a few weeks.

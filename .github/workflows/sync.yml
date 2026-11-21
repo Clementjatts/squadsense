@@ -1,6 +1,7 @@
 # Runs the SquadSense data job on a schedule.
 # Needs two repository secrets: DATABASE_URL (Supabase connection string)
-# and FPL_TEAM_ID. Times are UTC, which matches UK time in winter.
+# and FPL_TEAM_ID. SQUADSENSE_LEAGUES is optional (see the README).
+# Times are UTC, which matches UK time in winter.
 
 name: Sync FPL data
 
@@ -35,6 +36,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FPL_TEAM_ID: ${{ secrets.FPL_TEAM_ID }}
+          SQUADSENSE_LEAGUES: ${{ secrets.SQUADSENSE_LEAGUES }}
         run: |
           if [ "${{ github.event.schedule }}" = "37 1 * * *" ] || [ "${{ inputs.full }}" = "true" ]; then
             python -m squadsense.sync --full

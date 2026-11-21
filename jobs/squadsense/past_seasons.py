@@ -19,7 +19,7 @@ smoothed over here:
 """
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 POSITION_IDS = {"GK": 1, "GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
@@ -34,6 +34,7 @@ class Season:
     fixtures: list  # like the fixtures endpoint
     players: dict  # {player_id: {"id", "web_name", "element_type"}}
     histories: dict  # {player_id: [history rows, oldest first]}; rows also carry "team"
+    pasts: dict = field(default_factory=dict)  # {player_id: history_past rows}; empty for downloaded seasons
 
 
 def read_csv(path):
@@ -115,7 +116,7 @@ def load_season(folder):
     return Season(folder.name, convert_teams(read_csv(folder / "teams.csv")), fixtures, players, histories)
 
 
-def current_season(bootstrap, fixtures, histories):
+def current_season(bootstrap, fixtures, histories, pasts=None):
     """This season's cached live data as a Season, for the final check.
 
     History rows from the live API don't name the club, so it's added
@@ -130,4 +131,4 @@ def current_season(bootstrap, fixtures, histories):
             dict(row, team=fixtures_by_id[row["fixture"]]["team_h" if row["was_home"] else "team_a"])
             for row in rows if row["fixture"] in fixtures_by_id
         ]
-    return Season("2026-27", bootstrap["teams"], fixtures, players, with_teams)
+    return Season("2026-27", bootstrap["teams"], fixtures, players, with_teams, pasts or {})

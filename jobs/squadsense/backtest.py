@@ -86,7 +86,7 @@ def starter_predictions(season, context):
         row = this_week[0]
         player = dict(season.players[player_id], team=row["team"], chance_of_playing_next_round=None)
         # Score him as a starter: the question is how many points he gets when he plays.
-        rates = dataclasses.replace(model.player_rates(player, earlier), chance_60_minutes=1.0, chance_under_60=0.0)
+        rates = dataclasses.replace(model.player_rates(player, earlier, season.pasts.get(player_id)), chance_60_minutes=1.0, chance_under_60=0.0)
         matches = context.schedule[row["team"]].get(context.week, [])
         predicted = model.expected_points_for_week(player, rates, matches, context.fixture_model)
         predictions.append(Prediction(context.week, player["element_type"], predicted, row["total_points"]))
@@ -138,7 +138,7 @@ def model_settings(**settings):
     Settings are model.py's module-level names, e.g. PRIOR_MINUTES=180.
     Bonus priors go in as bonus_GK, bonus_DEF, bonus_MID or bonus_FWD.
     """
-    saved = {name: getattr(model, name) for name in ("PRIOR_MINUTES", "HALF_LIFE_MATCHES", "RECENT_POINTS_WEIGHT", "ASSIST_FACTOR")}
+    saved = {name: getattr(model, name) for name in ("PRIOR_MINUTES", "HALF_LIFE_MATCHES", "RECENT_POINTS_WEIGHT", "ASSIST_FACTOR", "PAST_MINUTES_CAP")}
     saved_priors = deepcopy(model.POSITION_PRIORS)
     try:
         for name, value in settings.items():
@@ -199,7 +199,8 @@ def load_seasons(past_folder, live_folder, include_current):
         live = Path(live_folder)
         bootstrap = json.loads((live / "raw_bootstrap-static.json").read_text())
         fixtures = json.loads((live / "raw_fixtures.json").read_text())
-        seasons.append(current_season(bootstrap, fixtures, FileStorage(live).load_player_histories()))
+        storage = FileStorage(live)
+        seasons.append(current_season(bootstrap, fixtures, storage.load_player_histories(), storage.load_player_pasts()))
     return seasons
 
 

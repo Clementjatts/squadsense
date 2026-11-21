@@ -5,7 +5,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import type { PlayerDetail, Snapshot } from "./types";
+import type { LivePicks, PlayerDetail, Snapshot } from "./types";
 
 export interface LoadedSnapshot {
   snapshot: Snapshot;
@@ -15,7 +15,7 @@ export interface LoadedSnapshot {
 // What the sync job actually writes: the snapshot plus every player's
 // detail entry. Pages never get the details; the player panel asks for
 // one player at a time through getPlayerDetail().
-type SnapshotFile = Snapshot & { playerDetails?: Record<string, PlayerDetail> };
+type SnapshotFile = Snapshot & { playerDetails?: Record<string, PlayerDetail>; livePicks?: LivePicks | null };
 
 interface LoadedFile {
   file: SnapshotFile;
@@ -83,9 +83,23 @@ async function loadFile(): Promise<LoadedFile> {
 // stay small.
 export async function getSnapshot(): Promise<LoadedSnapshot> {
   const { file, isDemo } = await loadFile();
-  const { playerDetails, ...snapshot } = file;
+  const { playerDetails, livePicks, ...snapshot } = file;
   void playerDetails; // deliberately dropped
+  void livePicks; // only the Live page's API route needs these
   return { snapshot, isDemo };
+}
+
+// Every team's picks for the week being played, or null if the sync hasn't saved any.
+export async function getLivePicks(): Promise<LivePicks | null> {
+  const { file } = await loadFile();
+  return file.livePicks ?? null;
+}
+
+// All players' detail entries, for the comparison page. Large, so only
+// that page's server code calls it.
+export async function getAllPlayerDetails(): Promise<Record<string, PlayerDetail>> {
+  const { file } = await loadFile();
+  return file.playerDetails ?? {};
 }
 
 // One player's detail entry for the panel, or null if the snapshot has no

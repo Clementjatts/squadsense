@@ -13,6 +13,8 @@ TEAM_CODES = ["ARS", "MCI", "NEW", "CHE", "BHA", "AVL", "LIV", "MUN", "CRY", "BO
 CURRENT_WEEK = 12
 LAST_SCHEDULED_WEEK = 19
 TEAM_ID = 11304359
+LEAGUE_ID = 555
+RIVALS = [(1001, "Rival United"), (1002, "Bench Boosters"), (1003, "Late Risers")]
 
 # (name, club, position, price in tenths, how attacking he is 0-1, extras)
 NAMED_PLAYERS = [
@@ -165,6 +167,10 @@ def make_players(rng):
                     "chance_of_playing_next_round": None, "news": "", "yellow_cards": rng.randint(0, 3),
                     "transfers_in_event": rng.randint(0, 40000), "transfers_out_event": rng.randint(0, 40000),
                     "_attack": attack,
+                    # No random draws here, so adding these didn't change the rest of the sample.
+                    "corners_and_indirect_freekicks_order": 1 if position == 3 and slot == 0 else None,
+                    "direct_freekicks_order": None,
+                    "ep_next": f"{price / 20:.1f}",
                 }
                 player.update(price_predictor_fields(player))
                 player.update(extras)
@@ -198,15 +204,66 @@ def make_history(player, rng, fixture_lookup):
     return rows
 
 
+def make_past_seasons(player):
+    """One invented full season for regular players, none for everyone else.
+
+    Worked out from the player's attack rating with no random draws, so the
+    rest of the sample stays the same.
+    """
+    if player["_attack"] < 0.3 and player["element_type"] != 1:
+        return []
+    minutes = 2700
+    return [{
+        "season_name": "2025/26", "total_points": 100 + round(player["_attack"] * 120), "minutes": minutes,
+        "expected_goals": f'{player["_attack"] * 0.6 * minutes / 90:.2f}',
+        "expected_assists": f'{player["_attack"] * 0.25 * minutes / 90:.2f}',
+        "bonus": round(player["_attack"] * 20), "saves": 90 if player["element_type"] == 1 else 0,
+    }]
+
+
 def make_events():
     events = []
     for week in range(1, 39):
         events.append({
             "id": week, "deadline_time": f"2026-{8 + (week + 2) // 4:02d}-{(week * 7) % 27 + 1:02d}T10:00:00Z",
             "is_current": week == CURRENT_WEEK, "is_next": week == CURRENT_WEEK + 1, "finished": week <= CURRENT_WEEK,
+            "data_checked": week <= CURRENT_WEEK, "average_entry_score": 50 + week % 7, "highest_score": 110 + week,
+            "most_captained": 1 if week <= CURRENT_WEEK else None,
         })
     events[CURRENT_WEEK]["deadline_time"] = "2026-11-21T11:00:00Z"
     return events
+
+
+def make_picks(squad_ids, captain_id, vice_id):
+    """Picks in FPL's shape: the first 11 start, the captain's points count twice."""
+    return [
+        {"element": player_id, "position": slot + 1, "is_captain": player_id == captain_id,
+         "is_vice_captain": player_id == vice_id, "multiplier": 0 if slot >= 11 else 2 if player_id == captain_id else 1}
+        for slot, player_id in enumerate(squad_ids)
+    ]
+
+
+def add_league(responses, players, squad_ids):
+    """One private league: your team plus the rivals, each with picks for the current week.
+
+    Rivals keep most of your squad but swap a few players, so the
+    threats and differentials have something to find.
+    """
+    rows = [{"entry": TEAM_ID, "entry_name": "Clement's XI", "player_name": "Clement Adegbenro",
+             "rank": 2, "last_rank": 3, "total": 600, "event_total": 62}]
+    outsiders = [player["id"] for player in players if player["id"] not in squad_ids]
+    for index, (entry, team_name) in enumerate(RIVALS):
+        rows.append({"entry": entry, "entry_name": team_name, "player_name": f"Rival {index + 1}",
+                     "rank": 1 if index == 0 else index + 2, "last_rank": index + 1, "total": 610 - index * 15, "event_total": 55 + index})
+        rival_squad = list(squad_ids)
+        for slot in (3, 7):  # swap a defender and a midfielder for outsiders in the same position
+            same_position = [p for p in outsiders if players[p - 1]["element_type"] == players[rival_squad[slot] - 1]["element_type"]]
+            rival_squad[slot] = same_position[index]
+        responses[f"entry/{entry}/event/{CURRENT_WEEK}/picks/"] = {
+            "active_chip": "bboost" if index == 1 else None,
+            "picks": make_picks(rival_squad, rival_squad[10 - index], rival_squad[9]),
+        }
+    responses[f"leagues-classic/{LEAGUE_ID}/standings/"] = {"standings": {"has_next": False, "page": 1, "results": rows}}
 
 
 def build_sample(seed=7):
@@ -226,16 +283,25 @@ def build_sample(seed=7):
         fixture_lookup[(fixture["team_h"], fixture["event"])] = (fixture["id"], True)
         fixture_lookup[(fixture["team_a"], fixture["event"])] = (fixture["id"], False)
     for player in players:
-        responses[f"element-summary/{player['id']}/"] = {"history": make_history(player, rng, fixture_lookup)}
+        responses[f"element-summary/{player['id']}/"] = {
+            "history": make_history(player, rng, fixture_lookup),
+            "history_past": make_past_seasons(player),
+        }
 
     by_name = {player["web_name"]: player["id"] for player in players}
     squad_ids = [by_name[name] for name in SQUAD_NAMES]
     responses[f"entry/{TEAM_ID}/"] = {
-        "name": "Clement's XI", "player_first_name": "Clement", "player_last_name": "Adegbenro", "started_event": 1,
+        "id": TEAM_ID, "name": "Clement's XI", "player_first_name": "Clement", "player_last_name": "Adegbenro", "started_event": 1,
+        "leagues": {"classic": [
+            {"id": LEAGUE_ID, "name": "Family League", "league_type": "x", "rank_count": len(RIVALS) + 1},
+            {"id": 314, "name": "Overall", "league_type": "s", "rank_count": 11000000},
+        ]},
     }
     responses[f"entry/{TEAM_ID}/history/"] = {
         "current": [
-            {"event": week, "bank": 14, "event_transfers": {5: 1, 8: 2, 11: 1}.get(week, 0)}
+            {"event": week, "bank": 14, "event_transfers": {5: 1, 8: 2, 11: 1}.get(week, 0),
+             "points": 50 + week, "total_points": sum(50 + earlier for earlier in range(1, week + 1)),
+             "overall_rank": 900000 - week * 20000, "event_transfers_cost": 4 if week == 8 else 0, "points_on_bench": week % 5}
             for week in range(1, CURRENT_WEEK + 1)
         ],
         "chips": [{"name": "wildcard", "event": 7}],
@@ -246,12 +312,9 @@ def build_sample(seed=7):
     responses[f"entry/{TEAM_ID}/event/{CURRENT_WEEK}/picks/"] = {
         "active_chip": None,
         "entry_history": {"event": CURRENT_WEEK, "bank": 14, "value": 1001, "event_transfers": 1},
-        "picks": [
-            {"element": player_id, "is_captain": player_id == by_name["Haaland"],
-             "is_vice_captain": player_id == by_name["Saka"]}
-            for player_id in squad_ids
-        ]
+        "picks": make_picks(squad_ids, by_name["Haaland"], by_name["Saka"]),
     }
+    add_league(responses, players, squad_ids)
     # Strip the helper field so responses look like the real API.
     for player in players:
         player.pop("_attack")
