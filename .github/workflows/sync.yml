@@ -21,6 +21,10 @@ on:
         description: "Also refresh players whose club played in the last 36 hours (up to 13 minutes after a full matchday)"
         type: boolean
         default: false
+      tests:
+        description: "Also run the test suite (about 10 minutes)"
+        type: boolean
+        default: false
 
 jobs:
   sync:
@@ -51,7 +55,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.tests
     defaults:
       run:
         working-directory: jobs

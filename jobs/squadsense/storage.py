@@ -76,6 +76,11 @@ class FileStorage:
         self._write(self.folder / f"snapshot_{team_id}.json", snapshot)
 
 
+# Supabase's free plan has 500 MB, so old rows are cleared as new ones arrive.
+SNAPSHOTS_KEPT = 3  # per team; each snapshot is about 1.4 MB, and the website only reads the newest
+PRICE_HISTORY_DAYS = 60  # price rows older than this are deleted
+
+
 class PostgresStorage:
     """Writes to the Supabase database described in db/schema.sql."""
 
@@ -127,16 +132,19 @@ class PostgresStorage:
             return {player_id: seasons for player_id, seasons in cursor.fetchall()}
 
     def save_predictions(self, expected_points, model_version):
+        """Saves every xP in one batch (about 3,400 rows), rather than one round trip each."""
         with self.connection.cursor() as cursor:
-            for player_id, weeks in expected_points.items():
-                for gameweek, points in weeks.items():
-                    cursor.execute(
-                        """insert into predictions (player_id, gameweek, model_version, xp, created_at)
-                           values (%s, %s, %s, %s, now())
-                           on conflict (player_id, gameweek, model_version)
-                           do update set xp = excluded.xp, created_at = now()""",
-                        (player_id, gameweek, model_version, points),
-                    )
+            cursor.executemany(
+                """insert into predictions (player_id, gameweek, model_version, xp, created_at)
+                   values (%s, %s, %s, %s, now())
+                   on conflict (player_id, gameweek, model_version)
+                   do update set xp = excluded.xp, created_at = now()""",
+                [
+                    (player_id, gameweek, model_version, points)
+                    for player_id, weeks in expected_points.items()
+                    for gameweek, points in weeks.items()
+                ],
+            )
 
     def save_price_snapshot(self, players):
         with self.connection.cursor() as cursor:
@@ -150,9 +158,20 @@ class PostgresStorage:
                     for p in players
                 ],
             )
+            cursor.execute(
+                "delete from price_snapshots where taken_at < now() - make_interval(days => %s)",
+                (PRICE_HISTORY_DAYS,),
+            )
 
     def save_snapshot(self, team_id, gameweek, snapshot):
+        """Saves the new snapshot and deletes all but the newest SNAPSHOTS_KEPT for this team."""
         self._execute(
             "insert into snapshots (team_id, gameweek, body) values (%s, %s, %s)",
             (team_id, gameweek, json.dumps(snapshot, default=str)),
+        )
+        self._execute(
+            """delete from snapshots where team_id = %s and id not in (
+                 select id from snapshots where team_id = %s order by created_at desc limit %s
+               )""",
+            (team_id, team_id, SNAPSHOTS_KEPT),
         )
