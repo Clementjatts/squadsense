@@ -7,7 +7,7 @@ import pytest
 
 from squadsense import rules
 from squadsense.captaincy import outcome_chances
-from squadsense.chips import best_chip_weeks
+from squadsense.chips import ChipValue, best_chip_weeks
 from squadsense.fixtures import FixtureModel, fixtures_by_team_and_week, starting_ratings, team_ratings
 from squadsense.fpl_client import FplApiError, FplClient
 from squadsense.planner import best_lineup
@@ -19,6 +19,13 @@ from squadsense.ticker import difficulty, difficulty_cut_points
 from squadsense.squad_state import build_squad_state, count_free_transfers
 from squadsense.sync import run, starting_price_lookup_from
 from tests.sample_data import CURRENT_WEEK, TEAM_ID, FakeHttpClient, build_sample
+
+
+@pytest.fixture(autouse=True)
+def plan_transfers_without_chips(monkeypatch):
+    """Planning chips inside the five-week plan takes about 30 seconds a sync,
+    so most tests leave it out. The chip test below turns it back on."""
+    monkeypatch.setattr("squadsense.snapshot.SOLVER_CHIPS", ())
 
 
 @pytest.fixture(scope="module")
@@ -257,8 +264,8 @@ def test_every_player_gets_a_detail_entry(tmp_path, fake_client, sample, monkeyp
 def test_chip_plan_never_puts_two_chips_in_one_week():
     # Bench Boost and Triple Captain both peak in GW16; only one can have it.
     values = {
-        "bboost": {16: (13.8, ""), 17: (6.0, "")},
-        "3xc": {16: (17.0, ""), 18: (9.0, "")},
+        "bboost": {16: ChipValue(13.8, ""), 17: ChipValue(6.0, "")},
+        "3xc": {16: ChipValue(17.0, ""), 18: ChipValue(9.0, "")},
     }
     plan = best_chip_weeks(values)
     assert plan["bboost"] != plan["3xc"]
@@ -385,6 +392,10 @@ def test_league_summary_finds_threats_and_differentials(tmp_path, fake_client, m
     assert all(line["playerId"] not in squad for line in league["threats"])
     assert all(line["share"] <= 0.25 for line in league["differentials"])
     assert all(str(line["playerId"]) in snapshot["players"] for line in league["threats"])
+    rival = next(row for row in league["table"] if row["entry"] == 1001)
+    assert "3xc" not in rival["chipsLeft"] and "bboost" in rival["chipsLeft"]
+    holding = snapshot["chipPlan"]["rivals"][0]["holding"]
+    assert holding["3xc"] == 1 and holding["bboost"] == 3
 
 
 def test_rival_picks_are_cached_after_the_first_run(tmp_path, sample, monkeypatch):
@@ -405,3 +416,37 @@ def test_review_compares_the_captain_with_the_best_pick(tmp_path, fake_client, m
     team = review["team"]
     assert team["bestCaptain"]["points"] >= team["captain"]["points"]
     assert len(team["starters"]) == 11
+
+
+def test_chip_cards_carry_timing_risk_and_week_values(tmp_path, fake_client, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    cards = {card["chip"]: card for card in snapshot["chipPlan"]["cards"]}
+    triple = cards["3xc"]
+    assert triple["timing"]["advice"] in ("play", "wait")
+    assert 0 <= triple["risk"]["haulChance"] <= 1
+    assert [week["gameweek"] for week in triple["byWeek"]] == list(range(CURRENT_WEEK + 1, 20))
+    assert 0 <= cards["bboost"]["risk"]["allBenchPlay"] <= 1
+    assert "fixtureWarnings" in snapshot["chipPlan"]
+
+
+def test_play_now_when_this_week_is_close_to_the_best():
+    close = {"3xc": {13: ChipValue(9.5, ""), 16: ChipValue(10.0, "")}}
+    assert best_chip_weeks(close, this_week=13) == {"3xc": 13}
+    far_apart = {"3xc": {13: ChipValue(6.0, ""), 16: ChipValue(10.0, "")}}
+    assert best_chip_weeks(far_apart, this_week=13) == {"3xc": 16}
+    # Two chips both close to their best this week: only one can be played now.
+    both = {"3xc": {13: ChipValue(9.5, ""), 16: ChipValue(10.0, "")}, "bboost": {13: ChipValue(9.5, ""), 15: ChipValue(10.0, "")}}
+    assert list(best_chip_weeks(both, this_week=13).values()).count(13) == 1
+
+
+def test_plan_chips_follow_the_rules(tmp_path, fake_client, sample, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr("squadsense.snapshot.SOLVER_CHIPS", ("bboost", "3xc", "wildcard"))
+    snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
+    for week in snapshot["solverPlan"]["weeks"]:
+        if week["chip"] == "wildcard":
+            assert week["hits"] == 0
+        assert week["chip"] in (None, "bboost", "3xc", "wildcard")
+    chips = [week["chip"] for week in snapshot["solverPlan"]["weeks"] if week["chip"]]
+    assert chips and len(chips) == len(set(chips))

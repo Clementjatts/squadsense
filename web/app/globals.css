@@ -526,3 +526,29 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .compare-results button { width: 100%; height: 36px; padding: 0 12px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; letter-spacing: 0; text-align: left; cursor: pointer; }
 .compare-results button:hover { background: var(--raised); }
 .bc-select { height: 34px; max-width: 220px; padding: 0 10px; border: 1px solid var(--panel-line); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; font-size: 13px; }
+
+/* Price Watch pages */
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pager .btn:disabled { opacity: 0.4; cursor: default; }
+.chip-picker { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+.solver-chip { margin: 0 8px 0 0; color: var(--accent); border-color: var(--accent); }
+
+/* Chip Planner additions */
+.chip-week.far .chip-week-box { border-style: dashed; }
+.swatch.far { background: transparent; border: 1px dashed var(--muted); }
+.chip-bars { height: 64px; display: flex; align-items: flex-end; gap: 3px; }
+.chip-bar-slot { flex: 1 1 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; }
+.chip-bar { width: 100%; background: #2a3a5c; }
+.chip-bar.best { background: var(--accent); }
+.chip-bar-label { font-family: var(--condensed); font-size: 11px; color: var(--muted); line-height: 1; }
+.chip-card-lines { min-height: 64px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.fixture-warning-row { min-height: 36px; display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
+.fixture-warning-row:first-child { border-top: 0; }
+.rival-chip-row { height: 38px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
+.rival-chip-row:first-child { border-top: 0; }
+.rival-chip-tags { display: flex; gap: 4px; }
+.rival-chip-tags .bc-set-tag { margin: 0; }
+.rival-chip-on { color: var(--accent); border-color: var(--accent); }
+.rival-chip-off { opacity: 0.3; text-decoration: line-through; }
+.summary-grid.rival-holding { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bc-token-vice { background: var(--bg); color: var(--accent); border: 2px solid var(--accent); }

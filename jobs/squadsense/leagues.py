@@ -10,8 +10,11 @@ the last gameweek that has passed its deadline and works out:
 - threats: players most rivals own and you don't, ranked by next week's xP,
 - differentials: your players few rivals own.
 
+It also reads each rival's season history for the chips they've played,
+so the Chip Planner can show what your rivals still have.
+
 Rival picks for a past deadline never change, so each one is cached and
-only fetched once per gameweek.
+only fetched once per gameweek. Histories are cached the same way.
 """
 
 import logging
@@ -24,6 +27,8 @@ log = logging.getLogger("squadsense.leagues")
 
 MAX_LEAGUE_SIZE = 50  # one page of standings; bigger leagues aren't really mini-leagues
 MAX_LEAGUES = 4
+ALL_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
+RIVAL_CHIP_ROWS = 12  # rivals listed per league on the Chip Planner
 THREATS_SHOWN = 6
 DIFFERENTIALS_SHOWN = 6
 THREAT_MIN_SHARE = 0.3  # at least this share of rivals own him
@@ -71,6 +76,21 @@ def cached_picks(client, storage, entry_id, gameweek):
     return picks
 
 
+def cached_history(client, storage, entry_id, gameweek):
+    """One team's entry history, fetched once per gameweek. None, with a warning, if it fails."""
+    name = f"history/{entry_id}/{gameweek}"
+    history = storage.load_raw(name)
+    if history is not None:
+        return history
+    try:
+        history = client.entry_history(entry_id)
+    except FplApiError as error:
+        log.warning("No history for team %d: %s", entry_id, error)
+        return None
+    storage.save_raw(name, history)
+    return history
+
+
 def fetch_leagues(client, storage, team_entry, gameweek, chosen_ids=None):
     """Standings and every rival's picks for each chosen league.
 
@@ -86,13 +106,23 @@ def fetch_leagues(client, storage, team_entry, gameweek, chosen_ids=None):
             row["entry"]: cached_picks(client, storage, row["entry"], gameweek)
             for row in standings if row["entry"] != my_team_id
         }
+        histories = {entry: cached_history(client, storage, entry, gameweek) for entry in picks}
         log.info("League %s: %d teams", info["name"], len(standings))
-        leagues.append({"info": info, "standings": standings, "picks": picks})
+        leagues.append({"info": info, "standings": standings, "picks": picks, "histories": histories})
     return leagues
 
 
-def table_rows(standings, picks):
-    """The league table, with each team's chip and captain from its picks."""
+def chips_left(history, half):
+    """The chips a team hasn't played yet in this half of the season, or None if unknown."""
+    if history is None:
+        return None
+    start, stop = half
+    played = {chip["name"] for chip in history.get("chips", []) if start <= chip["event"] <= stop}
+    return [chip for chip in ALL_CHIPS if chip not in played]
+
+
+def table_rows(standings, picks, histories, half):
+    """The league table, with each team's chip, captain and chips left."""
     rows = []
     for row in standings:
         team_picks = picks.get(row["entry"]) or {}
@@ -107,6 +137,7 @@ def table_rows(standings, picks):
             "eventPoints": row["event_total"],
             "chip": team_picks.get("active_chip"),
             "captain": captain,
+            "chipsLeft": chips_left(histories.get(row["entry"]), half),
         })
     return rows
 
@@ -122,7 +153,7 @@ def rival_counts(picks, my_team_id):
     return owned, captained, len(rivals)
 
 
-def summarise_league(league, my_team_id, my_squad, expected_points, next_week):
+def summarise_league(league, my_team_id, my_squad, expected_points, next_week, half):
     """Everything the Leagues page shows for one league."""
     owned, captained, rival_total = rival_counts(league["picks"], my_team_id)
     share = lambda player_id: owned[player_id] / rival_total if rival_total else 0.0
@@ -141,7 +172,7 @@ def summarise_league(league, my_team_id, my_squad, expected_points, next_week):
         return {"playerId": player_id, "share": round(share(player_id), 3), "xp": next_xp(player_id),
                 "captainShare": round(captained[player_id] / rival_total, 3) if rival_total else 0.0}
 
-    rows = table_rows(league["standings"], league["picks"])
+    rows = table_rows(league["standings"], league["picks"], league.get("histories", {}), half)
     my_row = next((row for row in rows if row["entry"] == my_team_id), None)
     return {
         "id": league["info"]["id"],
@@ -157,9 +188,27 @@ def summarise_league(league, my_team_id, my_squad, expected_points, next_week):
     }
 
 
-def build_leagues(league_data, my_team_id, my_squad, expected_points, next_week):
-    """One summary per league fetched by fetch_leagues()."""
-    return [summarise_league(league, my_team_id, set(my_squad), expected_points, next_week) for league in league_data]
+def build_leagues(league_data, my_team_id, my_squad, expected_points, next_week, half):
+    """One summary per league fetched by fetch_leagues(). `half` is the chip window (start, stop)."""
+    return [summarise_league(league, my_team_id, set(my_squad), expected_points, next_week, half) for league in league_data]
+
+
+def rival_chip_summary(leagues):
+    """For the Chip Planner: per league, how many rivals hold each chip, and the top rivals' chips left."""
+    summaries = []
+    for league in leagues:
+        known = [row for row in league["table"] if row["chipsLeft"] is not None]
+        summaries.append({
+            "id": league["id"],
+            "name": league["name"],
+            "rivals": len(known),
+            "holding": {chip: sum(chip in row["chipsLeft"] for row in known) for chip in ALL_CHIPS},
+            "rows": [
+                {"entry": row["entry"], "teamName": row["teamName"], "rank": row["rank"], "total": row["total"], "chipsLeft": row["chipsLeft"]}
+                for row in known[:RIVAL_CHIP_ROWS]
+            ],
+        })
+    return summaries
 
 
 def players_mentioned(leagues):

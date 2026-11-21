@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-21T09:48:46.954576+00:00",
+ "generatedAt": "2026-11-21T10:50:38.239566+00:00",
  "modelVersion": "v2",
  "team": {
   "id": 11304359,
@@ -4890,6 +4890,7 @@
     "freeTransfers": 5,
     "bank": 11,
     "captain": 23,
+    "chip": null,
     "xp": 64.3
    },
    {
@@ -4897,11 +4898,11 @@
     "moves": [
      {
       "out": 8,
-      "in": 10
+      "in": 72
      },
      {
-      "out": 83,
-      "in": 72
+      "out": 78,
+      "in": 7
      },
      {
       "out": 253,
@@ -4912,7 +4913,8 @@
     "freeTransfers": 3,
     "bank": 22,
     "captain": 23,
-    "xp": 65.23
+    "chip": "bboost",
+    "xp": 79.68
    },
    {
     "gameweek": 15,
@@ -4921,7 +4923,8 @@
     "freeTransfers": 1,
     "bank": 22,
     "captain": 23,
-    "xp": 64.97
+    "chip": null,
+    "xp": 64.08
    },
    {
     "gameweek": 16,
@@ -4939,7 +4942,8 @@
     "freeTransfers": 2,
     "bank": 76,
     "captain": 23,
-    "xp": 121.12
+    "chip": "3xc",
+    "xp": 136.71
    },
    {
     "gameweek": 17,
@@ -4948,11 +4952,17 @@
     "freeTransfers": 1,
     "bank": 76,
     "captain": 23,
-    "xp": 64.36
+    "chip": null,
+    "xp": 63.86
    }
   ],
   "totalHits": 0,
-  "gain": 49.93
+  "chips": {
+   "bboost": 14,
+   "3xc": 16
+  },
+  "gain": 73.26,
+  "finishedSearch": false
  },
  "flags": [
   {
@@ -9814,6 +9824,46 @@
     "usedIn": null,
     "bestWeek": 13,
     "gain": 8.1,
+    "risk": {
+     "allBenchPlay": 0.04
+    },
+    "timing": {
+     "nowGain": 8.1,
+     "advice": "play",
+     "peakWeek": 19,
+     "peakGain": 8.1
+    },
+    "quality": "near",
+    "byWeek": [
+     {
+      "gameweek": 13,
+      "gain": 8.1
+     },
+     {
+      "gameweek": 14,
+      "gain": 8.0
+     },
+     {
+      "gameweek": 15,
+      "gain": 7.7
+     },
+     {
+      "gameweek": 16,
+      "gain": 6.3
+     },
+     {
+      "gameweek": 17,
+      "gain": 7.8
+     },
+     {
+      "gameweek": 18,
+      "gain": 8.0
+     },
+     {
+      "gameweek": 19,
+      "gain": 8.1
+     }
+    ],
     "reason": "Your bench is expected to add 8.1 points."
    },
    {
@@ -9823,6 +9873,48 @@
     "usedIn": null,
     "bestWeek": 19,
     "gain": 7.0,
+    "risk": {
+     "captainId": 53,
+     "haulChance": 0.34,
+     "blankChance": 0.192
+    },
+    "timing": {
+     "nowGain": 6.1,
+     "advice": "wait",
+     "peakWeek": 16,
+     "peakGain": 11.8
+    },
+    "quality": "far",
+    "byWeek": [
+     {
+      "gameweek": 13,
+      "gain": 6.1
+     },
+     {
+      "gameweek": 14,
+      "gain": 6.3
+     },
+     {
+      "gameweek": 15,
+      "gain": 6.1
+     },
+     {
+      "gameweek": 16,
+      "gain": 11.8
+     },
+     {
+      "gameweek": 17,
+      "gain": 5.9
+     },
+     {
+      "gameweek": 18,
+      "gain": 6.3
+     },
+     {
+      "gameweek": 19,
+      "gain": 7.0
+     }
+    ],
     "reason": "Palmer plays SUN (H)."
    },
    {
@@ -9832,6 +9924,44 @@
     "usedIn": null,
     "bestWeek": 16,
     "gain": 35.4,
+    "risk": {},
+    "timing": {
+     "nowGain": 10.4,
+     "advice": "wait",
+     "peakWeek": 16,
+     "peakGain": 35.4
+    },
+    "quality": "near",
+    "byWeek": [
+     {
+      "gameweek": 13,
+      "gain": 10.4
+     },
+     {
+      "gameweek": 14,
+      "gain": 8.5
+     },
+     {
+      "gameweek": 15,
+      "gain": 10.4
+     },
+     {
+      "gameweek": 16,
+      "gain": 35.4
+     },
+     {
+      "gameweek": 17,
+      "gain": 10.7
+     },
+     {
+      "gameweek": 18,
+      "gain": 8.2
+     },
+     {
+      "gameweek": 19,
+      "gain": 9.8
+     }
+    ],
     "reason": "1 of your 15 blank. A one-week squad built for this week scores 35.4 more."
    },
    {
@@ -9841,6 +9971,10 @@
     "usedIn": 7,
     "bestWeek": null,
     "gain": null,
+    "risk": {},
+    "timing": null,
+    "quality": null,
+    "byWeek": [],
     "reason": "Played in GW7. The next one unlocks after the GW19 deadline."
    }
   ],
@@ -9848,200 +9982,310 @@
    {
     "gameweek": 1,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 2,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 3,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 4,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 5,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 6,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 7,
     "used": [
      "WC"
     ],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 8,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 9,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 10,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 11,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 12,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": null
    },
    {
     "gameweek": 13,
     "used": [],
     "recommended": [
      "BB"
-    ]
+    ],
+    "quality": "near"
    },
    {
     "gameweek": 14,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "near"
    },
    {
     "gameweek": 15,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "near"
    },
    {
     "gameweek": 16,
     "used": [],
     "recommended": [
      "FH"
-    ]
+    ],
+    "quality": "near"
    },
    {
     "gameweek": 17,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "near"
    },
    {
     "gameweek": 18,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 19,
     "used": [],
     "recommended": [
      "TC"
-    ]
+    ],
+    "quality": "far"
    },
    {
     "gameweek": 20,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 21,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 22,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 23,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 24,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 25,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 26,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 27,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 28,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 29,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 30,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 31,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 32,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 33,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 34,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 35,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 36,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 37,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
    },
    {
     "gameweek": 38,
     "used": [],
-    "recommended": []
+    "recommended": [],
+    "quality": "far"
+   }
+  ],
+  "withTransfers": {
+   "bboost": 14,
+   "3xc": 16
+  },
+  "fixtureWarnings": {
+   "unscheduled": [],
+   "provisional": [],
+   "weeks": [
+    {
+     "gameweek": 16,
+     "blanks": [
+      "LIV",
+      "NEW"
+     ],
+     "doubles": [
+      "ARS",
+      "AVL",
+      "BHA",
+      "MCI"
+     ]
+    }
+   ]
+  },
+  "rivals": [
+   {
+    "id": 555,
+    "name": "Family League",
+    "rivals": 3,
+    "holding": {
+     "bboost": 3,
+     "3xc": 1,
+     "freehit": 3,
+     "wildcard": 3
+    },
+    "rows": [
+     {
+      "entry": 1001,
+      "teamName": "Rival United",
+      "rank": 1,
+      "total": 610,
+      "chipsLeft": [
+       "bboost",
+       "freehit",
+       "wildcard"
+      ]
+     },
+     {
+      "entry": 1002,
+      "teamName": "Bench Boosters",
+      "rank": 3,
+      "total": 595,
+      "chipsLeft": [
+       "bboost",
+       "freehit",
+       "wildcard"
+      ]
+     },
+     {
+      "entry": 1003,
+      "teamName": "Late Risers",
+      "rank": 4,
+      "total": 580,
+      "chipsLeft": [
+       "bboost",
+       "3xc",
+       "freehit",
+       "wildcard"
+      ]
+     }
+    ]
    }
   ]
  },
@@ -48793,7 +49037,8 @@
      "total": 600,
      "eventPoints": 62,
      "chip": null,
-     "captain": 28
+     "captain": 28,
+     "chipsLeft": null
     },
     {
      "entry": 1001,
@@ -48804,7 +49049,12 @@
      "total": 610,
      "eventPoints": 55,
      "chip": null,
-     "captain": 83
+     "captain": 83,
+     "chipsLeft": [
+      "bboost",
+      "freehit",
+      "wildcard"
+     ]
     },
     {
      "entry": 1002,
@@ -48815,7 +49065,12 @@
      "total": 595,
      "eventPoints": 56,
      "chip": "bboost",
-     "captain": 113
+     "captain": 113,
+     "chipsLeft": [
+      "bboost",
+      "freehit",
+      "wildcard"
+     ]
     },
     {
      "entry": 1003,
@@ -48826,7 +49081,13 @@
      "total": 580,
      "eventPoints": 57,
      "chip": null,
-     "captain": 53
+     "captain": 53,
+     "chipsLeft": [
+      "bboost",
+      "3xc",
+      "freehit",
+      "wildcard"
+     ]
     }
    ],
    "mySquad": [
@@ -50531,8 +50792,7 @@
         "multiplier": 0
        }
       ],
-      "chip": null,
-      "hits": 0
+      "chip": null
      },
      {
       "entry": 1001,
@@ -50645,8 +50905,7 @@
         "multiplier": 0
        }
       ],
-      "chip": null,
-      "hits": 0
+      "chip": null
      },
      {
       "entry": 1002,
@@ -50759,8 +51018,7 @@
         "multiplier": 0
        }
       ],
-      "chip": "bboost",
-      "hits": 0
+      "chip": "bboost"
      },
      {
       "entry": 1003,
@@ -50873,8 +51131,7 @@
         "multiplier": 0
        }
       ],
-      "chip": null,
-      "hits": 0
+      "chip": null
      }
     ]
    }

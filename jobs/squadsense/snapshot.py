@@ -12,13 +12,13 @@ from datetime import datetime, timezone
 
 from . import flags, leagues, planner, review, rules
 from .captaincy import outcome_chances
-from .chips import build_chip_plan
+from .chips import available_chip_weeks, build_chip_plan, current_half
 from .fixtures import FixtureModel, fixtures_by_team_and_week, team_ratings
 from .model import expected_points_for_week, player_rates
 from .player_detail import build_player_details, recent_gameweeks
 from .price_watch import add_price_timing, build_price_watch
 from .ticker import build_ticker
-from .transfer_solver import TransferSolverError, solve_transfer_plan
+from .transfer_solver import SOLVER_CHIPS, TransferSolverError, solve_transfer_plan
 
 log = logging.getLogger("squadsense.snapshot")
 
@@ -146,14 +146,14 @@ def transfer_suggestions(squad_state, players_by_id, expected_points, weeks):
     return planner.suggest_transfers(squad_state, players_by_id, expected_points, weeks)
 
 
-def transfer_plan(squad_state, players_by_id, expected_points, weeks):
-    """The multi-week plan, or None (with a logged warning) if the solver finds none.
+def transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks):
+    """The multi-week plan with chips, or None (with a logged warning) if the solver finds none.
 
     A failed plan shouldn't stop the rest of the snapshot, since every
     other page still works without it.
     """
     try:
-        return solve_transfer_plan(squad_state, players_by_id, expected_points, weeks)
+        return solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks)
     except TransferSolverError as error:
         log.warning("Skipping the transfer plan: %s", error)
         return None
@@ -188,10 +188,12 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
         included_ids.update(player["id"] for player in pool[:CANDIDATES_IN_SNAPSHOT])
 
     # The plan can buy anyone in its own candidate pool, so make sure the website knows them.
-    solver_plan = transfer_plan(squad_state, players_by_id, expected_points, weeks)
+    chip_weeks = available_chip_weeks(bootstrap, squad_state, weeks, SOLVER_CHIPS)
+    solver_plan = transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks)
     for week in (solver_plan or {}).get("weeks", []):
         included_ids.update(move["in"] for move in week["moves"])
-    league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, expected_points, first_week)
+    half = current_half(bootstrap, first_week)
+    league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, expected_points, first_week, half)
     included_ids.update(leagues.players_mentioned(league_summaries))
     included_ids.update(review.players_mentioned(extras.review))
 
@@ -255,7 +257,11 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
             for week in weeks
         },
         "priceWatch": price_watch,
-        "chipPlan": build_chip_plan(bootstrap, fixtures, model_results, squad_state),
+        "chipPlan": build_chip_plan(
+            bootstrap, fixtures, model_results, squad_state,
+            solver_chips=(solver_plan or {}).get("chips"),
+            rival_chips=leagues.rival_chip_summary(league_summaries),
+        ),
         "fixtureTicker": ticker,
         # Not sent with pages; the player panel loads one entry at a time.
         "playerDetails": build_player_details(

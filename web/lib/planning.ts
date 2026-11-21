@@ -2,7 +2,7 @@
 // jobs/squadsense/planner.py and rules.py; if you change a rule in one,
 // change it in the other.
 
-import type { Player, Position, Snapshot } from "./types";
+import type { ChipCode, Player, Position, Snapshot } from "./types";
 
 export const MAX_PER_CLUB = 3;
 export const MAX_BANKED_FREE_TRANSFERS = 5;
@@ -18,12 +18,18 @@ export interface PlannedMove {
   inId: number;
 }
 
+// The chips the sandbox understands. Free Hit isn't here: its squad only lasts one week.
+export type PlannerChip = Extract<ChipCode, "bboost" | "3xc" | "wildcard">;
+export type PlannedChips = Partial<Record<number, PlannerChip>>; // gameweek -> chip
+
 export interface WeekPlan {
   week: number;
+  chip: PlannerChip | null;
   squad: number[];
   starters: number[];
   bench: number[];
   captain: number;
+  viceCaptain: number;
   expectedPoints: number;
   transfersMade: number;
   freeTransfersBefore: number | null;
@@ -61,9 +67,10 @@ export function bestLineup(squad: number[], players: Record<string, Player>, wee
     if (players[b].position === "GK") return 1;
     return 0;
   });
-  const captain = starters.reduce((best, id) => (xpFor(players[id], week) > xpFor(players[best], week) ? id : best));
+  // Captain and vice are the two highest-xP starters, as in planner.py.
+  const [captain, viceCaptain] = [...starters].sort((a, b) => xpFor(players[b], week) - xpFor(players[a], week));
   const total = starters.reduce((sum, id) => sum + xpFor(players[id], week), 0) + xpFor(players[captain], week);
-  return { starters, bench, captain, expectedPoints: total };
+  return { starters, bench, captain, viceCaptain, expectedPoints: total };
 }
 
 // Swaps players in and out to get the squad for a given week.
@@ -91,7 +98,15 @@ function checkRules(squad: number[], players: Record<string, Player>, bank: numb
 // Replays the plan week by week: squad, bank, free transfers, hits and xP.
 // Selling a player you bought earlier in the plan gives back what you paid,
 // which is right as long as his price hasn't moved in between.
-export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[]): WeekPlan[] {
+// A chip's extra xP on top of the normal lineup: the bench for Bench Boost,
+// the captain once more for Triple Captain, nothing for Wildcard.
+function chipBonus(chip: PlannerChip | null, lineup: ReturnType<typeof bestLineup>, players: Record<string, Player>, week: number): number {
+  if (chip === "bboost") return lineup.bench.reduce((sum, id) => sum + xpFor(players[id], week), 0);
+  if (chip === "3xc") return xpFor(players[lineup.captain], week);
+  return 0;
+}
+
+export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: PlannedChips = {}): WeekPlan[] {
   const { players } = snapshot;
   const paidInPlan = new Map<number, number>();
   let squad = snapshot.squad;
@@ -109,18 +124,21 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[]): WeekPlan
     squad = squadAfterMoves(squad, weekMoves);
 
     const transfersMade = weekMoves.length;
-    // null means unlimited, so no hits that week.
+    const chip = chips[week] ?? null;
+    // null means unlimited, and a Wildcard week is unlimited too, so no hits.
     const hitPoints =
-      freeTransfers === null ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
+      freeTransfers === null || chip === "wildcard" ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
     const lineup = bestLineup(squad, players, week);
 
     plans.push({
       week,
+      chip,
       squad,
       starters: lineup.starters,
       bench: lineup.bench,
       captain: lineup.captain,
-      expectedPoints: lineup.expectedPoints,
+      viceCaptain: lineup.viceCaptain,
+      expectedPoints: lineup.expectedPoints + chipBonus(chip, lineup, players, week),
       transfersMade,
       freeTransfersBefore: freeTransfers,
       hitPoints,
@@ -128,10 +146,12 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[]): WeekPlan
       problems: checkRules(squad, players, bank),
     });
     // After an unlimited week you start with 1, like any team after its first deadline.
+    // A Wildcard keeps your banked transfers and still adds one (same assumption as squad_state.py).
+    const used = chip === "wildcard" ? 0 : transfersMade;
     freeTransfers =
       freeTransfers === null
         ? 1
-        : Math.min(MAX_BANKED_FREE_TRANSFERS, Math.max(0, freeTransfers - transfersMade) + 1);
+        : Math.min(MAX_BANKED_FREE_TRANSFERS, Math.max(0, freeTransfers - used) + 1);
   }
   return plans;
 }

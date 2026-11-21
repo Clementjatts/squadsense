@@ -73,3 +73,36 @@ setting (PAST_MINUTES_CAP)   top20  captain  slope   mae
 ```
 
 The captain pick gained a point a week and top20 rose by 0.18, larger than the 0.1 noise level, and every cap from 450 to 1800 gave about the same result. This is still only GW4-10 (1,435 starts), so recheck it in a few weeks.
+
+## Chip timing (21 November 2026)
+
+`python -m squadsense.chip_backtest` checks when to play Triple Captain and Bench Boost. Real squads from past seasons aren't available, so for each half of each downloaded season the model picks a squad at the start of the half and keeps it. Each method then plays each chip once, and the table shows the real points the chip added. "average week" is what a random week would earn; "hindsight" is the best week, which nothing can beat.
+
+```
+Triple Captain: real points the chip added
+half                  planner best week only   first double  straight away   average week      hindsight
+2022-23 4-19             17.0            6.0           17.0           17.0            8.2           23.0
+2022-23 20-38            10.0           16.0            8.0            8.0            8.7           17.0
+2023-24 4-19             10.0           10.0           10.0           20.0            5.1           20.0
+2023-24 20-38             7.0            7.0            7.0            7.0            5.0           13.0
+2024-25 4-19             13.0            9.0           13.0           13.0            9.9           21.0
+2024-25 20-38            20.0           20.0           29.0            7.0            8.6           29.0
+average                  12.8           11.3           14.0           12.0            7.6           20.5
+
+Bench Boost: real points the chip added
+half                  planner best week only   first double  straight away   average week      hindsight
+2022-23 4-19             24.0           16.0           24.0           24.0            9.2           24.0
+2022-23 20-38            18.0           16.0           18.0           18.0            7.8           18.0
+2023-24 4-19              7.0            3.0           20.0            7.0            6.6           20.0
+2023-24 20-38             3.0           16.0           16.0            3.0            9.3           22.0
+2024-25 4-19             12.0            3.0           23.0           23.0            9.0           23.0
+2024-25 20-38            23.0            2.0            5.0            6.0            5.7           23.0
+average                  14.5            9.3           17.7           13.5            7.9           21.7
+```
+
+What it showed:
+
+- The first version only played a chip in the single best forecast week ("best week only"). It waited too long: comparing one sure number this week with the highest of many rough forecasts for later weeks almost always makes a later week look better.
+- Playing when this week is worth at least 90% of the best week left (`PLAY_SHARE` in `chips.py`) did better for both chips: Triple Captain 11.3 to 12.8, Bench Boost 9.3 to 14.5. 0.7 and 0.8 gave similar totals; 0.9 was kept as the smallest change.
+- Both beat a random week, but neither beat "first double gameweek" (14.0 and 17.7). The Chips page says so, and a known double deserves extra weight.
+- Six half-seasons is a small sample, and the kept squad is a stand-in for a real one, which changes every week. Treat these as direction, not precision.

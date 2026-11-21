@@ -10,19 +10,31 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
-import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type PlannedMove } from "@/lib/planning";
+import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type PlannedChips, type PlannedMove, type PlannerChip } from "@/lib/planning";
 import type { SolverPlan, Snapshot } from "@/lib/types";
+
+const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", wildcard: "Wildcard" };
+
+// Chips you can still try in the sandbox: available this half, and only in weeks up to the half's last one.
+function plannerChipsFor(snapshot: Snapshot, week: number): PlannerChip[] {
+  if (week > snapshot.chipPlan.halfStop) return [];
+  return snapshot.chipPlan.cards
+    .filter((card) => card.status === "available" && card.chip !== "freehit")
+    .map((card) => card.chip as PlannerChip)
+    .filter((chip) => !(chip === "wildcard" && snapshot.freeTransfers === null && week === snapshot.weeks[0]));
+}
 
 const OPTIONS_SHOWN = 12;
 
 export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const { players, weeks } = snapshot;
   const [moves, setMoves] = useState<PlannedMove[]>([]);
+  const [chips, setChips] = useState<PlannedChips>({});
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]);
   const [swapOutId, setSwapOutId] = useState<number | null>(null);
 
   // Recalculate the whole plan whenever a move is added or removed.
-  const plans = useMemo(() => simulatePlan(snapshot, moves), [snapshot, moves]);
+  const plans = useMemo(() => simulatePlan(snapshot, moves, chips), [snapshot, moves, chips]);
   const baselineScore = useMemo(() => planScore(simulatePlan(snapshot, [])), [snapshot]);
   const totalScore = planScore(plans);
   const weekPlan = plans.find((plan) => plan.week === selectedWeek) ?? plans[0];
@@ -82,7 +94,11 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
           <button key={plan.week} type="button" className="week-card" aria-pressed={plan.week === selectedWeek} onClick={() => chooseWeek(plan.week)}>
             <span className="week-card-top">
               <span className="week-card-gw">GW{plan.week}</span>
-              {snapshot.doubles[String(plan.week)]?.length > 0 && <span className="chip good">Double</span>}
+              {plan.chip ? (
+                <span className="chip good">{PLANNER_CHIP_LABELS[plan.chip]}</span>
+              ) : (
+                snapshot.doubles[String(plan.week)]?.length > 0 && <span className="chip good">Double</span>
+              )}
             </span>
             <span className="week-card-xp">
               <AnimatedNumber value={plan.expectedPoints} format={formatXp} />
@@ -105,6 +121,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
             starters={weekPlan.starters}
             bench={weekPlan.bench}
             captain={weekPlan.captain}
+            viceCaptain={weekPlan.viceCaptain}
             players={players}
             week={selectedWeek}
             selectedId={swapOutId}
@@ -141,6 +158,12 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 <b className="num">{weekPlan.hitPoints}</b>
               </div>
             </div>
+            <ChipPicker
+              options={plannerChipsFor(snapshot, selectedWeek)}
+              chips={chips}
+              week={selectedWeek}
+              onChange={setChips}
+            />
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {weekPlan.problems.length === 0 ? (
                 <span className="chip good">Budget and club limits OK</span>
@@ -298,6 +321,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               snapshot={snapshot}
               onApply={() => {
                 setMoves(solverMoves(snapshot.solverPlan!));
+                setChips(solverChips(snapshot.solverPlan!));
                 setSwapOutId(null);
               }}
             />
@@ -313,6 +337,42 @@ function solverMoves(plan: SolverPlan): PlannedMove[] {
   return plan.weeks.flatMap((week) => week.moves.map((move) => ({ week: week.gameweek, outId: move.out, inId: move.in })));
 }
 
+// The plan's chips in the sandbox's format: gameweek -> chip (Free Hit is never in the plan).
+function solverChips(plan: SolverPlan): PlannedChips {
+  const chips: PlannedChips = {};
+  for (const week of plan.weeks) if (week.chip && week.chip !== "freehit") chips[week.gameweek] = week.chip;
+  return chips;
+}
+
+interface ChipPickerProps {
+  options: PlannerChip[];
+  chips: PlannedChips;
+  week: number;
+  onChange: (next: PlannedChips) => void;
+}
+
+// Pick a chip for the selected week. Choosing one moves it off any other week, since each chip plays once.
+function ChipPicker({ options, chips, week, onChange }: ChipPickerProps) {
+  if (options.length === 0) return null;
+  function choose(value: string) {
+    const next: PlannedChips = {};
+    for (const [otherWeek, chip] of Object.entries(chips)) {
+      if (Number(otherWeek) !== week && chip !== value) next[Number(otherWeek)] = chip;
+    }
+    if (value) next[week] = value as PlannerChip;
+    onChange(next);
+  }
+  return (
+    <label className="chip-picker">
+      <span className="muted">Chip this week</span>
+      <select className="bc-select" value={chips[week] ?? ""} onChange={(event) => choose(event.target.value)}>
+        <option value="">None</option>
+        {options.map((chip) => <option key={chip} value={chip}>{PLANNER_CHIP_LABELS[chip]}</option>)}
+      </select>
+    </label>
+  );
+}
+
 // The best plan for every week at once, from the solver. One fixed-height
 // row per gameweek, so a week with no moves takes the same space as a busy one.
 function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapshot: Snapshot; onApply: () => void }) {
@@ -321,13 +381,14 @@ function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapsho
     <section className="card solver-card">
       <div className="card-head">
         <h2>Best {plan.weeks.length}-week plan</h2>
-        <span className="muted">{formatGain(plan.gain)} xP vs no moves{plan.totalHits > 0 ? ` · -${plan.totalHits * 4} in hits` : ""}</span>
+        <span className="muted">{formatGain(plan.gain)} xP vs no moves or chips{plan.totalHits > 0 ? ` · -${plan.totalHits * 4} in hits` : ""}</span>
       </div>
       <ol className="solver-weeks">
         {plan.weeks.map((week) => (
           <li key={week.gameweek} className="solver-week">
             <span className="solver-gw">GW{week.gameweek}</span>
             <span className="solver-moves">
+              {week.chip && <span className="bc-set-tag solver-chip">{PLANNER_CHIP_LABELS[week.chip as PlannerChip] ?? week.chip}</span>}
               {week.moves.length === 0
                 ? <span className="muted">Roll the transfer</span>
                 : week.moves.map((move) => `${players[String(move.out)].name} → ${players[String(move.in)].name}`).join(", ")}
@@ -340,7 +401,10 @@ function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapsho
       </ol>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button type="button" className="btn primary" onClick={onApply}>Load into planner</button>
-        <span className="muted">Replaces the moves you&apos;ve planned so far.</span>
+        <span className="muted">
+          Replaces the moves and chips you&apos;ve planned so far.
+          {!plan.finishedSearch && " The solver hit its time limit, so a slightly better plan may exist."}
+        </span>
       </div>
     </section>
   );

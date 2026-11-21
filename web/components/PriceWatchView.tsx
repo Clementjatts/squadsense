@@ -20,7 +20,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "mine", label: "My squad" },
   { key: "watchlist", label: "Watchlist" },
 ];
-const ROWS_BEFORE_SHOW_ALL = 50;
+const ROWS_PER_PAGE = 25;
 // Players this far (or further) towards a change glow, to catch the eye before 00:00.
 const IMMINENT_PROGRESS = 95;
 
@@ -30,12 +30,20 @@ interface PriceWatchViewProps {
 
 export function PriceWatchView({ watch }: PriceWatchViewProps) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(0); // 0 is the first page
   const [watchlist, setWatchlist] = useWatchlist();
 
   const rowsById = new Map(watch.players.map((row) => [row.id, row]));
   const filtered = watch.players.filter((row) => matchesFilter(row, filter, watchlist));
-  const shown = showAll ? filtered : filtered.slice(0, ROWS_BEFORE_SHOW_ALL);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const shown = filtered.slice(currentPage * ROWS_PER_PAGE, (currentPage + 1) * ROWS_PER_PAGE);
+
+  // A new filter starts from the first page, since the old page may not exist any more.
+  function chooseFilter(next: Filter) {
+    setFilter(next);
+    setPage(0);
+  }
 
   function toggleWatch(id: number) {
     setWatchlist(watchlist.includes(id) ? watchlist.filter((watched) => watched !== id) : [...watchlist, id]);
@@ -58,7 +66,7 @@ export function PriceWatchView({ watch }: PriceWatchViewProps) {
             label="Show"
             options={FILTERS.map(({ key, label }) => ({ value: key, label }))}
             value={filter}
-            onChange={setFilter}
+            onChange={chooseFilter}
             layoutGroup="price-filter"
           />
           <span className="muted">Sorted by progress to a change</span>
@@ -84,10 +92,15 @@ export function PriceWatchView({ watch }: PriceWatchViewProps) {
           </table>
         </div>
         {filtered.length === 0 && <p className="muted">{emptyMessage(filter)}</p>}
-        {!showAll && filtered.length > ROWS_BEFORE_SHOW_ALL && (
-          <button type="button" className="btn" onClick={() => setShowAll(true)}>
-            Show all {filtered.length}
-          </button>
+        {pageCount > 1 && (
+          <Pager
+            page={currentPage}
+            pageCount={pageCount}
+            first={currentPage * ROWS_PER_PAGE + 1}
+            last={currentPage * ROWS_PER_PAGE + shown.length}
+            total={filtered.length}
+            onChange={setPage}
+          />
         )}
         <p className="muted small">
           Progress over 100% means FPL expects the player to pass its threshold at the next change. These are FPL&apos;s
@@ -95,6 +108,32 @@ export function PriceWatchView({ watch }: PriceWatchViewProps) {
         </p>
       </section>
     </>
+  );
+}
+
+interface PagerProps {
+  page: number;
+  pageCount: number;
+  first: number; // position of the first row shown, counting from 1
+  last: number;
+  total: number;
+  onChange: (page: number) => void;
+}
+
+// Previous and Next buttons with "26-50 of 512", so a long list never needs a long scroll.
+function Pager({ page, pageCount, first, last, total, onChange }: PagerProps) {
+  return (
+    <nav className="pager" aria-label="Table pages">
+      <button type="button" className="btn" disabled={page === 0} onClick={() => onChange(page - 1)}>
+        Previous
+      </button>
+      <span className="muted num">
+        {first}-{last} of {total} · page {page + 1} of {pageCount}
+      </span>
+      <button type="button" className="btn" disabled={page === pageCount - 1} onClick={() => onChange(page + 1)}>
+        Next
+      </button>
+    </nav>
   );
 }
 

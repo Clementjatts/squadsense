@@ -21,6 +21,7 @@ export function LineupBoard({ lineup, players, week }: LineupBoardProps) {
       starters={lineup.starters}
       bench={lineup.bench}
       captain={lineup.captain}
+      viceCaptain={lineup.vice_captain}
       players={players}
       week={week}
       onPlayerClick={openPlayer}

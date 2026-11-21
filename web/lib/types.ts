@@ -46,13 +46,16 @@ export interface SolverWeek {
   freeTransfers: number | null; // before this week's moves; null means unlimited
   bank: number; // after this week's moves
   captain: number;
-  xp: number; // lineup xP, captain counted twice
+  chip: ChipCode | null;
+  xp: number; // lineup xP with the chip, captain counted twice (three times with Triple Captain)
 }
 
 export interface SolverPlan {
   weeks: SolverWeek[];
   totalHits: number;
-  gain: number; // discounted xP after hits, compared with making no moves
+  chips: Partial<Record<ChipCode, number>>;
+  gain: number; // discounted xP after hits, compared with no moves and no chips
+  finishedSearch: boolean; // false if the time limit came before the solver proved the plan
 }
 
 export interface Suggestion {
@@ -163,14 +166,36 @@ export interface SeasonTotals {
 }
 
 // One chip's card on the Chip Planner. gain is extra expected points.
+export type ChipCode = "bboost" | "3xc" | "freehit" | "wildcard";
+
 export interface ChipCard {
-  chip: "bboost" | "3xc" | "freehit" | "wildcard";
+  chip: ChipCode;
   label: string;
   status: "available" | "used";
   usedIn: number | null;
   bestWeek: number | null;
   gain: number | null;
   reason: string;
+  // allBenchPlay (Bench Boost), haulChance/blankChance/captainId (Triple Captain), changes (Wildcard)
+  risk: { allBenchPlay?: number; haulChance?: number; blankChance?: number; captainId?: number; changes?: number };
+  // Play now or wait, this week's gain, and the single best week's gain.
+  timing: { nowGain: number | null; advice: "play" | "wait"; peakWeek: number; peakGain: number } | null;
+  quality: "near" | "far" | null; // "far" weeks lean on fixtures more than form
+  byWeek: { gameweek: number; gain: number }[];
+}
+
+export interface RivalChips {
+  id: number;
+  name: string;
+  rivals: number;
+  holding: Record<ChipCode, number>; // how many rivals still have each chip
+  rows: { entry: number; teamName: string; rank: number; total: number; chipsLeft: ChipCode[] }[];
+}
+
+export interface FixtureWarnings {
+  unscheduled: string[]; // postponed matches with no gameweek yet
+  provisional: { gameweek: number; match: string }[];
+  weeks: { gameweek: number; blanks: string[]; doubles: string[] }[];
 }
 
 export interface ChipPlan {
@@ -181,7 +206,10 @@ export interface ChipPlan {
   weeksLeft: number;
   chipsLeft: number;
   cards: ChipCard[];
-  timeline: { gameweek: number; used: string[]; recommended: string[] }[];
+  timeline: { gameweek: number; used: string[]; recommended: string[]; quality: "near" | "far" | null }[];
+  withTransfers: Partial<Record<ChipCode, number>>; // chip weeks from the five-week transfer plan
+  fixtureWarnings: FixtureWarnings;
+  rivals: RivalChips[];
 }
 
 export interface Snapshot {
@@ -234,6 +262,7 @@ export interface LeagueRow {
   eventPoints: number;
   chip: string | null;
   captain: number | null;
+  chipsLeft: ChipCode[] | null;
 }
 
 export interface League {

@@ -4,7 +4,7 @@ A personal Fantasy Premier League planner. It pulls your team from the public FP
 
 Built so far, all on real FPL data:
 
-- Dashboard, Transfer Planner (with a five-week plan from a solver), Fixture Ticker, Price Watch and Chip Planner.
+- Dashboard, Transfer Planner (with a five-week plan of transfers and chips from a solver), Fixture Ticker, Price Watch and Chip Planner (every chip valued, including Wildcard, with play-now-or-wait advice, risk, known blanks and doubles, and your rivals' chips).
 - Leagues: your mini-league tables, what rivals own and captain, threats and differentials.
 - Review: last gameweek's points next to the model's expected points, and your captain against the best one you had.
 - Live: points during a gameweek, with provisional bonus, automatic subs and live league tables, refreshed every minute.
@@ -106,7 +106,8 @@ Then run `python -m squadsense.backtest`. It also checks this season, using the 
 - Bank, selling prices and free transfers are rebuilt from public data. Transfers made for a gameweek whose deadline hasn't passed won't show up.
 - Free transfers after a Wildcard or Free Hit: I've assumed you keep your banked ones and still get +1 the next week. I'm about 70% sure. It's one setting at the top of `squad_state.py`.
 - Players in your original squad get their price from their first match in your team's first gameweek, which can be off by £0.1m if the price moved between picking the squad and that match. Until that first gameweek has been played, they're priced at today's price and marked as estimates.
-- The planner and the five-week plan don't model chips yet.
+- The five-week plan and the Planner's sandbox handle Bench Boost, Triple Captain and Wildcard, but not Free Hit.
+- Chip timing was backtested on six past half-seasons with a stand-in squad (see `docs/backtest-results.md`). The "play now" rule beat a random week but not "play Bench Boost in the first double gameweek".
 - Captain "chance of 10+" comes from a simulation with a rough bonus guess. It hasn't been backtested.
 - The live page's automatic subs follow FPL's main rules (keeper for keeper, formation stays legal, bench order). Rare cases may differ until FPL settles the week.
 - Mini-league totals before the current week are worked out as the league total minus this week's points. That matches FPL's standings once a week is over.

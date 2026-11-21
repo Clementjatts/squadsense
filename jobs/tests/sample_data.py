@@ -263,6 +263,7 @@ def add_league(responses, players, squad_ids):
             "active_chip": "bboost" if index == 1 else None,
             "picks": make_picks(rival_squad, rival_squad[10 - index], rival_squad[9]),
         }
+        responses[f"entry/{entry}/history/"] = {"current": [], "chips": [{"name": "3xc", "event": 4 + index}] if index < 2 else []}
     responses[f"leagues-classic/{LEAGUE_ID}/standings/"] = {"standings": {"has_next": False, "page": 1, "results": rows}}
 
 

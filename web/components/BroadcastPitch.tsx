@@ -17,6 +17,7 @@ interface BroadcastPitchProps {
   starters: number[];
   bench: number[];
   captain: number;
+  viceCaptain: number; // takes the captain's double points if the captain doesn't play
   players: Record<string, Player>;
   week: number;
   onPlayerClick: (playerId: number) => void;
@@ -26,7 +27,7 @@ interface BroadcastPitchProps {
 }
 
 export function BroadcastPitch(props: BroadcastPitchProps) {
-  const { title, starters, bench, captain, players, week, onPlayerClick, selectedId = null, incomingIds = [], hint } = props;
+  const { title, starters, bench, captain, viceCaptain, players, week, onPlayerClick, selectedId = null, incomingIds = [], hint } = props;
   const stateOf = (id: number) => (id === selectedId ? "selected" : incomingIds.includes(id) ? "incoming" : undefined);
   return (
     <section className="bc-card bc-lineup">
@@ -44,7 +45,14 @@ export function BroadcastPitch(props: BroadcastPitchProps) {
         {pitchRows(starters, players).map((row) => (
           <div key={row.join("-")} className="bc-pitch-row">
             {row.map((id) => (
-              <PlayerToken key={id} player={players[id]} week={week} isCaptain={id === captain} state={stateOf(id)} onClick={onPlayerClick} />
+              <PlayerToken
+                key={id}
+                player={players[id]}
+                week={week}
+                armband={id === captain ? "captain" : id === viceCaptain ? "vice" : undefined}
+                state={stateOf(id)}
+                onClick={onPlayerClick}
+              />
             ))}
           </div>
         ))}
@@ -67,14 +75,14 @@ export function BroadcastPitch(props: BroadcastPitchProps) {
 interface PlayerTokenProps {
   player: Player;
   week: number;
-  isCaptain?: boolean;
+  armband?: "captain" | "vice";
   subLabel?: string;
   state?: "selected" | "incoming";
   onClick: (playerId: number) => void;
 }
 
 // One player: shirt, name plate and this week's xP, in fixed rows.
-function PlayerToken({ player, week, isCaptain = false, subLabel, state, onClick }: PlayerTokenProps) {
+function PlayerToken({ player, week, armband, subLabel, state, onClick }: PlayerTokenProps) {
   const xp = formatXp(player.xp[String(week)] ?? 0);
   const classes = ["bc-token"];
   if (subLabel) classes.push("bc-token-sub");
@@ -85,12 +93,13 @@ function PlayerToken({ player, week, isCaptain = false, subLabel, state, onClick
       className={classes.join(" ")}
       onClick={() => onClick(player.id)}
       aria-pressed={state === "selected" ? true : undefined}
-      aria-label={`${player.name}, ${player.team}, ${xp} expected points${isCaptain ? ", captain" : ""}${player.setPieces?.penalties === 1 ? ", takes penalties" : ""}`}
+      aria-label={`${player.name}, ${player.team}, ${xp} expected points${armband === "captain" ? ", captain" : armband === "vice" ? ", vice-captain" : ""}${player.setPieces?.penalties === 1 ? ", takes penalties" : ""}`}
     >
       {subLabel && <span className="bc-token-order">{subLabel}</span>}
       <span className="bc-token-shirt">
         <ClubKit clubCode={player.team} isGoalkeeper={player.position === "GK"} width={subLabel ? 48 : 54} />
-        {isCaptain && <span className="bc-token-captain">C</span>}
+        {armband === "captain" && <span className="bc-token-captain">C</span>}
+        {armband === "vice" && <span className="bc-token-captain bc-token-vice" title="Vice-captain">V</span>}
         {player.setPieces?.penalties === 1 && <span className="bc-token-pen" title="First-choice penalty taker">P</span>}
       </span>
       <span className="bc-token-name">{player.name}</span>
