@@ -18,13 +18,17 @@ export interface PlannedMove {
   inId: number;
 }
 
-// The chips the sandbox understands. Free Hit isn't here: its squad only lasts one week.
-export type PlannerChip = Extract<ChipCode, "bboost" | "3xc" | "wildcard">;
+// The chips the sandbox understands. Free Hit needs a one-week squad, which
+// comes from the five-week plan (FreeHitSquads), so it's only offered in
+// the week the plan picked one for.
+export type PlannerChip = ChipCode;
 export type PlannedChips = Partial<Record<number, PlannerChip>>; // gameweek -> chip
+export type FreeHitSquads = Partial<Record<number, number[]>>; // gameweek -> the one-week squad
 
 export interface WeekPlan {
   week: number;
   chip: PlannerChip | null;
+  freeHitSquad: number[] | null; // the one-week squad that plays in a Free Hit week
   squad: number[];
   starters: number[];
   bench: number[];
@@ -106,7 +110,7 @@ function chipBonus(chip: PlannerChip | null, lineup: ReturnType<typeof bestLineu
   return 0;
 }
 
-export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: PlannedChips = {}): WeekPlan[] {
+export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: PlannedChips = {}, freeHitSquads: FreeHitSquads = {}): WeekPlan[] {
   const { players } = snapshot;
   const paidInPlan = new Map<number, number>();
   let squad = snapshot.squad;
@@ -125,14 +129,19 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: Pl
 
     const transfersMade = weekMoves.length;
     const chip = chips[week] ?? null;
-    // null means unlimited, and a Wildcard week is unlimited too, so no hits.
+    const freeHitSquad = chip === "freehit" ? freeHitSquads[week] : undefined;
+    // null means unlimited, and Wildcard and Free Hit weeks are unlimited too, so no hits.
     const hitPoints =
-      freeTransfers === null || chip === "wildcard" ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
-    const lineup = bestLineup(squad, players, week);
+      freeTransfers === null || chip === "wildcard" || chip === "freehit" ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
+    // In a Free Hit week the one-week squad plays; your own squad sits it out unchanged.
+    const lineup = bestLineup(freeHitSquad ?? squad, players, week);
+    const problems = checkRules(squad, players, bank);
+    if (freeHitSquad && transfersMade > 0) problems.push("Free Hit week: plan your own transfers for another week");
 
     plans.push({
       week,
       chip,
+      freeHitSquad: freeHitSquad ?? null,
       squad,
       starters: lineup.starters,
       bench: lineup.bench,
@@ -143,11 +152,11 @@ export function simulatePlan(snapshot: Snapshot, moves: PlannedMove[], chips: Pl
       freeTransfersBefore: freeTransfers,
       hitPoints,
       bankAfter: bank,
-      problems: checkRules(squad, players, bank),
+      problems,
     });
     // After an unlimited week you start with 1, like any team after its first deadline.
     // A Wildcard keeps your banked transfers and still adds one (same assumption as squad_state.py).
-    const used = chip === "wildcard" ? 0 : transfersMade;
+    const used = chip === "wildcard" || chip === "freehit" ? 0 : transfersMade;
     freeTransfers =
       freeTransfers === null
         ? 1

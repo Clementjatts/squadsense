@@ -4,7 +4,8 @@ A personal Fantasy Premier League planner. It pulls your team from the public FP
 
 Built so far, all on real FPL data:
 
-- Dashboard, Transfer Planner (with a five-week plan of transfers and chips from a solver), Fixture Ticker, Price Watch and Chip Planner (every chip valued, including Wildcard, with play-now-or-wait advice, risk, known blanks and doubles, and your rivals' chips).
+- Dashboard, Transfer Planner (with a five-week plan of transfers and chips from a solver, explained in full on "Your plan explained"), Fixture Ticker, Price Watch and Chip Planner (risk, known blanks and doubles, and your rivals' chips).
+- One chip strategy for every page: chips are planned together with your transfers, measured against the free transfers you'd make anyway, and played only when they beat saving them for later in the half. A Wildcard also needs a 5-point margin, and anything within 2 points is shown as a close call.
 - Leagues: your mini-league tables, what rivals own and captain, threats and differentials.
 - Review: last gameweek's points next to the model's expected points, and your captain against the best one you had.
 - Live: points during a gameweek, with provisional bonus, automatic subs and live league tables, refreshed every minute.
@@ -124,7 +125,8 @@ mkdir -p .data/odds; for s in 1920 2021 2122 2223 2324 2425 2526 2627; do curl -
 - Bank, selling prices and free transfers are rebuilt from public data. Transfers made for a gameweek whose deadline hasn't passed won't show up.
 - Free transfers after a Wildcard or Free Hit: I've assumed you keep your banked ones and still get +1 the next week. I'm about 70% sure. It's one setting at the top of `squad_state.py`.
 - Players in your original squad get their price from their first match in your team's first gameweek, which can be off by £0.1m if the price moved between picking the squad and that match. Until that first gameweek has been played, they're priced at today's price and marked as estimates.
-- The five-week plan and the Planner's sandbox handle Bench Boost, Triple Captain and Wildcard, but not Free Hit.
+- The five-week plan and its chip rules (the 90% keep share, the 5-point Wildcard margin) haven't been backtested yet; only the xP model and simple chip timing have.
+- Working out the plan with every chip takes one to two minutes, so it's saved and reused until your squad, bank, free transfers, chips, injury news or the gameweek change, or it's 12 hours old.
 - Chip timing was backtested on six past half-seasons with a stand-in squad (see `docs/backtest-results.md`). The "play now" rule beat a random week but not "play Bench Boost in the first double gameweek".
 - Captain "chance of 10+" comes from a simulation with a rough bonus guess. It hasn't been backtested.
 - The live page's automatic subs follow FPL's main rules (keeper for keeper, formation stays legal, bench order). Rare cases may differ until FPL settles the week.

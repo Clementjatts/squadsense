@@ -35,15 +35,16 @@ function collectItems(snapshot: Snapshot): Item[] {
       detail: rest,
     };
   });
+  // Chips the strategy plays or saves for a later week, in week order.
   const laterChips: Item[] = snapshot.chipPlan.cards
-    .filter((card) => card.bestWeek !== null && card.bestWeek > snapshot.gameweek && card.gain !== null)
-    .sort((a, b) => (a.bestWeek ?? 0) - (b.bestWeek ?? 0))
+    .filter((card) => card.decision && card.decision.week !== null && card.decision.week > snapshot.gameweek && card.decision.action !== "none")
+    .sort((a, b) => (a.decision!.week ?? 0) - (b.decision!.week ?? 0))
     .map((card) => ({
       key: card.chip,
       tag: "CHIP",
       tone: "info",
-      title: `${card.label} later: GW${card.bestWeek}`,
-      detail: `Worth about ${formatXp(card.gain ?? 0)} xP that week`,
+      title: `${card.label}: ${card.decision!.action === "play" ? "play" : "saved for"} GW${card.decision!.week}`,
+      detail: `Worth about ${formatXp(card.decision!.gain ?? 0)} xP that week`,
     }));
   return [...warnings, ...laterChips];
 }

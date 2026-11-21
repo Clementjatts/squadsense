@@ -1,12 +1,15 @@
-// "This week": the two decisions for the coming deadline, captain and chip.
-// This is the only place on the Dashboard where they're spelled out.
+// "This week": the three decisions for the coming deadline: transfers,
+// captain and chip. Transfers and the chip come from the one plan
+// (jobs/squadsense/strategy.py), the same one the Planner and Chip
+// Planner show, so the pages always agree.
 
 import { formatGain, formatXp } from "@/lib/format";
 import { nextFixtures } from "@/lib/dashboard";
-import type { ChipCard, Snapshot } from "@/lib/types";
+import Link from "next/link";
+import type { ChipCard, Snapshot, SolverWeek } from "@/lib/types";
 
 export function ThisWeekCard({ snapshot }: { snapshot: Snapshot }) {
-  const chip = snapshot.chipPlan.cards.find((card) => card.bestWeek === snapshot.gameweek);
+  const chip = snapshot.chipPlan.cards.find((card) => card.decision?.action === "play" && card.decision.playNow);
   return (
     <section className="bc-card bc-thisweek">
       <div className="bc-thisweek-head">
@@ -20,8 +23,35 @@ export function ThisWeekCard({ snapshot }: { snapshot: Snapshot }) {
   );
 }
 
-// The model's best single transfer, or why there isn't one.
+// One line naming this week's moves from the plan: "Raya → Trafford" or "3 transfers: Raya, Gabriel...".
+function planHeadline(week: SolverWeek, snapshot: Snapshot): string {
+  const name = (id: number) => snapshot.players[String(id)]?.name ?? `#${id}`;
+  if (week.chip === "freehit") return "Free Hit squad";
+  if (week.moves.length === 0) return "Roll the transfer";
+  if (week.moves.length === 1) return `${name(week.moves[0].out)} → ${name(week.moves[0].in)}`;
+  return `${week.moves.length} transfers`;
+}
+
+// This week's transfers from the plan, or the best single move when there's no plan.
 function TransferBlock({ snapshot }: { snapshot: Snapshot }) {
+  const week = snapshot.solverPlan?.weeks[0];
+  if (week) {
+    const value = week.moves.reduce((sum, move) => sum + move.value, 0);
+    return (
+      <div className="bc-decision">
+        <span className="bc-eyebrow bc-accent">TRANSFERS</span>
+        <div className="bc-decision-main">
+          <div className="bc-decision-text">
+            <span className="bc-decision-name bc-decision-name-small">{planHeadline(week, snapshot)}</span>
+            <span className="bc-note bc-one-line">
+              From your five-week plan · <Link href="/plan" className="bc-accent">see why</Link>
+            </span>
+          </div>
+          {week.moves.length > 0 && <span className="bc-decision-number bc-decision-number-small">{formatGain(value)}</span>}
+        </div>
+      </div>
+    );
+  }
   const move = snapshot.suggestions[0];
   return (
     <div className="bc-decision">
@@ -98,7 +128,7 @@ function ChipBlock({ snapshot, chip }: { snapshot: Snapshot; chip: ChipCard | un
             <span className="bc-decision-name bc-decision-name-small">{chip.label}</span>
             <span className="bc-note bc-one-line">{chipReason(snapshot, chip)}</span>
           </div>
-          <span className="bc-decision-number bc-decision-number-small">{formatGain(chip.gain ?? 0)}</span>
+          <span className="bc-decision-number bc-decision-number-small">{formatGain(chip.decision?.gain ?? 0)}</span>
         </div>
       ) : (
         <div className="bc-decision-text">

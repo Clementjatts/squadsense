@@ -6,21 +6,18 @@ is the only place the logic lives (apart from the planner's live budget
 checks, which have to run in the browser as you click).
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from . import flags, leagues, planner, review, rules
 from .captaincy import outcome_chances
-from .chips import available_chip_weeks, build_chip_plan, current_half
+from .chips import build_chip_plan, current_half
 from .fixtures import FixtureModel, fixtures_by_team_and_week, team_ratings
 from .model import expected_points_for_week, player_rates
 from .player_detail import build_player_details, recent_gameweeks
 from .price_watch import add_price_timing, build_price_watch
+from .strategy import cached_plan_and_chips
 from .ticker import build_ticker
-from .transfer_solver import SOLVER_CHIPS, TransferSolverError, solve_transfer_plan
-
-log = logging.getLogger("squadsense.snapshot")
 
 MODEL_VERSION = "v2"  # v2: assist factor and forward bonus from the backtest
 PLANNING_WINDOW = 5
@@ -70,6 +67,7 @@ class SnapshotExtras:
     league_data: list  # from leagues.fetch_leagues()
     review: dict | None  # from review.build_review()
     live_picks: dict | None  # every team's picks for the week being played
+    storage: object = None  # where the transfer plan is saved between runs (see strategy.py)
 
 
 def captain_safety(chance_60_minutes):
@@ -148,19 +146,6 @@ def transfer_suggestions(squad_state, players_by_id, expected_points, weeks):
     return planner.suggest_transfers(squad_state, players_by_id, expected_points, weeks)
 
 
-def transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks):
-    """The multi-week plan with chips, or None (with a logged warning) if the solver finds none.
-
-    A failed plan shouldn't stop the rest of the snapshot, since every
-    other page still works without it.
-    """
-    try:
-        return solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks)
-    except TransferSolverError as error:
-        log.warning("Skipping the transfer plan: %s", error)
-        return None
-
-
 def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, team_entry, extras=None):
     """Builds the full snapshot the website reads.
 
@@ -189,11 +174,15 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
         )
         included_ids.update(player["id"] for player in pool[:CANDIDATES_IN_SNAPSHOT])
 
-    # The plan can buy anyone in its own candidate pool, so make sure the website knows them.
-    chip_weeks = available_chip_weeks(bootstrap, squad_state, weeks, SOLVER_CHIPS)
-    solver_plan = transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks)
-    for week in (solver_plan or {}).get("weeks", []):
-        included_ids.update(move["in"] for move in week["moves"])
+    # One strategy decides transfers and chips for every page (strategy.py).
+    solver_plan, chip_values, chip_decisions, chip_source = cached_plan_and_chips(
+        extras.storage, bootstrap, fixtures, model_results, squad_state, weeks,
+    )
+    # The plan can buy anyone in its candidate pool, so make sure the website knows them.
+    for plan_weeks in ((solver_plan or {}).get("weeks", []), (solver_plan or {}).get("normalTransfers", {}).get("weeks", [])):
+        for week in plan_weeks:
+            included_ids.update(move["in"] for move in week["moves"])
+            included_ids.update(week["freeHitSquad"] or [])
     half = current_half(bootstrap, first_week)
     league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, expected_points, first_week, half)
     included_ids.update(leagues.players_mentioned(league_summaries))
@@ -260,8 +249,8 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
         },
         "priceWatch": price_watch,
         "chipPlan": build_chip_plan(
-            bootstrap, fixtures, model_results, squad_state,
-            solver_chips=(solver_plan or {}).get("chips"),
+            bootstrap, fixtures, squad_state, chip_values, chip_decisions, chip_source,
+            fixtures_by_team_and_week(fixtures, first_week, current_half(bootstrap, first_week)[1]),
             rival_chips=leagues.rival_chip_summary(league_summaries),
         ),
         "fixtureTicker": ticker,

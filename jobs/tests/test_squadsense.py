@@ -31,7 +31,7 @@ def no_odds_download(monkeypatch):
 def plan_transfers_without_chips(monkeypatch):
     """Planning chips inside the five-week plan takes about 30 seconds a sync,
     so most tests leave it out. The chip test below turns it back on."""
-    monkeypatch.setattr("squadsense.snapshot.SOLVER_CHIPS", ())
+    monkeypatch.setattr("squadsense.strategy.SOLVER_CHIPS", ())
 
 
 @pytest.fixture(scope="module")
@@ -287,9 +287,9 @@ def test_chip_plan_marks_used_chips_and_recommends_open_weeks(tmp_path, fake_cli
 
     assert (chip_plan["halfStart"], chip_plan["halfStop"]) == (1, 19)
     assert cards["wildcard"]["status"] == "used" and cards["wildcard"]["usedIn"] == 7
-    best_weeks = [card["bestWeek"] for card in cards.values() if card["bestWeek"] is not None]
-    assert len(best_weeks) == len(set(best_weeks))
-    assert all(13 <= week <= 19 for week in best_weeks)
+    chosen = [card["decision"]["week"] for card in cards.values() if card["decision"] and card["decision"]["action"] != "none"]
+    assert len(chosen) == len(set(chosen))
+    assert all(13 <= week <= 19 for week in chosen)
     assert chip_plan["timeline"][6]["used"] == ["WC"]
 
 
@@ -424,12 +424,12 @@ def test_review_compares_the_captain_with_the_best_pick(tmp_path, fake_client, m
     assert len(team["starters"]) == 11
 
 
-def test_chip_cards_carry_timing_risk_and_week_values(tmp_path, fake_client, monkeypatch):
+def test_chip_cards_carry_a_decision_risk_and_week_values(tmp_path, fake_client, monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
     cards = {card["chip"]: card for card in snapshot["chipPlan"]["cards"]}
     triple = cards["3xc"]
-    assert triple["timing"]["advice"] in ("play", "wait")
+    assert triple["decision"]["action"] in ("play", "save", "none")
     assert 0 <= triple["risk"]["haulChance"] <= 1
     assert [week["gameweek"] for week in triple["byWeek"]] == list(range(CURRENT_WEEK + 1, 20))
     assert 0 <= cards["bboost"]["risk"]["allBenchPlay"] <= 1
@@ -446,16 +446,42 @@ def test_play_now_when_this_week_is_close_to_the_best():
     assert list(best_chip_weeks(both, this_week=13).values()).count(13) == 1
 
 
-def test_plan_chips_follow_the_rules(tmp_path, fake_client, sample, monkeypatch):
+def test_chip_planner_and_transfer_plan_always_agree(tmp_path, fake_client, sample, monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setattr("squadsense.snapshot.SOLVER_CHIPS", ("bboost", "3xc", "wildcard"))
+    monkeypatch.setattr("squadsense.strategy.SOLVER_CHIPS", ("bboost", "3xc", "freehit", "wildcard"))
     snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
-    for week in snapshot["solverPlan"]["weeks"]:
-        if week["chip"] == "wildcard":
+    plan = snapshot["solverPlan"]
+    for week in plan["weeks"]:
+        if week["chip"] in ("wildcard", "freehit"):
             assert week["hits"] == 0
-        assert week["chip"] in (None, "bboost", "3xc", "wildcard")
-    chips = [week["chip"] for week in snapshot["solverPlan"]["weeks"] if week["chip"]]
-    assert chips and len(chips) == len(set(chips))
+        if week["chip"] == "freehit":
+            assert len(week["freeHitSquad"]) == 15 and week["moves"] == []
+    chips = [week["chip"] for week in plan["weeks"] if week["chip"]]
+    assert len(chips) == len(set(chips))
+    # The one rule: every chip the plan plays is "play" in that same week on the Chip Planner, and no other chip is.
+    cards = {card["chip"]: card for card in snapshot["chipPlan"]["cards"] if card["status"] == "available"}
+    played_on_cards = {chip: card["decision"]["week"] for chip, card in cards.items() if card["decision"]["action"] == "play"}
+    assert played_on_cards == plan["chips"]
+    assert snapshot["chipPlan"]["source"] == "plan"
+    assert all("value" in move for week in plan["weeks"] for move in week["moves"])
+    assert plan["normalTransfers"]["gain"] <= plan["gain"] + 1e-6
+
+
+def test_keep_values_add_the_wildcard_margin_and_ignore_weeks_inside_the_window():
+    from squadsense.strategy import keep_values
+    values = {"3xc": {12: ChipValue(9.0, ""), 18: ChipValue(8.0, "")}, "wildcard": {12: ChipValue(20.0, "")}}
+    keep = keep_values(values, window_end=16)
+    assert keep["3xc"] == pytest.approx(0.9 * 8.0)
+    assert keep["wildcard"] == pytest.approx(5.0)  # nothing after the window, just the safety margin
+
+
+def test_chip_values_count_only_what_normal_transfers_leave():
+    from squadsense.strategy import against_normal_transfers
+    values = {"wildcard": {12: ChipValue(20.0, "x")}, "3xc": {12: ChipValue(7.0, "y")}}
+    adjusted, share_left = against_normal_transfers(values, gap=20.0, normal_gain=8.0)
+    assert share_left == pytest.approx(0.6)
+    assert adjusted["wildcard"][12].gain == pytest.approx(12.0)
+    assert adjusted["3xc"][12].gain == 7.0
 
 
 ODDS_CSV = """Div,Date,Time,HomeTeam,AwayTeam,FTHG,FTAG,AvgH,AvgD,AvgA,Avg>2.5,Avg<2.5

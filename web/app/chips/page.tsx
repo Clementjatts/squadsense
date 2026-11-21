@@ -1,6 +1,7 @@
-// Chip Planner: a season strip showing chips played and recommended, and
-// one card per chip with its best week and expected gain. Nothing here is
-// interactive, so it renders entirely on the server.
+// Chip Planner: a season strip and one card per chip. Every decision here
+// comes from the one chip strategy (jobs/squadsense/strategy.py), the same
+// one the five-week plan on the Planner and the Dashboard use, so the pages
+// always agree. Nothing here is interactive, so it renders on the server.
 
 import { PageHero } from "@/components/PageHero";
 import { RivalChipsCard } from "@/components/RivalChipsCard";
@@ -19,7 +20,9 @@ export default async function ChipsPage() {
       <PageHero
         eyebrow={`${half.toUpperCase()} CHIPS EXPIRE ${formatWindowDeadline(plan.halfDeadline).toUpperCase()}`}
         title="CHIP PLANNER"
-        subtitle="When to play each chip. FPL allows one per gameweek, so the plan never puts two in the same week."
+        subtitle={plan.source === "plan"
+          ? "Decided together with your five-week transfer plan: a chip is played now only if it beats saving it for later in the half."
+          : "Estimate only: there's no transfer plan for this squad yet, so each chip's best week is judged on its own."}
         figures={[
           { label: "Chips left", value: plan.chipsLeft, accent: true },
           { label: "Gameweeks left", value: plan.weeksLeft },
@@ -28,7 +31,7 @@ export default async function ChipsPage() {
       <SeasonTimeline plan={plan} />
       <div className="chip-cards">
         {plan.cards.map((card) => (
-          <ChipCardView key={card.chip} card={card} plan={plan} snapshot={snapshot} />
+          <ChipCardView key={card.chip} card={card} snapshot={snapshot} />
         ))}
       </div>
       <div className="row">
@@ -40,9 +43,11 @@ export default async function ChipsPage() {
         </div>
       </div>
       <p className="bc-note">
-        Gains assume you keep your current squad and use the model&apos;s expected points; the Wildcard compares a rebuilt squad with
-        making no transfers. &quot;Play now&quot; means this week is worth at least 90% of the best week left, the rule that did best in
-        the chip backtest. In that test Bench Boost still did better on the first double gameweek, so give a known double extra weight.
+        How the strategy decides: chips are planned with your transfers over the next five gameweeks, and every value is measured against
+        the free transfers you&apos;d make anyway. A chip is played inside those five weeks only if it beats 90% of its best week later in
+        the half; a Wildcard must also clear a 5-point safety margin, since it can&apos;t be undone. Bars show each week&apos;s value. In the
+        chip backtest, Bench Boost still did better on the first double gameweek, so give a known double extra weight.
+        {snapshot.solverPlan && <> <a href="/plan">See the full plan and how it was reached.</a></>}
       </p>
     </div>
   );
@@ -70,6 +75,7 @@ function SeasonTimeline({ plan }: { plan: ChipPlan }) {
         {plan.timeline.map((week) => {
           const classes = ["chip-week"];
           if (week.recommended.length > 0) classes.push("recommended");
+          else if (week.saved.length > 0) classes.push("saved");
           else if (week.used.length > 0) classes.push("used");
           if (week.gameweek < plan.currentWeek) classes.push("past");
           if (week.gameweek === plan.currentWeek) classes.push("current");
@@ -77,7 +83,7 @@ function SeasonTimeline({ plan }: { plan: ChipPlan }) {
           if (week.quality === "far") classes.push("far");
           return (
             <div key={week.gameweek} className={classes.join(" ")}>
-              <div className="chip-week-box">{[...week.used, ...week.recommended].join(" ")}</div>
+              <div className="chip-week-box">{[...week.used, ...week.recommended, ...week.saved].join(" ")}</div>
               <span>{week.gameweek}</span>
             </div>
           );
@@ -85,7 +91,10 @@ function SeasonTimeline({ plan }: { plan: ChipPlan }) {
       </div>
       <div className="ticker-key">
         <span>
-          <i className="swatch recommended" aria-hidden="true" /> Recommended
+          <i className="swatch recommended" aria-hidden="true" /> Played by the plan
+        </span>
+        <span>
+          <i className="swatch saved" aria-hidden="true" /> Saved for later
         </span>
         <span>
           <i className="swatch used" aria-hidden="true" /> Played
@@ -99,12 +108,15 @@ function SeasonTimeline({ plan }: { plan: ChipPlan }) {
   );
 }
 
-// The badge in each card's corner: play now, wait, or already played.
+// The badge in each card's corner: what the strategy does with this chip.
 function statusBadge(card: ChipCard): { text: string; className: string } {
   if (card.status === "used") return { text: `Played GW${card.usedIn}`, className: "chip" };
-  if (card.timing?.advice === "play") return { text: "Play now", className: "chip good" };
-  if (card.timing) return { text: "Wait", className: "chip" };
-  return { text: "Available", className: "chip" };
+  const decision = card.decision!;
+  if (decision.closeCall) return { text: "Close call", className: "chip warn" };
+  if (decision.action === "play" && decision.playNow) return { text: "Play now", className: "chip good" };
+  if (decision.action === "play") return { text: `Play GW${decision.week}`, className: "chip good" };
+  if (decision.action === "save") return { text: "Save", className: "chip" };
+  return { text: "Not needed", className: "chip" };
 }
 
 // One short line on how risky the chip is, in that chip's own terms.
@@ -119,21 +131,20 @@ function riskLine(card: ChipCard, snapshot: Snapshot): string | null {
   return null;
 }
 
-// "This week +6.9 · best week GW16 +7.1", or null when there's no best week.
-function timingLine(card: ChipCard): string | null {
-  if (!card.timing || card.bestWeek === null) return null;
-  const { nowGain, peakWeek, peakGain } = card.timing;
-  const now = nowGain === null ? "Not playable this week" : `This week ${formatGain(nowGain)}`;
-  // When this week is the best week, there's nothing to compare it with.
-  return nowGain !== null && peakGain <= nowGain ? now : `${now} · best week GW${peakWeek} ${formatGain(peakGain)}`;
+// The value of saving the chip instead, so playing and saving can be compared at a glance.
+function keepLine(card: ChipCard): string | null {
+  const decision = card.decision;
+  if (!decision || decision.action !== "play" || decision.keepValue === null) return null;
+  const later = decision.laterWeek ? ` (best later week GW${decision.laterWeek})` : "";
+  return `Saving it instead is worth about ${formatGain(decision.keepValue)} xP${later}`;
 }
 
-function ChipCardView({ card, plan, snapshot }: { card: ChipCard; plan: ChipPlan; snapshot: Snapshot }) {
-  const bestWeek = card.status === "used" ? "Second half" : card.bestWeek === null ? "None yet" : `GW${card.bestWeek}`;
+function ChipCardView({ card, snapshot }: { card: ChipCard; snapshot: Snapshot }) {
+  const decision = card.decision;
+  const week = card.status === "used" ? "Second half" : decision?.week ? `GW${decision.week}` : "None";
   const badge = statusBadge(card);
-  const withTransfers = plan.withTransfers[card.chip];
   const risk = riskLine(card, snapshot);
-  const timing = timingLine(card);
+  const keep = keepLine(card);
   return (
     <section className={`card chip-card ${card.status}`}>
       <div className="card-head">
@@ -142,20 +153,20 @@ function ChipCardView({ card, plan, snapshot }: { card: ChipCard; plan: ChipPlan
       </div>
       <div className="chip-card-stats">
         <span>
-          <span className="muted">Best week</span>
-          <b className="num">{bestWeek}</b>
+          <span className="muted">{decision?.action === "save" ? "Saved for" : "Week"}</span>
+          <b className="num">{week}</b>
         </span>
         <span>
-          <span className="muted">Expected gain</span>
-          <b className="num">{card.gain === null ? "n/a" : `${formatGain(card.gain)} xP`}</b>
+          <span className="muted">Adds</span>
+          <b className="num">{decision?.gain === null || decision?.gain === undefined ? "n/a" : `${formatGain(decision.gain)} xP`}</b>
         </span>
       </div>
       {card.byWeek.length > 0 && <WeekBars card={card} />}
       <div className="chip-card-lines">
-        {timing && <span>{timing}</span>}
+        {keep && <span>{keep}</span>}
         {risk && <span>{risk}</span>}
-        {withTransfers !== undefined && <span className="bc-accent">The five-week transfer plan plays it in GW{withTransfers}</span>}
-        {card.quality === "far" && <span className="bc-warn">GW{card.bestWeek} is outside the next five gameweeks, so this is a rougher estimate</span>}
+        {decision?.closeCall && <span className="bc-warn">Close call: playing and saving are within a couple of points. Your call.</span>}
+        {card.quality === "far" && <span className="bc-warn">GW{decision?.week} is outside the next five gameweeks, so this is a rougher estimate</span>}
       </div>
       <span className="muted">{card.reason}</span>
     </section>
@@ -170,7 +181,7 @@ function WeekBars({ card }: { card: ChipCard }) {
       {card.byWeek.map((week) => (
         <span key={week.gameweek} className="chip-bar-slot" title={`GW${week.gameweek}: ${formatGain(week.gain)} xP`}>
           <span
-            className={week.gameweek === card.bestWeek ? "chip-bar best" : "chip-bar"}
+            className={week.gameweek === card.decision?.week ? "chip-bar best" : "chip-bar"}
             style={{ height: `${Math.max(4, (Math.max(week.gain, 0) / top) * 100)}%` }}
           />
           <span className="chip-bar-label">{week.gameweek}</span>

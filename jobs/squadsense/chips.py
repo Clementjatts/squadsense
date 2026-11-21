@@ -11,12 +11,13 @@ squad, works out what each chip would add in each week:
 - Wildcard: the best squad for the WILDCARD_WEEKS starting that week,
   minus keeping your own over the same weeks
 
-FPL allows one chip per gameweek, so the plan tries every combination of
-weeks and keeps the one with the biggest total gain that never puts two
-chips in the same week.
+These values feed the one chip strategy in strategy.py, which decides
+when each chip is played or saved; this module doesn't decide anything
+on its own. It builds the Chip Planner's cards from those decisions, and
+best_chip_weeks() shares weeks out so no two chips land in the same one
+(FPL allows one chip per gameweek).
 
-Each card also says whether to play the chip now or wait (and what
-waiting gains), how risky the pick is, and how rough the estimate is:
+Each card also shows how risky the pick is and how rough the estimate is:
 weeks more than NEAR_WEEKS away lean on fixtures more than on form.
 """
 
@@ -253,27 +254,27 @@ def estimate_quality(week, first_week):
     return "near" if week - first_week < NEAR_WEEKS else "far"
 
 
-def hold_or_play(chip_weeks, plan_week, first_week):
-    """Play now or wait: the advice, this week's gain, and the single best week's.
+def card_reason(chip, decision, values, source):
+    """One plain-English sentence on why the chip is played, saved or left alone."""
+    label = CHIP_LABELS[chip]
+    if decision["action"] == "play" and source == "estimate":
+        return f"Estimate only (no transfer plan yet): {label} looks best in GW{decision['week']}."
+    if decision["action"] == "play":
+        later = f" Saved, it would be worth about {decision['laterGain']:+.1f} in GW{decision['laterWeek']}." if decision["laterWeek"] else ""
+        return (f"The five-week plan plays {label} in GW{decision['week']}: {decision['gain']:+.1f} xP over the best plan without it."
+                f"{later} {decision['planReason']}")
+    if decision["action"] == "save":
+        closeness = "only just " if decision["closeCall"] else ""
+        return (f"Saved for GW{decision['week']} ({decision['gain']:+.1f} xP), {closeness}worth more than any week in the next five. "
+                f"{values[chip][decision['week']].reason}")
+    return "No week left in this half where it adds points to your squad."
 
-    The plan already leans towards this week (see best_chip_weeks), so
-    "play" simply means the plan chose this week.
-    """
-    now = chip_weeks.get(first_week)
-    peak_week = max(chip_weeks, key=lambda week: chip_weeks[week].gain)
-    return {
-        "nowGain": round(now.gain, 1) if now else None,
-        "advice": "play" if plan_week == first_week else "wait",
-        "peakWeek": peak_week,
-        "peakGain": round(chip_weeks[peak_week].gain, 1),
-    }
 
-
-def chip_card(chip, used_week, plan_week, values, half_stop, first_week):
-    """One card on the page: status, best week, gain, reason, risk, hold-or-play and every week's value."""
+def chip_card(chip, used_week, decision, values, half_stop, first_week, source):
+    """One card on the page: status, the strategy's decision and reason, risk and every week's value."""
     card = {
         "chip": chip, "label": CHIP_LABELS[chip], "status": "available", "usedIn": None,
-        "bestWeek": None, "gain": None, "risk": {}, "timing": None, "quality": None, "byWeek": [],
+        "decision": None, "risk": {}, "quality": None, "byWeek": [], "source": source,
     }
     if used_week is not None:
         card.update(status="used", usedIn=used_week)
@@ -281,14 +282,12 @@ def chip_card(chip, used_week, plan_week, values, half_stop, first_week):
         return card
     chip_weeks = values.get(chip, {})
     card["byWeek"] = [{"gameweek": week, "gain": round(value.gain, 1)} for week, value in sorted(chip_weeks.items())]
-    if plan_week is None:
-        card["reason"] = "No week left in this half where it adds points to your current squad."
-        return card
-    value = chip_weeks[plan_week]
-    card.update(
-        bestWeek=plan_week, gain=round(value.gain, 1), reason=value.reason, risk=value.risk,
-        timing=hold_or_play(chip_weeks, plan_week, first_week), quality=estimate_quality(plan_week, first_week),
-    )
+    card["decision"] = decision
+    card["reason"] = card_reason(chip, decision, values, source)
+    if decision["week"] is not None and decision["week"] in chip_weeks:
+        # A played chip's risk is for the plan's squad that week; a saved one's for today's squad.
+        risk = decision.get("planRisk", chip_weeks[decision["week"]].risk)
+        card.update(risk=risk, quality=estimate_quality(decision["week"], first_week))
     return card
 
 
@@ -317,13 +316,17 @@ def fixture_warnings(fixtures, schedule, teams_by_id, weeks):
     return {"unscheduled": unscheduled, "provisional": provisional, "weeks": [week for week in by_week if week["blanks"] or week["doubles"]]}
 
 
-def season_timeline(chips_used, plan, first_week):
-    """Every gameweek 1-38 with the chips played there, the ones recommended and how rough the estimate is."""
+def season_timeline(chips_used, decisions, first_week):
+    """Every gameweek 1-38: chips played, chips the strategy plays, chips saved for later, and estimate quality."""
+    def chips_for(action, week):
+        return [CHIP_SHORT[chip] for chip, decision in decisions.items() if decision["action"] == action and decision["week"] == week]
+
     return [
         {
             "gameweek": week,
             "used": [CHIP_SHORT[played["name"]] for played in chips_used if played["event"] == week],
-            "recommended": [CHIP_SHORT[chip] for chip, plan_week in plan.items() if plan_week == week],
+            "recommended": chips_for("play", week),
+            "saved": chips_for("save", week),
             "quality": estimate_quality(week, first_week) if week >= first_week else None,
         }
         for week in range(1, 39)
@@ -350,22 +353,19 @@ def chip_context(bootstrap, fixtures, model_results, squad_state, stop):
     )
 
 
-def build_chip_plan(bootstrap, fixtures, model_results, squad_state, solver_chips=None, rival_chips=None):
+def build_chip_plan(bootstrap, fixtures, squad_state, values, decisions, source, schedule, rival_chips=None):
     """Everything the Chip Planner page needs, ready for the snapshot.
 
-    `solver_chips` is {chip: week} from the five-week transfer plan, which
-    plans chips and transfers together. `rival_chips` is what the
-    mini-league rivals have left (see leagues.py).
+    `values` and `decisions` come from strategy.plan_and_chips(), the one
+    place chip decisions are made, so this page always agrees with the
+    Planner and the Dashboard. `source` is "plan" or "estimate".
+    `rival_chips` is what the mini-league rivals have left (see leagues.py).
     """
     first_week = squad_state.gameweek
     start, stop = current_half(bootstrap, first_week)
     weeks = list(range(first_week, stop + 1))
-    context = chip_context(bootstrap, fixtures, model_results, squad_state, stop)
-
+    teams_by_id = {team["id"]: team for team in bootstrap["teams"]}
     used = {chip: used_in_window(squad_state.chips_used, chip, start, stop) for chip in CARD_ORDER}
-    available = [chip for chip in VALUED_CHIPS if used[chip] is None]
-    values = chip_values(available, weeks, squad_state, context)
-    plan = best_chip_weeks(values, this_week=first_week)
 
     half_deadline = next(event["deadline_time"] for event in bootstrap["events"] if event["id"] == stop)
     return {
@@ -375,9 +375,9 @@ def build_chip_plan(bootstrap, fixtures, model_results, squad_state, solver_chip
         "halfDeadline": half_deadline,
         "weeksLeft": len(weeks),
         "chipsLeft": sum(1 for chip in CARD_ORDER if used[chip] is None),
-        "cards": [chip_card(chip, used[chip], plan.get(chip), values, stop, first_week) for chip in CARD_ORDER],
-        "timeline": season_timeline(squad_state.chips_used, plan, first_week),
-        "withTransfers": solver_chips or {},
-        "fixtureWarnings": fixture_warnings(fixtures, context.schedule, context.teams_by_id, weeks),
+        "source": source,
+        "cards": [chip_card(chip, used[chip], decisions.get(chip), values, stop, first_week, source) for chip in CARD_ORDER],
+        "timeline": season_timeline(squad_state.chips_used, decisions, first_week),
+        "fixtureWarnings": fixture_warnings(fixtures, schedule, teams_by_id, weeks),
         "rivals": rival_chips or [],
     }

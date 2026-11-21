@@ -601,3 +601,43 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .apply-preview ul { margin: 0; padding-left: 18px; }
 .apply-confirm { display: flex; flex-direction: column; gap: 6px; }
 .apply-actions { display: flex; gap: 8px; }
+.chip-week.saved .chip-week-box { border: 1px dashed var(--accent); color: var(--accent); }
+.swatch.saved { background: transparent; border: 1px dashed var(--accent); }
+.chip.warn { background: rgba(255, 162, 76, 0.15); color: var(--warn); }
+
+/* "Your plan explained" page */
+.plan-text { margin: 0; font-size: 14px; line-height: 1.6; }
+.plan-weeks { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; }
+.plan-table-head { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px 14px; }
+.plan-table-head h2 { margin: 0; font-family: var(--condensed); font-weight: 800; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; }
+.plan-table-head .muted { font-size: 13px; line-height: 1.5; }
+.plan-why { white-space: normal !important; height: auto !important; padding-top: 10px !important; padding-bottom: 10px !important; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.plan-chip-tag { margin-left: 10px; vertical-align: 4px; }
+.plan-moves { display: flex; flex-direction: column; gap: 10px; }
+.plan-move { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 96px; align-items: stretch; gap: 10px; }
+.plan-player { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--raised); border: 1px solid var(--panel-line); border-radius: 12px; min-width: 0; }
+.plan-player-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
+.plan-player-top .muted { font-size: 12px; white-space: nowrap; }
+.plan-player-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.plan-player-bottom .bc-fixtures { margin-left: auto; }
+.plan-notes { font-size: 12px; }
+.plan-arrow { align-self: center; text-align: center; font-size: 20px; color: var(--muted); }
+.plan-move-value { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; font-size: 12px; }
+.plan-move-value b { font-family: var(--condensed); font-size: 26px; }
+.plan-squad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.plan-squad-player { height: 36px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 44px 56px; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--panel-line); border-radius: 8px; font-size: 13px; }
+.plan-squad-player b { text-align: right; }
+.plan-squad-player.owned { border-color: rgba(183, 243, 74, 0.45); }
+.plan-squad-player.changed { border-color: rgba(183, 243, 74, 0.45); background: rgba(183, 243, 74, 0.05); }
+.plan-squad-change { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.plan-squad-column { display: flex; flex-direction: column; gap: 6px; }
+.plan-squad-column h3 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.plan-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+@media (max-width: 760px) {
+  .plan-move { grid-template-columns: 1fr; }
+  .plan-arrow { transform: rotate(90deg); }
+  .plan-move-value { align-items: flex-start; text-align: left; }
+  .plan-squad-change { grid-template-columns: 1fr; }
+}
+.plan-decision { white-space: normal !important; height: auto !important; padding-top: 10px !important; padding-bottom: 10px !important; }
+.plan-close { display: inline-block; margin: 4px 0 0; color: var(--warn); border-color: var(--warn); }

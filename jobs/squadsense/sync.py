@@ -241,6 +241,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
             league_data=league_data,
             review=review.build_review(bootstrap, histories, entry_history, review_picks, forecast),
             live_picks=live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap),
+            storage=storage,
         ),
     )
 

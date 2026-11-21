@@ -11,18 +11,39 @@ import { ApplyToFpl } from "./ApplyToFpl";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
-import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type PlannedChips, type PlannedMove, type PlannerChip } from "@/lib/planning";
-import type { SolverPlan, Snapshot } from "@/lib/types";
+import { MAX_PER_CLUB, planScore, replacementOptions, simulatePlan, type FreeHitSquads, type PlannedChips, type PlannedMove, type PlannerChip } from "@/lib/planning";
+import type { Player, SolverPlan, Snapshot } from "@/lib/types";
 
-const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", wildcard: "Wildcard" };
+const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
 
-// Chips you can still try in the sandbox: available this half, and only in weeks up to the half's last one.
-function plannerChipsFor(snapshot: Snapshot, week: number): PlannerChip[] {
+// The one-week squads the five-week plan built, by gameweek (only for its Free Hit week).
+function freeHitSquadsFrom(snapshot: Snapshot): FreeHitSquads {
+  const squads: FreeHitSquads = {};
+  for (const week of snapshot.solverPlan?.weeks ?? []) if (week.freeHitSquad) squads[week.gameweek] = week.freeHitSquad;
+  return squads;
+}
+
+// Chips you can still try in the sandbox: available this half, in weeks up to the half's last one.
+// Free Hit needs a one-week squad, so it's only offered in the week the plan built one for.
+function plannerChipsFor(snapshot: Snapshot, week: number, freeHitSquads: FreeHitSquads): PlannerChip[] {
   if (week > snapshot.chipPlan.halfStop) return [];
   return snapshot.chipPlan.cards
-    .filter((card) => card.status === "available" && card.chip !== "freehit")
-    .map((card) => card.chip as PlannerChip)
-    .filter((chip) => !(chip === "wildcard" && snapshot.freeTransfers === null && week === snapshot.weeks[0]));
+    .filter((card) => card.status === "available")
+    .map((card) => card.chip)
+    .filter((chip) => chip !== "freehit" || freeHitSquads[week] !== undefined)
+    .filter((chip) => !((chip === "wildcard" || chip === "freehit") && snapshot.freeTransfers === null && week === snapshot.weeks[0]));
+}
+
+// For applying a Free Hit to FPL: swap your squad for the one-week squad, pairing players by position.
+function freeHitMoves(squad: number[], freeHitSquad: number[], players: Record<string, Player>): { outId: number; inId: number }[] {
+  const incoming = freeHitSquad.filter((id) => !squad.includes(id));
+  return squad
+    .filter((id) => !freeHitSquad.includes(id))
+    .map((outId) => {
+      const index = incoming.findIndex((inId) => players[String(inId)]?.position === players[String(outId)]?.position);
+      const [inId] = incoming.splice(index, 1);
+      return { outId, inId };
+    });
 }
 
 const OPTIONS_SHOWN = 12;
@@ -35,7 +56,8 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const [swapOutId, setSwapOutId] = useState<number | null>(null);
 
   // Recalculate the whole plan whenever a move is added or removed.
-  const plans = useMemo(() => simulatePlan(snapshot, moves, chips), [snapshot, moves, chips]);
+  const freeHitSquads = useMemo(() => freeHitSquadsFrom(snapshot), [snapshot]);
+  const plans = useMemo(() => simulatePlan(snapshot, moves, chips, freeHitSquads), [snapshot, moves, chips, freeHitSquads]);
   const baselineScore = useMemo(() => planScore(simulatePlan(snapshot, [])), [snapshot]);
   const totalScore = planScore(plans);
   const weekPlan = plans.find((plan) => plan.week === selectedWeek) ?? plans[0];
@@ -160,7 +182,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               </div>
             </div>
             <ChipPicker
-              options={plannerChipsFor(snapshot, selectedWeek)}
+              options={plannerChipsFor(snapshot, selectedWeek, freeHitSquads)}
               chips={chips}
               week={selectedWeek}
               onChange={setChips}
@@ -169,7 +191,9 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               <ApplyToFpl
                 plan={{
                   gameweek: selectedWeek,
-                  moves: weekMoves.map((move) => ({ outId: move.outId, inId: move.inId })),
+                  moves: weekPlan.freeHitSquad
+                    ? freeHitMoves(weekPlan.squad, weekPlan.freeHitSquad, players)
+                    : weekMoves.map((move) => ({ outId: move.outId, inId: move.inId })),
                   starters: weekPlan.starters,
                   bench: weekPlan.bench,
                   captain: weekPlan.captain,
@@ -285,8 +309,8 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 ) : (
                   <>
                     <div className="card-head">
-                      <h2>Suggested moves</h2>
-                      <span className="muted">From the model, GW{weeks[0]}</span>
+                      <h2>Single moves to try</h2>
+                      <span className="muted">One transfer at a time, no chips. Your recommended plan is below.</span>
                     </div>
                     {snapshot.suggestions.length === 0 && (
                       <p className="muted">
@@ -354,7 +378,7 @@ function solverMoves(plan: SolverPlan): PlannedMove[] {
 // The plan's chips in the sandbox's format: gameweek -> chip (Free Hit is never in the plan).
 function solverChips(plan: SolverPlan): PlannedChips {
   const chips: PlannedChips = {};
-  for (const week of plan.weeks) if (week.chip && week.chip !== "freehit") chips[week.gameweek] = week.chip;
+  for (const week of plan.weeks) if (week.chip) chips[week.gameweek] = week.chip;
   return chips;
 }
 
@@ -387,32 +411,37 @@ function ChipPicker({ options, chips, week, onChange }: ChipPickerProps) {
   );
 }
 
-// The best plan for every week at once, from the solver. One fixed-height
-// row per gameweek, so a week with no moves takes the same space as a busy one.
+// A short summary of the five-week plan, with a link to the full explanation.
+// Big decisions (a Wildcard, a Free Hit, a hit) are explained on /plan, not here.
 function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapshot: Snapshot; onApply: () => void }) {
   const { players } = snapshot;
   return (
     <section className="card solver-card">
       <div className="card-head">
-        <h2>Best {plan.weeks.length}-week plan</h2>
-        <span className="muted">{formatGain(plan.gain)} xP vs no moves or chips{plan.totalHits > 0 ? ` · -${plan.totalHits * 4} in hits` : ""}</span>
+        <h2>Your {plan.weeks.length}-week plan</h2>
+        <span className="muted">{formatGain(plan.gain - plan.normalTransfers.gain)} xP better than normal transfers alone</span>
       </div>
       <ol className="solver-weeks">
         {plan.weeks.map((week) => (
           <li key={week.gameweek} className="solver-week">
             <span className="solver-gw">GW{week.gameweek}</span>
             <span className="solver-moves">
-              {week.chip && <span className="bc-set-tag solver-chip">{PLANNER_CHIP_LABELS[week.chip as PlannerChip] ?? week.chip}</span>}
-              {week.moves.length === 0
-                ? <span className="muted">Roll the transfer</span>
-                : week.moves.map((move) => `${players[String(move.out)].name} → ${players[String(move.in)].name}`).join(", ")}
+              {week.chip && <span className="bc-set-tag solver-chip">{PLANNER_CHIP_LABELS[week.chip]}</span>}
+              {week.chip === "freehit"
+                ? "One-week squad"
+                : week.moves.length === 0
+                  ? <span className="muted">Roll the transfer</span>
+                  : week.moves.length > 2
+                    ? `${week.moves.length} transfers`
+                    : week.moves.map((move) => `${players[String(move.out)].name} → ${players[String(move.in)].name}`).join(", ")}
             </span>
             <span className="solver-meta muted">
-              {week.hits > 0 ? <b className="bc-warn">-{week.hits * 4}</b> : `C ${players[String(week.captain)].name}`}
+              {week.hits > 0 ? <b className="bc-warn">-{week.hits * 4}</b> : `C ${players[String(week.captain)]?.name ?? ""}`}
             </span>
           </li>
         ))}
       </ol>
+      <a href="/plan" className="btn">See the full plan and why</a>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button type="button" className="btn primary" onClick={onApply}>Load into planner</button>
         <span className="muted">

@@ -41,7 +41,9 @@ export interface Lineup {
 // The multi-week transfer plan from the solver: one entry per gameweek.
 export interface SolverWeek {
   gameweek: number;
-  moves: { out: number; in: number }[];
+  moves: { out: number; in: number; value: number }[]; // value: five-week xP lost if only this move were undone
+  squad: number[]; // your own squad after this week's moves
+  freeHitSquad: number[] | null; // the one-week squad in a Free Hit week
   hits: number;
   freeTransfers: number | null; // before this week's moves; null means unlimited
   bank: number; // after this week's moves
@@ -56,6 +58,11 @@ export interface SolverPlan {
   chips: Partial<Record<ChipCode, number>>;
   gain: number; // discounted xP after hits, compared with no moves and no chips
   finishedSearch: boolean; // false if the time limit came before the solver proved the plan
+  normalTransfers: { weeks: SolverWeek[]; gain: number; totalHits: number }; // the best plan with no chips
+  gapToBest: number; // how far your squad is from the best squad over the window
+  normalShareOfGap: number; // share of that gap normal transfers close
+  wildcardMargin: number;
+  closeCallPoints: number;
 }
 
 export interface Suggestion {
@@ -168,20 +175,30 @@ export interface SeasonTotals {
 // One chip's card on the Chip Planner. gain is extra expected points.
 export type ChipCode = "bboost" | "3xc" | "freehit" | "wildcard";
 
+// The one chip strategy's decision for a chip (jobs/squadsense/strategy.py). Every page shows this.
+export interface ChipDecision {
+  action: "play" | "save" | "none";
+  week: number | null; // the week it's played (play) or saved for (save)
+  gain: number | null; // xP it adds that week, measured against normal transfers
+  playNow: boolean;
+  closeCall: boolean; // within a couple of points of saving it: your call
+  keepValue: number | null; // the value of saving it, as the plan counted it
+  laterWeek: number | null; // its best week after the five-week window
+  laterGain: number | null;
+}
+
 export interface ChipCard {
   chip: ChipCode;
   label: string;
   status: "available" | "used";
   usedIn: number | null;
-  bestWeek: number | null;
-  gain: number | null;
+  decision: ChipDecision | null; // null once used
+  source: "plan" | "estimate"; // "estimate" when there's no transfer plan to decide with
   reason: string;
   // allBenchPlay (Bench Boost), haulChance/blankChance/captainId (Triple Captain), changes (Wildcard)
   risk: { allBenchPlay?: number; haulChance?: number; blankChance?: number; captainId?: number; changes?: number };
-  // Play now or wait, this week's gain, and the single best week's gain.
-  timing: { nowGain: number | null; advice: "play" | "wait"; peakWeek: number; peakGain: number } | null;
   quality: "near" | "far" | null; // "far" weeks lean on fixtures more than form
-  byWeek: { gameweek: number; gain: number }[];
+  byWeek: { gameweek: number; gain: number }[]; // value in each week, against normal transfers
 }
 
 export interface RivalChips {
@@ -206,8 +223,8 @@ export interface ChipPlan {
   weeksLeft: number;
   chipsLeft: number;
   cards: ChipCard[];
-  timeline: { gameweek: number; used: string[]; recommended: string[]; quality: "near" | "far" | null }[];
-  withTransfers: Partial<Record<ChipCode, number>>; // chip weeks from the five-week transfer plan
+  source: "plan" | "estimate";
+  timeline: { gameweek: number; used: string[]; recommended: string[]; saved: string[]; quality: "near" | "far" | null }[];
   fixtureWarnings: FixtureWarnings;
   rivals: RivalChips[];
 }

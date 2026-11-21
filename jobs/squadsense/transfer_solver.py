@@ -10,10 +10,15 @@ planned together.
 It's the same kind of yes/no integer problem as squad_builder.py, with
 one copy of the squad per week, linked by the transfers in between.
 
-Bench Boost, Triple Captain and Wildcard can be planned in too, so the
-plan can, say, bring in two bench players who play twice before a Bench
-Boost week. Free Hit is left out: its squad only lasts one week, which
-would need a second copy of the squad for every week.
+All four chips can be planned in too, so the plan can, say, bring in two
+bench players who play twice before a Bench Boost week. Free Hit is
+handled by working out the best one-week squad for each week in advance
+(`free_hit_best`): in a Free Hit week that squad scores instead of yours,
+and your own squad can't make transfers, exactly as in FPL.
+
+Each chip also has a "keep" value: what it's worth if saved for later in
+the half (see strategy.py). Not playing a chip earns that value, so the
+plan only spends a chip inside these five weeks when that beats saving it.
 """
 
 import pulp
@@ -27,13 +32,15 @@ MAX_TRANSFERS_PER_WEEK = 3
 # Points a banked free transfer is still worth at the end of the window, so
 # the plan doesn't spend them all for tiny gains. Starting assumption.
 END_FREE_TRANSFER_VALUE = 1.0
-SOLVER_SECONDS = 30
-# Stop once the plan is proven to be within 1% of the best possible one.
-# Proving the very best plan with chips can take minutes for a fraction
-# of a point.
-SOLVER_GAP = 0.01
+SOLVER_SECONDS = 300
+# Stop once the plan is proven to be within 0.2% of the best possible one,
+# about half a point over five weeks. At 1% (about 3 points) chip choices
+# worth a few points fell inside the slack and flipped between runs on
+# the same data (21 November 2026). At 0.2% the real squad's plan with
+# every chip took about 45 seconds.
+SOLVER_GAP = 0.002
 BIG_NUMBER = 20  # larger than any possible count of free transfers or moves
-SOLVER_CHIPS = ("bboost", "3xc", "wildcard")
+SOLVER_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
 
 
 class TransferSolverError(Exception):
@@ -56,9 +63,11 @@ def candidate_pool(squad_ids, players_by_id, expected_points, weeks):
 class PlanProblem:
     """The integer problem: variables for every player in every week, plus rules."""
 
-    def __init__(self, squad_state, players_by_id, expected_points, weeks, pool, chip_weeks=None):
+    def __init__(self, squad_state, players_by_id, expected_points, weeks, pool, chip_weeks=None, free_hit_best=None, keep_values=None):
         self.state = squad_state
         self.chip_weeks = chip_weeks or {}  # {chip: [weeks it may be played]}
+        self.free_hit_best = free_hit_best or {}  # {week: {"points": xP, "squad": [ids]}}
+        self.keep_values = keep_values or {}  # {chip: points it's worth saved for later}
         self.players = {player_id: players_by_id[player_id] for player_id in pool}
         self.xp = expected_points
         self.weeks = weeks
@@ -87,6 +96,9 @@ class PlanProblem:
         }
         self.bench_boosted = {key: pulp.LpVariable(f"bb_{key[0]}_{key[1]}", 0, 1) for key in self.squad}
         self.triple = {key: pulp.LpVariable(f"tc_{key[0]}_{key[1]}", 0, 1) for key in self.squad}
+        # The bench's small share of the score, switched off in a Free Hit week
+        # (your own squad sits that week out).
+        self.benched = {key: pulp.LpVariable(f"bench_{key[0]}_{key[1]}", 0, 1) for key in self.squad}
 
     def chip_played(self, chip, week):
         """The yes/no for `chip` in `week`, or 0 when it can't be played then."""
@@ -108,13 +120,19 @@ class PlanProblem:
                 points = self.xp.get(p, {}).get(week, 0.0)
                 total.append(discount * points * (
                     self.starts[p, week] + self.captain[p, week]
-                    + BENCH_WEIGHT * (self.squad[p, week] - self.starts[p, week])
+                    + BENCH_WEIGHT * self.benched[p, week]
                     + (1 - BENCH_WEIGHT) * self.bench_boosted[p, week]
                     + self.triple[p, week]
                 ))
+            free_hit = self.free_hit_best.get(week)
+            if free_hit:
+                total.append(discount * free_hit["points"] * self.chip_played("freehit", week))
             total.append(-rules.POINTS_PER_EXTRA_TRANSFER * self.hits[week])
         last = self.weeks[-1]
         total.append(END_FREE_TRANSFER_VALUE * self.carry[last])
+        for chip, allowed in self.chip_weeks.items():
+            # A chip left unplayed is still worth its keep value later in the half.
+            total.append(self.keep_values.get(chip, 0.0) * (1 - pulp.lpSum(self.chip[chip, w] for w in allowed)))
         self.problem += pulp.lpSum(total)
 
     def add_squad_flow(self):
@@ -140,6 +158,9 @@ class PlanProblem:
         for index, week in enumerate(self.weeks):
             moves = self.transfers(week)
             wildcard = self.chip_played("wildcard", week)
+            free_hit = self.chip_played("freehit", week)
+            # In a Free Hit week your own squad stays as it is.
+            self.problem += moves <= 15 * (1 - free_hit)
             if index == 0 and self.unlimited_first_week:
                 # A team's first gameweek: any number of free moves, and none carry over.
                 self.problem += self.hits[week] == 0
@@ -148,7 +169,7 @@ class PlanProblem:
                 # A Wildcard week has unlimited free moves and keeps the banked transfers.
                 self.problem += moves <= MAX_TRANSFERS_PER_WEEK + 15 * wildcard
                 self.problem += self.hits[week] >= moves - self.free[week] - BIG_NUMBER * wildcard
-                self.problem += self.carry[week] <= self.free[week] - moves + BIG_NUMBER * (1 - self.carries_any[week]) + BIG_NUMBER * wildcard
+                self.problem += self.carry[week] <= self.free[week] - moves + BIG_NUMBER * (1 - self.carries_any[week]) + BIG_NUMBER * (wildcard + free_hit)
                 self.problem += self.carry[week] <= BIG_NUMBER * self.carries_any[week]
                 self.problem += self.carry[week] <= self.free[week]
             if index == 0 and not self.unlimited_first_week:
@@ -163,16 +184,23 @@ class PlanProblem:
         for week in self.weeks:
             self.problem += pulp.lpSum(self.chip_played(chip, week) for chip in self.chip_weeks) <= 1
             for p in self.players:
+                self.problem += self.benched[p, week] <= self.squad[p, week] - self.starts[p, week]
+                self.problem += self.benched[p, week] <= 1 - self.chip_played("freehit", week)
                 self.problem += self.bench_boosted[p, week] <= self.squad[p, week] - self.starts[p, week]
                 self.problem += self.bench_boosted[p, week] <= self.chip_played("bboost", week)
                 self.problem += self.triple[p, week] <= self.captain[p, week]
                 self.problem += self.triple[p, week] <= self.chip_played("3xc", week)
 
     def add_lineup_rules(self):
-        """Every week: 15 in shape, 3 per club at most, a legal eleven and one captain."""
+        """Every week: 15 in shape, 3 per club at most, a legal eleven and one captain.
+
+        In a Free Hit week your own squad fields nobody, since the
+        one-week squad plays instead.
+        """
         for week in self.weeks:
-            self.problem += pulp.lpSum(self.starts[p, week] for p in self.players) == 11
-            self.problem += pulp.lpSum(self.captain[p, week] for p in self.players) == 1
+            playing = 1 - self.chip_played("freehit", week)
+            self.problem += pulp.lpSum(self.starts[p, week] for p in self.players) == 11 * playing
+            self.problem += pulp.lpSum(self.captain[p, week] for p in self.players) == playing
             for p in self.players:
                 self.problem += self.starts[p, week] <= self.squad[p, week]
                 self.problem += self.captain[p, week] <= self.starts[p, week]
@@ -180,7 +208,7 @@ class PlanProblem:
                 in_position = [p for p, player in self.players.items() if player["element_type"] == position]
                 self.problem += pulp.lpSum(self.squad[p, week] for p in in_position) == count
                 starters = pulp.lpSum(self.starts[p, week] for p in in_position)
-                self.problem += starters >= rules.MIN_STARTERS[position]
+                self.problem += starters >= rules.MIN_STARTERS[position] * playing
                 self.problem += starters <= rules.MAX_STARTERS[position]
             for club in {player["team"] for player in self.players.values()}:
                 from_club = [p for p, player in self.players.items() if player["team"] == club]
@@ -219,14 +247,20 @@ def read_plan(plan, players_by_id):
     weeks = []
     for week in plan.weeks:
         chosen = lambda variables: [p for p in plan.players if variables[p, week].value() > 0.5]
-        captain = chosen(plan.captain)[0]
-        starters = chosen(plan.starts)
         chip = next((name for name in plan.chip_weeks if pulp.value(plan.chip_played(name, week)) > 0.5), None)
-        counted = chosen(plan.squad) if chip == "bboost" else starters
-        captain_times = 2 if chip == "3xc" else 1
-        xp = sum(plan.xp.get(p, {}).get(week, 0.0) for p in counted) + captain_times * plan.xp.get(captain, {}).get(week, 0.0)
+        squad = chosen(plan.squad)
+        if chip == "freehit":
+            free_hit = plan.free_hit_best[week]
+            captain, xp = free_hit["captain"], free_hit["points"]
+        else:
+            captain = chosen(plan.captain)[0]
+            counted = squad if chip == "bboost" else chosen(plan.starts)
+            captain_times = 2 if chip == "3xc" else 1
+            xp = sum(plan.xp.get(p, {}).get(week, 0.0) for p in counted) + captain_times * plan.xp.get(captain, {}).get(week, 0.0)
         weeks.append({
             "gameweek": week,
+            "squad": squad,  # your own squad after this week's moves
+            "freeHitSquad": plan.free_hit_best[week]["squad"] if chip == "freehit" else None,
             "moves": pair_moves(chosen(plan.sell), chosen(plan.buy), players_by_id),
             "hits": round(plan.hits[week].value()),
             "freeTransfers": None if week == plan.weeks[0] and plan.unlimited_first_week else round(plan.free[week].value()),
@@ -238,11 +272,13 @@ def read_plan(plan, players_by_id):
     return weeks
 
 
-def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks=None):
+def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks=None, free_hit_best=None, keep_values=None):
     """The best transfer plan over `weeks`, or None for a squad the model picked.
 
     `chip_weeks` is {chip: [weeks it may be played]} for the chips still
-    available; leave it out to plan transfers only.
+    available; leave it out to plan transfers only. `free_hit_best` is
+    needed when Free Hit is allowed, and `keep_values` gives each chip's
+    worth if saved (see strategy.py).
 
     `gain` compares the plan's discounted xP (after hits) with keeping the
     squad as it is, using the same discounting as the single-move suggestions.
@@ -250,7 +286,7 @@ def solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip
     if squad_state.squad_source == "model":
         return None
     pool = candidate_pool(squad_state.player_ids, players_by_id, expected_points, weeks)
-    plan = PlanProblem(squad_state, players_by_id, expected_points, weeks, pool, chip_weeks)
+    plan = PlanProblem(squad_state, players_by_id, expected_points, weeks, pool, chip_weeks, free_hit_best, keep_values)
     plan.solve()
     plan_weeks = read_plan(plan, players_by_id)
 
