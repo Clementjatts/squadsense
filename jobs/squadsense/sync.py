@@ -19,6 +19,7 @@ from pathlib import Path
 from . import alerts, changes, leagues, odds, review
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
+from .price_watch import predictions_record
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
 from .squad_builder import SquadBuilderError, pick_best_squad
 from .squad_state import build_squad_state, model_squad_state
@@ -155,15 +156,21 @@ def histories_to_fetch(bootstrap, cached, cached_pasts, priority_ids, full_refre
 
 
 def review_inputs(client, storage, team_id, team_entry, bootstrap, is_public):
-    """The picks, history and forecast the gameweek review needs, or Nones.
+    """Your picks and saved forecasts for every finished week since your team started.
 
-    The picks are only read if the team had started by the reviewed week.
+    Returns ({gameweek: picks}, {gameweek: forecast}); both are empty if no
+    week has finished or the squad isn't public yet. Picks for a finished
+    week never change, so each one is fetched once and then read from the
+    cache. A missing forecast (from before the sync ran) is simply left out.
     """
     event = review.last_finished_week(bootstrap)
-    if event is None or not is_public or team_entry["started_event"] > event["id"]:
-        return None, None
-    picks = leagues.cached_picks(client, storage, team_id, event["id"])
-    return picks, storage.load_raw(review.forecast_name(team_id, event["id"]))
+    if event is None or not is_public:
+        return {}, {}
+    weeks = range(team_entry["started_event"], event["id"] + 1)
+    picks = {week: leagues.cached_picks(client, storage, team_id, week) for week in weeks}
+    forecasts = {week: storage.load_raw(review.forecast_name(team_id, week)) for week in weeks}
+    return ({week: found for week, found in picks.items() if found},
+            {week: found for week, found in forecasts.items() if found})
 
 
 def live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap):
@@ -172,7 +179,7 @@ def live_picks(storage, client, team_id, current_week, is_public, league_data, b
     The website adds up live points from these, so it needs the
     multipliers (captain, bench), each team's total before the week (FPL
     has already taken this week's hits off it) and your own hits. `elements` gives every player's club and position, which
-    the automatic substitutions need.
+    the automatic substitutions need, and his short name for the ownership list.
     """
     mine = leagues.cached_picks(client, storage, team_id, current_week) if is_public else None
     # Live totals need every team's picks, which only fully analysed leagues have.
@@ -182,7 +189,7 @@ def live_picks(storage, client, team_id, current_week, is_public, league_data, b
     hits = lambda picks: ((picks or {}).get("entry_history") or {}).get("event_transfers_cost", 0)
     return {
         "gameweek": current_week,
-        "elements": {str(player["id"]): [player["team"], player["element_type"]] for player in bootstrap["elements"]},
+        "elements": {str(player["id"]): [player["team"], player["element_type"], player["web_name"]] for player in bootstrap["elements"]},
         "mine": {"picks": mine["picks"], "active_chip": mine.get("active_chip"), "hits": hits(mine)} if mine else None,
         "leagues": [
             {
@@ -236,6 +243,10 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     storage.save_raw("bootstrap-static", bootstrap)
     storage.save_raw("fixtures", fixtures)
     storage.save_price_snapshot(bootstrap["elements"])
+    # One record per UK day; later runs overwrite earlier ones, so the last
+    # run before 00:00 is what price_audit.py checks against the next day.
+    record = predictions_record(bootstrap, run_started)
+    storage.save_raw(f"price_predictions/{record['day']}", record)
 
     current_week, next_week = find_gameweeks(bootstrap)
     team_entry = client.entry(team_id)
@@ -259,12 +270,17 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
         squad_state = pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_id)
 
     league_data = leagues.fetch_leagues(client, storage, team_entry, current_week, leagues.league_ids_from_env())
-    review_picks, forecast = review_inputs(client, storage, team_id, team_entry, bootstrap, is_public)
+    picks_by_week, forecasts_by_week = review_inputs(client, storage, team_id, team_entry, bootstrap, is_public)
+    reviewed = review.last_finished_week(bootstrap)
+    reviewed_week = reviewed["id"] if reviewed else None
     snapshot = build_snapshot(
         bootstrap, fixtures, histories, model_results, squad_state, team_entry,
         extras=SnapshotExtras(
             league_data=league_data,
-            review=review.build_review(bootstrap, histories, entry_history, review_picks, forecast),
+            review=review.build_review(
+                bootstrap, histories, entry_history, picks_by_week.get(reviewed_week), forecasts_by_week.get(reviewed_week),
+                picks_by_week, forecasts_by_week,
+            ),
             live_picks=live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap),
             storage=storage,
         ),

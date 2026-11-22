@@ -34,6 +34,11 @@ class FileStorage:
         path = self._raw_path(name)
         return json.loads(path.read_text()) if path.exists() else None
 
+    def load_raws(self, prefix):
+        """Every response saved with a name starting with `prefix`, in name order."""
+        pattern = f"raw_{prefix.replace('/', '_')}*.json"
+        return [json.loads(path.read_text()) for path in sorted(self.folder.glob(pattern))]
+
     def _raw_path(self, name):
         return self.folder / f"raw_{name.replace('/', '_')}.json"
 
@@ -120,6 +125,12 @@ class PostgresStorage:
             cursor.execute("select body from api_cache where path = %s", (name,))
             row = cursor.fetchone()
             return row[0] if row else None
+
+    def load_raws(self, prefix):
+        """Every response saved with a name starting with `prefix`, in name order."""
+        with self.connection.cursor() as cursor:
+            cursor.execute("select body from api_cache where path like %s order by path", (prefix.replace("%", r"\%") + "%",))
+            return [row[0] for row in cursor.fetchall()]
 
     def save_player_history(self, player_id, rows):
         self._execute(

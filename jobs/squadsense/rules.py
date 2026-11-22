@@ -44,6 +44,47 @@ def selling_price(purchase_price, current_price):
     return purchase_price + profit // 2
 
 
+UNLIMITED_TRANSFER_CHIPS = ("wildcard", "freehit")
+
+
+def hit_points(transfers_made, free_transfers, chip=None):
+    """Points taken off for transfers beyond the free ones.
+
+    `free_transfers` is None in a team's first week, when transfers are
+    unlimited. Wildcard and Free Hit weeks are unlimited too. Mirrored by
+    hitPoints in web/lib/planning.ts; shared/rule-cases.json tests both.
+    """
+    if free_transfers is None or chip in UNLIMITED_TRANSFER_CHIPS:
+        return 0
+    return max(0, transfers_made - free_transfers) * POINTS_PER_EXTRA_TRANSFER
+
+
+def next_free_transfers(free_transfers, transfers_made, chip=None, gain_on_chip_week=True):
+    """Free transfers for the following week.
+
+    After an unlimited first week you have 1. A Wildcard or Free Hit week
+    keeps the banked ones and, by default, still adds one. Otherwise you
+    keep what you didn't use (never below zero, since extra transfers are
+    paid for in points) plus one, up to MAX_BANKED_FREE_TRANSFERS.
+    Mirrored by nextFreeTransfers in web/lib/planning.ts.
+    """
+    if free_transfers is None:
+        return 1
+    if chip in UNLIMITED_TRANSFER_CHIPS:
+        banked = free_transfers + (1 if gain_on_chip_week else 0)
+    else:
+        banked = max(0, free_transfers - transfers_made) + 1
+    return min(banked, MAX_BANKED_FREE_TRANSFERS)
+
+
+def clubs_over_limit(clubs):
+    """{club: count} for every club with more than MAX_PER_CLUB players in `clubs`.
+
+    Mirrored by clubsOverLimit in web/lib/planning.ts.
+    """
+    return {club: count for club, count in Counter(clubs).items() if count > MAX_PER_CLUB}
+
+
 def check_squad(players, bank):
     """Checks a 15-man squad against the hard rules.
 
@@ -62,10 +103,8 @@ def check_squad(players, bank):
                 f"Need {needed} {POSITION_NAMES[position]}, have {position_counts.get(position, 0)}"
             )
 
-    club_counts = Counter(player["team"] for player in players)
-    for club, count in club_counts.items():
-        if count > MAX_PER_CLUB:
-            problems.append(f"{count} players from club {club}, the limit is {MAX_PER_CLUB}")
+    for club, count in clubs_over_limit(player["team"] for player in players).items():
+        problems.append(f"{count} players from club {club}, the limit is {MAX_PER_CLUB}")
 
     return problems
 

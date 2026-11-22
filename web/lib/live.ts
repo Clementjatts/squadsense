@@ -10,7 +10,7 @@
 //
 // Pure functions only, so the API route and the page can share them.
 
-import type { LivePick, LiveTeamPicks } from "./types";
+import type { LivePick, LivePicks, LiveTeamPicks } from "./types";
 
 export interface LiveFixture {
   id: number;
@@ -79,7 +79,7 @@ export function provisionalBonus(fixtures: LiveFixture[]): Map<number, number> {
 export function playerLivePoints(
   elements: LiveElement[],
   fixtures: LiveFixture[],
-  clubs: Record<string, [number, number]>,
+  clubs: LivePicks["elements"],
 ): Map<number, PlayerLive> {
   const bonus = provisionalBonus(fixtures);
   const liveById = new Map(elements.map((element) => [element.id, element]));
@@ -107,7 +107,7 @@ function clubStatus(clubFixtures: LiveFixture[]): PlayerLive["status"] {
 }
 
 // True when swapping `outId` for `inId` keeps at least the minimum in each position.
-function formationAllows(lineup: number[], outId: number, inId: number, positions: Record<string, [number, number]>): boolean {
+function formationAllows(lineup: number[], outId: number, inId: number, positions: LivePicks["elements"]): boolean {
   const after = lineup.map((id) => (id === outId ? inId : id));
   return Object.entries(MIN_IN_FORMATION).every(
     ([position, minimum]) => after.filter((id) => positions[String(id)]?.[1] === Number(position)).length >= minimum,
@@ -115,7 +115,7 @@ function formationAllows(lineup: number[], outId: number, inId: number, position
 }
 
 /** A team's live total with automatic substitutions and a vice-captain switch where FPL would make them. */
-export function teamLivePoints(team: Pick<LiveTeamPicks, "picks" | "active_chip">, players: Map<number, PlayerLive>, positions: Record<string, [number, number]>): TeamLive {
+export function teamLivePoints(team: Pick<LiveTeamPicks, "picks" | "active_chip">, players: Map<number, PlayerLive>, positions: LivePicks["elements"]): TeamLive {
   const ordered = [...team.picks].sort((a, b) => a.position - b.position);
   const benchBoost = team.active_chip === "bboost";
   let starters = ordered.filter((pick) => pick.position <= 11).map((pick) => pick.element);
@@ -160,4 +160,38 @@ function liveMultiplier(element: number, picks: LivePick[], didNotPlay: (id: num
   const pick = picks.find((candidate) => candidate.element === element);
   if (pick?.is_captain) return didNotPlay(element) ? 0 : captainMultiplier;
   return 1;
+}
+
+export interface OwnershipLine {
+  element: number;
+  eo: number; // effective ownership among rivals: 1.4 means 140% (captains count twice)
+  mine: number; // your own multiplier: 0 benched or not owned, 1 starting, 2 captain, 3 triple captain
+  net: number; // mine minus eo: how many of his points you gain on the average rival
+  swing: number; // his live points times net: what he has gained (or cost) you so far
+}
+
+/**
+ * Effective ownership in one mini-league: for every player in anyone's live
+ * lineup, the average multiplier across your rivals, next to your own.
+ * Uses the lineups after automatic subs, so a benched player who comes on
+ * counts. The lines with the biggest net exposure come first.
+ */
+export function leagueOwnership(rivals: TeamLive[], mine: TeamLive | null, players: Map<number, PlayerLive>, shown: number): OwnershipLine[] {
+  if (rivals.length === 0) return [];
+  const rivalTotals = new Map<number, number>();
+  for (const rival of rivals) {
+    for (const line of rival.lineup) rivalTotals.set(line.element, (rivalTotals.get(line.element) ?? 0) + line.multiplier);
+  }
+  const myMultipliers = new Map((mine?.lineup ?? []).map((line) => [line.element, line.multiplier]));
+  const elements = new Set([...rivalTotals.keys(), ...myMultipliers.keys()]);
+  return [...elements]
+    .map((element) => {
+      const eo = (rivalTotals.get(element) ?? 0) / rivals.length;
+      const own = myMultipliers.get(element) ?? 0;
+      const net = own - eo;
+      return { element, eo, mine: own, net, swing: net * (players.get(element)?.points ?? 0) };
+    })
+    .filter((line) => Math.abs(line.net) > 0.001)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || Math.abs(b.swing) - Math.abs(a.swing))
+    .slice(0, shown);
 }

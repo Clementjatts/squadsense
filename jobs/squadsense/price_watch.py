@@ -15,6 +15,10 @@ We only read the first projection (the next change). How far ahead the
 later ones look isn't documented anywhere we've found.
 """
 
+from zoneinfo import ZoneInfo
+
+UK_TIME = ZoneInfo("Europe/London")
+
 # Our wording for each likelihood band. The sign gives the direction.
 LIKELIHOOD_LABELS = {5: "Changes tonight", 4: "Very likely", 3: "Likely", 2: "Possible", 1: "Unlikely", 0: "No change"}
 # Bands of 3 or more count as a real risk or chance for the summary cards.
@@ -48,6 +52,30 @@ def likely_price_moves(bootstrap):
         if abs(projection["likelihood"]) >= ALERT_LIKELIHOOD:
             moves[player["id"]] = 1 if projection["likelihood"] > 0 else -1
     return moves
+
+
+def price_day(now):
+    """The UK date of the next price change for a sync run at `now` (a timezone-aware datetime).
+
+    Prices change at 00:00 UK, so every run during one UK day predicts the
+    same change. This is 23:00 UTC in summer, which is why UK time is used.
+    """
+    return now.astimezone(UK_TIME).date().isoformat()
+
+
+def predictions_record(bootstrap, now):
+    """Tonight's predictions for every player: {"day", "players": {id: [price, likelihood]}}.
+
+    The sync saves this under one name per UK day, so the last run before
+    00:00 is the one kept. A locked price is saved with likelihood 0.
+    price_audit.py later checks these against the next day's prices.
+    """
+    players = {}
+    for player in bootstrap["elements"]:
+        projection = next_change(player)
+        likelihood = 0 if player.get("price_change_locked_until") or projection is None else projection["likelihood"]
+        players[str(player["id"])] = [player["now_cost"], likelihood]
+    return {"day": price_day(now), "takenAt": now.isoformat(), "players": players}
 
 
 def watch_row(player, teams_by_id, position_names, squad_ids):

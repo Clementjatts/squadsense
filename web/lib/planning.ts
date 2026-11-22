@@ -94,14 +94,40 @@ function squadAfterMoves(startSquad: number[], moves: PlannedMove[]): number[] {
 function checkRules(squad: number[], players: Record<string, Player>, bank: number): string[] {
   const problems: string[] = [];
   if (bank < 0) problems.push(`Over budget by £${(-bank / 10).toFixed(1)}m`);
-  const clubCounts = new Map<string, number>();
-  for (const id of squad) {
-    clubCounts.set(players[id].team, (clubCounts.get(players[id].team) ?? 0) + 1);
-  }
-  for (const [club, count] of clubCounts) {
-    if (count > MAX_PER_CLUB) problems.push(`${count} players from ${club}, the limit is ${MAX_PER_CLUB}`);
+  for (const [club, count] of Object.entries(clubsOverLimit(squad.map((id) => players[id].team)))) {
+    problems.push(`${count} players from ${club}, the limit is ${MAX_PER_CLUB}`);
   }
   return problems;
+}
+
+// The three rules below mirror rules.py (hit_points, next_free_transfers,
+// clubs_over_limit). shared/rule-cases.json holds cases both test suites check.
+
+const UNLIMITED_TRANSFER_CHIPS: (PlannerChip | null)[] = ["wildcard", "freehit"];
+
+/** Points taken off for transfers beyond the free ones. null free transfers (a team's first week), Wildcard and Free Hit weeks are unlimited. */
+export function hitPoints(transfersMade: number, freeTransfers: number | null, chip: PlannerChip | null): number {
+  if (freeTransfers === null || UNLIMITED_TRANSFER_CHIPS.includes(chip)) return 0;
+  return Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
+}
+
+/**
+ * Free transfers for the following week. After an unlimited week you have 1.
+ * A Wildcard or Free Hit week keeps the banked ones and still adds one (the
+ * same assumption as squad_state.py). Otherwise unused ones carry over, plus
+ * one, up to MAX_BANKED_FREE_TRANSFERS.
+ */
+export function nextFreeTransfers(freeTransfers: number | null, transfersMade: number, chip: PlannerChip | null): number {
+  if (freeTransfers === null) return 1;
+  const banked = UNLIMITED_TRANSFER_CHIPS.includes(chip) ? freeTransfers + 1 : Math.max(0, freeTransfers - transfersMade) + 1;
+  return Math.min(MAX_BANKED_FREE_TRANSFERS, banked);
+}
+
+/** Each club with more than MAX_PER_CLUB players in `clubs`, with its count. */
+export function clubsOverLimit(clubs: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const club of clubs) counts[club] = (counts[club] ?? 0) + 1;
+  return Object.fromEntries(Object.entries(counts).filter(([, count]) => count > MAX_PER_CLUB));
 }
 
 // Replays the plan week by week: squad, bank, free transfers, hits and xP.
@@ -150,9 +176,7 @@ export function simulatePlan(
     const transfersMade = weekMoves.length;
     const chip = chips[week] ?? null;
     const freeHitSquad = chip === "freehit" ? freeHitSquads[week] : undefined;
-    // null means unlimited, and Wildcard and Free Hit weeks are unlimited too, so no hits.
-    const hitPoints =
-      freeTransfers === null || chip === "wildcard" || chip === "freehit" ? 0 : Math.max(0, transfersMade - freeTransfers) * POINTS_PER_EXTRA_TRANSFER;
+    const weekHitPoints = hitPoints(transfersMade, freeTransfers, chip);
     // In a Free Hit week the one-week squad plays; your own squad sits it out unchanged.
     const chosenCaptain = captains[week];
     const lineup = withChosenCaptain(bestLineup(freeHitSquad ?? squad, players, week), chosenCaptain, players, week);
@@ -173,17 +197,11 @@ export function simulatePlan(
       expectedPoints: lineup.expectedPoints + chipBonus(chip, lineup, players, week),
       transfersMade,
       freeTransfersBefore: freeTransfers,
-      hitPoints,
+      hitPoints: weekHitPoints,
       bankAfter: bank,
       problems,
     });
-    // After an unlimited week you start with 1, like any team after its first deadline.
-    // A Wildcard keeps your banked transfers and still adds one (same assumption as squad_state.py).
-    const used = chip === "wildcard" || chip === "freehit" ? 0 : transfersMade;
-    freeTransfers =
-      freeTransfers === null
-        ? 1
-        : Math.min(MAX_BANKED_FREE_TRANSFERS, Math.max(0, freeTransfers - used) + 1);
+    freeTransfers = nextFreeTransfers(freeTransfers, transfersMade, chip);
   }
   return plans;
 }

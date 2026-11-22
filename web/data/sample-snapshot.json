@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-22T02:39:21.086175+00:00",
+ "generatedAt": "2026-11-22T07:41:31.861294+00:00",
  "modelVersion": "v2",
  "team": {
   "id": 11304359,
@@ -972,6 +972,78 @@
     "freeKicks": null
    },
    "fplXp": 2.9
+  },
+  "33": {
+   "id": 33,
+   "name": "NEW DEF 1",
+   "team": "NEW",
+   "teamId": 3,
+   "position": "DEF",
+   "price": 64,
+   "sellingPrice": 64,
+   "ownership": 0.8,
+   "chance": null,
+   "news": "",
+   "yellowCards": 2,
+   "netTransfersToday": -25990,
+   "xp": {
+    "13": 4.37,
+    "14": 4.65,
+    "15": 4.71,
+    "16": 0.0,
+    "17": 4.09
+   },
+   "windowXp": 17.82,
+   "form": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "setPieces": {
+    "penalties": null,
+    "corners": null,
+    "freeKicks": null
+   },
+   "fplXp": 3.2
+  },
+  "35": {
+   "id": 35,
+   "name": "NEW DEF 3",
+   "team": "NEW",
+   "teamId": 3,
+   "position": "DEF",
+   "price": 53,
+   "sellingPrice": 53,
+   "ownership": 10.7,
+   "chance": null,
+   "news": "",
+   "yellowCards": 1,
+   "netTransfersToday": -589,
+   "xp": {
+    "13": 4.38,
+    "14": 4.66,
+    "15": 4.72,
+    "16": 0.0,
+    "17": 4.09
+   },
+   "windowXp": 17.85,
+   "form": [
+    2,
+    3,
+    3,
+    2,
+    3,
+    3
+   ],
+   "setPieces": {
+    "penalties": null,
+    "corners": null,
+    "freeKicks": null
+   },
+   "fplXp": 2.6
   },
   "46": {
    "id": 46,
@@ -4844,12 +4916,12 @@
      28,
      46,
      53,
+     76,
      78,
      83,
      103,
      113,
      127,
-     151,
      213,
      253
     ],
@@ -4857,215 +4929,232 @@
     "moves": [
      {
       "out": 1,
-      "in": 151,
-      "value": 3.57,
-      "priceNote": null,
-      "sameWeekShare": 0.0,
-      "anyWeekShare": 0.13
+      "in": 76,
+      "value": 4.67,
+      "priceNote": "buy now: likely to rise \u00a30.1m tonight",
+      "sameWeekShare": 0.33,
+      "anyWeekShare": 0.67
      },
      {
       "out": 79,
       "in": 127,
-      "value": 2.2,
+      "value": 2.66,
       "priceNote": null,
-      "sameWeekShare": 0.67,
-      "anyWeekShare": 0.67
+      "sameWeekShare": 0.73,
+      "anyWeekShare": 0.73
      },
      {
       "out": 114,
       "in": 23,
-      "value": 20.44,
+      "value": 21.1,
       "priceNote": null,
-      "sameWeekShare": 0.8,
-      "anyWeekShare": 0.8
+      "sameWeekShare": 0.67,
+      "anyWeekShare": 0.67
      }
     ],
     "hits": 0,
     "freeTransfers": 5,
     "bank": 11,
     "captain": 23,
-    "chip": "3xc",
-    "xp": 72.1
+    "chip": null,
+    "xp": 65.08
    },
    {
     "gameweek": 14,
     "squad": [
      3,
-     8,
+     7,
+     14,
      18,
      23,
      28,
      46,
      53,
+     72,
+     76,
+     83,
      103,
      113,
      127,
-     151,
-     169,
-     180,
-     192,
      213
     ],
     "freeHitSquad": null,
     "moves": [
      {
-      "out": 78,
-      "in": 169,
-      "value": 0.67,
+      "out": 8,
+      "in": 72,
+      "value": 0.79,
       "priceNote": null,
-      "sameWeekShare": 0.33,
-      "anyWeekShare": 0.33
+      "sameWeekShare": 0.07,
+      "anyWeekShare": 0.07
      },
      {
-      "out": 83,
-      "in": 192,
-      "value": -0.35,
-      "priceNote": null,
+      "out": 78,
+      "in": 7,
+      "value": 3.17,
+      "priceNote": "priced \u00a30.1m higher after tonight's likely rise",
       "sameWeekShare": 0.07,
       "anyWeekShare": 0.13
      },
      {
       "out": 253,
-      "in": 180,
-      "value": 0.5,
-      "priceNote": "priced \u00a30.1m higher after tonight's likely rise",
-      "sameWeekShare": 0.4,
-      "anyWeekShare": 0.4
+      "in": 14,
+      "value": 4.46,
+      "priceNote": null,
+      "sameWeekShare": 0.47,
+      "anyWeekShare": 0.47
      }
     ],
     "hits": 0,
     "freeTransfers": 3,
-    "bank": 4,
+    "bank": 23,
     "captain": 23,
     "chip": "bboost",
-    "xp": 81.5
+    "xp": 81.03
    },
    {
     "gameweek": 15,
     "squad": [
      3,
-     8,
+     7,
+     14,
      18,
      23,
      28,
      46,
      53,
+     72,
+     76,
+     83,
      103,
      113,
      127,
+     213
+    ],
+    "freeHitSquad": [
+     3,
+     10,
+     14,
+     18,
+     23,
+     28,
+     33,
+     35,
+     53,
      151,
      169,
+     176,
      180,
-     192,
+     181,
+     192
+    ],
+    "moves": [],
+    "hits": 0,
+    "freeTransfers": 1,
+    "bank": 23,
+    "captain": 23,
+    "chip": "freehit",
+    "xp": 68.21
+   },
+   {
+    "gameweek": 16,
+    "squad": [
+     3,
+     7,
+     14,
+     18,
+     23,
+     28,
+     46,
+     68,
+     72,
+     75,
+     76,
+     83,
+     113,
+     127,
+     213
+    ],
+    "freeHitSquad": null,
+    "moves": [
+     {
+      "out": 53,
+      "in": 68,
+      "value": 1.93,
+      "priceNote": null,
+      "sameWeekShare": 0.27,
+      "anyWeekShare": 0.27
+     },
+     {
+      "out": 103,
+      "in": 75,
+      "value": 2.61,
+      "priceNote": "priced \u00a30.1m higher after tonight's likely rise",
+      "sameWeekShare": 0.4,
+      "anyWeekShare": 0.47
+     }
+    ],
+    "hits": 0,
+    "freeTransfers": 2,
+    "bank": 92,
+    "captain": 23,
+    "chip": "3xc",
+    "xp": 138.29
+   },
+   {
+    "gameweek": 17,
+    "squad": [
+     3,
+     7,
+     14,
+     18,
+     23,
+     28,
+     46,
+     68,
+     72,
+     75,
+     76,
+     83,
+     113,
+     127,
      213
     ],
     "freeHitSquad": null,
     "moves": [],
     "hits": 0,
     "freeTransfers": 1,
-    "bank": 4,
+    "bank": 92,
     "captain": 23,
     "chip": null,
-    "xp": 66.79
-   },
-   {
-    "gameweek": 16,
-    "squad": [
-     3,
-     8,
-     18,
-     23,
-     28,
-     46,
-     53,
-     103,
-     113,
-     127,
-     151,
-     169,
-     180,
-     192,
-     213
-    ],
-    "freeHitSquad": [
-     3,
-     7,
-     10,
-     18,
-     23,
-     28,
-     68,
-     72,
-     75,
-     76,
-     77,
-     85,
-     127,
-     169,
-     180
-    ],
-    "moves": [],
-    "hits": 0,
-    "freeTransfers": 2,
-    "bank": 4,
-    "captain": 23,
-    "chip": "freehit",
-    "xp": 125.68
-   },
-   {
-    "gameweek": 17,
-    "squad": [
-     3,
-     8,
-     18,
-     23,
-     28,
-     46,
-     53,
-     103,
-     113,
-     127,
-     151,
-     169,
-     180,
-     192,
-     213
-    ],
-    "freeHitSquad": null,
-    "moves": [],
-    "hits": 0,
-    "freeTransfers": 3,
-    "bank": 4,
-    "captain": 23,
-    "chip": null,
-    "xp": 66.8
+    "xp": 64.34
    }
   ],
   "totalHits": 0,
   "chips": {
-   "3xc": 13,
    "bboost": 14,
-   "freehit": 16
+   "freehit": 15,
+   "3xc": 16
   },
-  "gain": 75.22,
-  "finishedSearch": true,
+  "gain": 76.51,
+  "finishedSearch": false,
   "sensitivity": {
    "runs": 15,
    "firstWeekAlternatives": [
+    {
+     "out": 114,
+     "in": 72,
+     "share": 0.27
+    },
     {
      "out": 83,
      "in": 23,
      "share": 0.2
     },
     {
-     "out": 79,
-     "in": 244,
+     "out": 1,
+     "in": 62,
      "share": 0.2
-    },
-    {
-     "out": 114,
-     "in": 176,
-     "share": 0.13
     }
    ]
   },
@@ -10136,10 +10225,10 @@
      "laterGain": null,
      "action": "play",
      "week": 14,
-     "gain": 16.1,
+     "gain": 15.8,
      "closeCall": false,
      "playNow": false,
-     "planReason": "The plan's bench that week (S\u00e1nchez, FUL DEF 2, Isak, Mykolenko) is expected to add 16.1 xP.",
+     "planReason": "The plan's bench that week (S\u00e1nchez, Isak, McGinn, Mykolenko) is expected to add 15.8 xP.",
      "planRisk": {
       "allBenchPlay": 0.8
      }
@@ -10179,7 +10268,7 @@
      }
     ],
     "source": "plan",
-    "reason": "The five-week plan plays Bench Boost in GW14: +16.1 xP over the best plan without it. The plan's bench that week (S\u00e1nchez, FUL DEF 2, Isak, Mykolenko) is expected to add 16.1 xP."
+    "reason": "The five-week plan plays Bench Boost in GW14: +15.8 xP over the best plan without it. The plan's bench that week (S\u00e1nchez, Isak, McGinn, Mykolenko) is expected to add 15.8 xP."
    },
    {
     "chip": "3xc",
@@ -10191,21 +10280,21 @@
      "laterWeek": null,
      "laterGain": null,
      "action": "play",
-     "week": 13,
-     "gain": 7.2,
-     "closeCall": true,
-     "playNow": true,
-     "planReason": "Semenyo is the plan's captain that week, so his 7.2 xP counts a third time.",
+     "week": 16,
+     "gain": 14.3,
+     "closeCall": false,
+     "playNow": false,
+     "planReason": "Semenyo is the plan's captain that week, so his 14.3 xP counts a third time.",
      "planRisk": {
       "captainId": 23,
-      "haulChance": 0.355,
-      "blankChance": 0.178
+      "haulChance": 0.8,
+      "blankChance": 0.0
      }
     },
     "risk": {
      "captainId": 23,
-     "haulChance": 0.355,
-     "blankChance": 0.178
+     "haulChance": 0.8,
+     "blankChance": 0.0
     },
     "quality": "near",
     "byWeek": [
@@ -10239,7 +10328,7 @@
      }
     ],
     "source": "plan",
-    "reason": "The five-week plan plays Triple Captain in GW13: +7.2 xP over the best plan without it. Semenyo is the plan's captain that week, so his 7.2 xP counts a third time."
+    "reason": "The five-week plan plays Triple Captain in GW16: +14.3 xP over the best plan without it. Semenyo is the plan's captain that week, so his 14.3 xP counts a third time."
    },
    {
     "chip": "freehit",
@@ -10251,11 +10340,11 @@
      "laterWeek": null,
      "laterGain": null,
      "action": "play",
-     "week": 16,
-     "gain": 22.9,
+     "week": 15,
+     "gain": 3.2,
      "closeCall": false,
      "playNow": false,
-     "planReason": "A one-week squad scores 22.9 xP more than your own squad would that week; yours comes back the week after.",
+     "planReason": "A one-week squad scores 3.2 xP more than your own squad would that week; yours comes back the week after.",
      "planRisk": {}
     },
     "risk": {},
@@ -10291,7 +10380,7 @@
      }
     ],
     "source": "plan",
-    "reason": "The five-week plan plays Free Hit in GW16: +22.9 xP over the best plan without it. A one-week squad scores 22.9 xP more than your own squad would that week; yours comes back the week after."
+    "reason": "The five-week plan plays Free Hit in GW15: +3.2 xP over the best plan without it. A one-week squad scores 3.2 xP more than your own squad would that week; yours comes back the week after."
    },
    {
     "chip": "wildcard",
@@ -10396,9 +10485,7 @@
    {
     "gameweek": 13,
     "used": [],
-    "recommended": [
-     "TC"
-    ],
+    "recommended": [],
     "saved": [],
     "quality": "near"
    },
@@ -10414,7 +10501,9 @@
    {
     "gameweek": 15,
     "used": [],
-    "recommended": [],
+    "recommended": [
+     "FH"
+    ],
     "saved": [],
     "quality": "near"
    },
@@ -10422,7 +10511,7 @@
     "gameweek": 16,
     "used": [],
     "recommended": [
-     "FH"
+     "TC"
     ],
     "saved": [],
     "quality": "near"
@@ -49397,6 +49486,7 @@
      "teamName": "Clement's XI",
      "manager": "Clement Adegbenro",
      "rank": 2,
+     "position": 2,
      "lastRank": 3,
      "total": 600,
      "eventPoints": 62,
@@ -49409,6 +49499,7 @@
      "teamName": "Rival United",
      "manager": "Rival 1",
      "rank": 1,
+     "position": 1,
      "lastRank": 1,
      "total": 610,
      "eventPoints": 55,
@@ -49425,6 +49516,7 @@
      "teamName": "Bench Boosters",
      "manager": "Rival 2",
      "rank": 3,
+     "position": 3,
      "lastRank": 2,
      "total": 595,
      "eventPoints": 56,
@@ -49441,6 +49533,7 @@
      "teamName": "Late Risers",
      "manager": "Rival 3",
      "rank": 4,
+     "position": 4,
      "lastRank": 3,
      "total": 580,
      "eventPoints": 57,
@@ -49723,6 +49816,143 @@
      "xp": null
     }
    ]
+  },
+  "season": {
+   "weeks": [
+    {
+     "gameweek": 1,
+     "points": 51,
+     "average": 51,
+     "overallRank": 880000,
+     "benchPoints": 1,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 2,
+     "points": 52,
+     "average": 52,
+     "overallRank": 860000,
+     "benchPoints": 2,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 3,
+     "points": 53,
+     "average": 53,
+     "overallRank": 840000,
+     "benchPoints": 3,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 4,
+     "points": 54,
+     "average": 54,
+     "overallRank": 820000,
+     "benchPoints": 4,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 5,
+     "points": 55,
+     "average": 55,
+     "overallRank": 800000,
+     "benchPoints": 0,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 6,
+     "points": 56,
+     "average": 56,
+     "overallRank": 780000,
+     "benchPoints": 1,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 7,
+     "points": 57,
+     "average": 50,
+     "overallRank": 760000,
+     "benchPoints": 2,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 8,
+     "points": 54,
+     "average": 51,
+     "overallRank": 740000,
+     "benchPoints": 3,
+     "transferCost": 4,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 9,
+     "points": 59,
+     "average": 52,
+     "overallRank": 720000,
+     "benchPoints": 4,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 10,
+     "points": 60,
+     "average": 53,
+     "overallRank": 700000,
+     "benchPoints": 0,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 11,
+     "points": 61,
+     "average": 54,
+     "overallRank": 680000,
+     "benchPoints": 1,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": null
+    },
+    {
+     "gameweek": 12,
+     "points": 62,
+     "average": 55,
+     "overallRank": 660000,
+     "benchPoints": 2,
+     "transferCost": 0,
+     "predicted": null,
+     "captainLost": -2
+    }
+   ],
+   "totals": {
+    "weeks": 12,
+    "points": 674,
+    "benchPoints": 23,
+    "transferCost": 4,
+    "aboveAverage": 6,
+    "captainWeeks": 1,
+    "captainRight": 0,
+    "captainLost": -2,
+    "forecastWeeks": 0,
+    "forecastPredicted": 0,
+    "forecastActual": 0
+   }
   }
  },
  "livePicks": {
@@ -49730,1203 +49960,1503 @@
   "elements": {
    "1": [
     1,
-    1
+    1,
+    "Raya"
    ],
    "2": [
     1,
-    1
+    1,
+    "ARS GK 2"
    ],
    "3": [
     1,
-    2
+    2,
+    "Gabriel"
    ],
    "4": [
     1,
-    2
+    2,
+    "ARS DEF 2"
    ],
    "5": [
     1,
-    2
+    2,
+    "ARS DEF 3"
    ],
    "6": [
     1,
-    2
+    2,
+    "ARS DEF 4"
    ],
    "7": [
     1,
-    2
+    2,
+    "ARS DEF 5"
    ],
    "8": [
     1,
-    3
+    3,
+    "Saka"
    ],
    "9": [
     1,
-    3
+    3,
+    "ARS MID 2"
    ],
    "10": [
     1,
-    3
+    3,
+    "ARS MID 3"
    ],
    "11": [
     1,
-    3
+    3,
+    "ARS MID 4"
    ],
    "12": [
     1,
-    3
+    3,
+    "ARS MID 5"
    ],
    "13": [
     1,
-    4
+    4,
+    "ARS FWD 1"
    ],
    "14": [
     1,
-    4
+    4,
+    "ARS FWD 2"
    ],
    "15": [
     1,
-    4
+    4,
+    "ARS FWD 3"
    ],
    "16": [
     2,
-    1
+    1,
+    "MCI GK 1"
    ],
    "17": [
     2,
-    1
+    1,
+    "MCI GK 2"
    ],
    "18": [
     2,
-    2
+    2,
+    "Gvardiol"
    ],
    "19": [
     2,
-    2
+    2,
+    "MCI DEF 2"
    ],
    "20": [
     2,
-    2
+    2,
+    "MCI DEF 3"
    ],
    "21": [
     2,
-    2
+    2,
+    "MCI DEF 4"
    ],
    "22": [
     2,
-    2
+    2,
+    "MCI DEF 5"
    ],
    "23": [
     2,
-    3
+    3,
+    "Semenyo"
    ],
    "24": [
     2,
-    3
+    3,
+    "MCI MID 2"
    ],
    "25": [
     2,
-    3
+    3,
+    "MCI MID 3"
    ],
    "26": [
     2,
-    3
+    3,
+    "MCI MID 4"
    ],
    "27": [
     2,
-    3
+    3,
+    "MCI MID 5"
    ],
    "28": [
     2,
-    4
+    4,
+    "Haaland"
    ],
    "29": [
     2,
-    4
+    4,
+    "MCI FWD 2"
    ],
    "30": [
     2,
-    4
+    4,
+    "MCI FWD 3"
    ],
    "31": [
     3,
-    1
+    1,
+    "NEW GK 1"
    ],
    "32": [
     3,
-    1
+    1,
+    "NEW GK 2"
    ],
    "33": [
     3,
-    2
+    2,
+    "NEW DEF 1"
    ],
    "34": [
     3,
-    2
+    2,
+    "NEW DEF 2"
    ],
    "35": [
     3,
-    2
+    2,
+    "NEW DEF 3"
    ],
    "36": [
     3,
-    2
+    2,
+    "NEW DEF 4"
    ],
    "37": [
     3,
-    2
+    2,
+    "NEW DEF 5"
    ],
    "38": [
     3,
-    3
+    3,
+    "NEW MID 1"
    ],
    "39": [
     3,
-    3
+    3,
+    "NEW MID 2"
    ],
    "40": [
     3,
-    3
+    3,
+    "NEW MID 3"
    ],
    "41": [
     3,
-    3
+    3,
+    "NEW MID 4"
    ],
    "42": [
     3,
-    3
+    3,
+    "NEW MID 5"
    ],
    "43": [
     3,
-    4
+    4,
+    "Wissa"
    ],
    "44": [
     3,
-    4
+    4,
+    "NEW FWD 2"
    ],
    "45": [
     3,
-    4
+    4,
+    "NEW FWD 3"
    ],
    "46": [
     4,
-    1
+    1,
+    "S\u00e1nchez"
    ],
    "47": [
     4,
-    1
+    1,
+    "CHE GK 2"
    ],
    "48": [
     4,
-    2
+    2,
+    "CHE DEF 1"
    ],
    "49": [
     4,
-    2
+    2,
+    "CHE DEF 2"
    ],
    "50": [
     4,
-    2
+    2,
+    "CHE DEF 3"
    ],
    "51": [
     4,
-    2
+    2,
+    "CHE DEF 4"
    ],
    "52": [
     4,
-    2
+    2,
+    "CHE DEF 5"
    ],
    "53": [
     4,
-    3
+    3,
+    "Palmer"
    ],
    "54": [
     4,
-    3
+    3,
+    "CHE MID 2"
    ],
    "55": [
     4,
-    3
+    3,
+    "CHE MID 3"
    ],
    "56": [
     4,
-    3
+    3,
+    "CHE MID 4"
    ],
    "57": [
     4,
-    3
+    3,
+    "CHE MID 5"
    ],
    "58": [
     4,
-    4
+    4,
+    "CHE FWD 1"
    ],
    "59": [
     4,
-    4
+    4,
+    "CHE FWD 2"
    ],
    "60": [
     4,
-    4
+    4,
+    "CHE FWD 3"
    ],
    "61": [
     5,
-    1
+    1,
+    "BHA GK 1"
    ],
    "62": [
     5,
-    1
+    1,
+    "BHA GK 2"
    ],
    "63": [
     5,
-    2
+    2,
+    "BHA DEF 1"
    ],
    "64": [
     5,
-    2
+    2,
+    "BHA DEF 2"
    ],
    "65": [
     5,
-    2
+    2,
+    "BHA DEF 3"
    ],
    "66": [
     5,
-    2
+    2,
+    "BHA DEF 4"
    ],
    "67": [
     5,
-    2
+    2,
+    "BHA DEF 5"
    ],
    "68": [
     5,
-    3
+    3,
+    "Mitoma"
    ],
    "69": [
     5,
-    3
+    3,
+    "BHA MID 2"
    ],
    "70": [
     5,
-    3
+    3,
+    "BHA MID 3"
    ],
    "71": [
     5,
-    3
+    3,
+    "BHA MID 4"
    ],
    "72": [
     5,
-    3
+    3,
+    "BHA MID 5"
    ],
    "73": [
     5,
-    4
+    4,
+    "BHA FWD 1"
    ],
    "74": [
     5,
-    4
+    4,
+    "BHA FWD 2"
    ],
    "75": [
     5,
-    4
+    4,
+    "BHA FWD 3"
    ],
    "76": [
     6,
-    1
+    1,
+    "AVL GK 1"
    ],
    "77": [
     6,
-    1
+    1,
+    "AVL GK 2"
    ],
    "78": [
     6,
-    2
+    2,
+    "Cash"
    ],
    "79": [
     6,
-    2
+    2,
+    "Mings"
    ],
    "80": [
     6,
-    2
+    2,
+    "AVL DEF 3"
    ],
    "81": [
     6,
-    2
+    2,
+    "AVL DEF 4"
    ],
    "82": [
     6,
-    2
+    2,
+    "AVL DEF 5"
    ],
    "83": [
     6,
-    3
+    3,
+    "McGinn"
    ],
    "84": [
     6,
-    3
+    3,
+    "AVL MID 2"
    ],
    "85": [
     6,
-    3
+    3,
+    "AVL MID 3"
    ],
    "86": [
     6,
-    3
+    3,
+    "AVL MID 4"
    ],
    "87": [
     6,
-    3
+    3,
+    "AVL MID 5"
    ],
    "88": [
     6,
-    4
+    4,
+    "AVL FWD 1"
    ],
    "89": [
     6,
-    4
+    4,
+    "AVL FWD 2"
    ],
    "90": [
     6,
-    4
+    4,
+    "AVL FWD 3"
    ],
    "91": [
     7,
-    1
+    1,
+    "LIV GK 1"
    ],
    "92": [
     7,
-    1
+    1,
+    "LIV GK 2"
    ],
    "93": [
     7,
-    2
+    2,
+    "LIV DEF 1"
    ],
    "94": [
     7,
-    2
+    2,
+    "LIV DEF 2"
    ],
    "95": [
     7,
-    2
+    2,
+    "LIV DEF 3"
    ],
    "96": [
     7,
-    2
+    2,
+    "LIV DEF 4"
    ],
    "97": [
     7,
-    2
+    2,
+    "LIV DEF 5"
    ],
    "98": [
     7,
-    3
+    3,
+    "LIV MID 1"
    ],
    "99": [
     7,
-    3
+    3,
+    "LIV MID 2"
    ],
    "100": [
     7,
-    3
+    3,
+    "LIV MID 3"
    ],
    "101": [
     7,
-    3
+    3,
+    "LIV MID 4"
    ],
    "102": [
     7,
-    3
+    3,
+    "LIV MID 5"
    ],
    "103": [
     7,
-    4
+    4,
+    "Isak"
    ],
    "104": [
     7,
-    4
+    4,
+    "LIV FWD 2"
    ],
    "105": [
     7,
-    4
+    4,
+    "LIV FWD 3"
    ],
    "106": [
     8,
-    1
+    1,
+    "MUN GK 1"
    ],
    "107": [
     8,
-    1
+    1,
+    "MUN GK 2"
    ],
    "108": [
     8,
-    2
+    2,
+    "MUN DEF 1"
    ],
    "109": [
     8,
-    2
+    2,
+    "MUN DEF 2"
    ],
    "110": [
     8,
-    2
+    2,
+    "MUN DEF 3"
    ],
    "111": [
     8,
-    2
+    2,
+    "MUN DEF 4"
    ],
    "112": [
     8,
-    2
+    2,
+    "MUN DEF 5"
    ],
    "113": [
     8,
-    3
+    3,
+    "Fernandes"
    ],
    "114": [
     8,
-    3
+    3,
+    "Mbeumo"
    ],
    "115": [
     8,
-    3
+    3,
+    "MUN MID 3"
    ],
    "116": [
     8,
-    3
+    3,
+    "MUN MID 4"
    ],
    "117": [
     8,
-    3
+    3,
+    "MUN MID 5"
    ],
    "118": [
     8,
-    4
+    4,
+    "MUN FWD 1"
    ],
    "119": [
     8,
-    4
+    4,
+    "MUN FWD 2"
    ],
    "120": [
     8,
-    4
+    4,
+    "MUN FWD 3"
    ],
    "121": [
     9,
-    1
+    1,
+    "CRY GK 1"
    ],
    "122": [
     9,
-    1
+    1,
+    "CRY GK 2"
    ],
    "123": [
     9,
-    2
+    2,
+    "CRY DEF 1"
    ],
    "124": [
     9,
-    2
+    2,
+    "CRY DEF 2"
    ],
    "125": [
     9,
-    2
+    2,
+    "CRY DEF 3"
    ],
    "126": [
     9,
-    2
+    2,
+    "CRY DEF 4"
    ],
    "127": [
     9,
-    2
+    2,
+    "CRY DEF 5"
    ],
    "128": [
     9,
-    3
+    3,
+    "CRY MID 1"
    ],
    "129": [
     9,
-    3
+    3,
+    "CRY MID 2"
    ],
    "130": [
     9,
-    3
+    3,
+    "CRY MID 3"
    ],
    "131": [
     9,
-    3
+    3,
+    "CRY MID 4"
    ],
    "132": [
     9,
-    3
+    3,
+    "CRY MID 5"
    ],
    "133": [
     9,
-    4
+    4,
+    "CRY FWD 1"
    ],
    "134": [
     9,
-    4
+    4,
+    "CRY FWD 2"
    ],
    "135": [
     9,
-    4
+    4,
+    "CRY FWD 3"
    ],
    "136": [
     10,
-    1
+    1,
+    "BOU GK 1"
    ],
    "137": [
     10,
-    1
+    1,
+    "BOU GK 2"
    ],
    "138": [
     10,
-    2
+    2,
+    "BOU DEF 1"
    ],
    "139": [
     10,
-    2
+    2,
+    "BOU DEF 2"
    ],
    "140": [
     10,
-    2
+    2,
+    "BOU DEF 3"
    ],
    "141": [
     10,
-    2
+    2,
+    "BOU DEF 4"
    ],
    "142": [
     10,
-    2
+    2,
+    "BOU DEF 5"
    ],
    "143": [
     10,
-    3
+    3,
+    "BOU MID 1"
    ],
    "144": [
     10,
-    3
+    3,
+    "BOU MID 2"
    ],
    "145": [
     10,
-    3
+    3,
+    "BOU MID 3"
    ],
    "146": [
     10,
-    3
+    3,
+    "BOU MID 4"
    ],
    "147": [
     10,
-    3
+    3,
+    "BOU MID 5"
    ],
    "148": [
     10,
-    4
+    4,
+    "BOU FWD 1"
    ],
    "149": [
     10,
-    4
+    4,
+    "BOU FWD 2"
    ],
    "150": [
     10,
-    4
+    4,
+    "BOU FWD 3"
    ],
    "151": [
     11,
-    1
+    1,
+    "TOT GK 1"
    ],
    "152": [
     11,
-    1
+    1,
+    "TOT GK 2"
    ],
    "153": [
     11,
-    2
+    2,
+    "TOT DEF 1"
    ],
    "154": [
     11,
-    2
+    2,
+    "TOT DEF 2"
    ],
    "155": [
     11,
-    2
+    2,
+    "TOT DEF 3"
    ],
    "156": [
     11,
-    2
+    2,
+    "TOT DEF 4"
    ],
    "157": [
     11,
-    2
+    2,
+    "TOT DEF 5"
    ],
    "158": [
     11,
-    3
+    3,
+    "TOT MID 1"
    ],
    "159": [
     11,
-    3
+    3,
+    "TOT MID 2"
    ],
    "160": [
     11,
-    3
+    3,
+    "TOT MID 3"
    ],
    "161": [
     11,
-    3
+    3,
+    "TOT MID 4"
    ],
    "162": [
     11,
-    3
+    3,
+    "TOT MID 5"
    ],
    "163": [
     11,
-    4
+    4,
+    "TOT FWD 1"
    ],
    "164": [
     11,
-    4
+    4,
+    "TOT FWD 2"
    ],
    "165": [
     11,
-    4
+    4,
+    "TOT FWD 3"
    ],
    "166": [
     12,
-    1
+    1,
+    "FUL GK 1"
    ],
    "167": [
     12,
-    1
+    1,
+    "FUL GK 2"
    ],
    "168": [
     12,
-    2
+    2,
+    "FUL DEF 1"
    ],
    "169": [
     12,
-    2
+    2,
+    "FUL DEF 2"
    ],
    "170": [
     12,
-    2
+    2,
+    "FUL DEF 3"
    ],
    "171": [
     12,
-    2
+    2,
+    "FUL DEF 4"
    ],
    "172": [
     12,
-    2
+    2,
+    "FUL DEF 5"
    ],
    "173": [
     12,
-    3
+    3,
+    "FUL MID 1"
    ],
    "174": [
     12,
-    3
+    3,
+    "FUL MID 2"
    ],
    "175": [
     12,
-    3
+    3,
+    "FUL MID 3"
    ],
    "176": [
     12,
-    3
+    3,
+    "FUL MID 4"
    ],
    "177": [
     12,
-    3
+    3,
+    "FUL MID 5"
    ],
    "178": [
     12,
-    4
+    4,
+    "FUL FWD 1"
    ],
    "179": [
     12,
-    4
+    4,
+    "FUL FWD 2"
    ],
    "180": [
     12,
-    4
+    4,
+    "FUL FWD 3"
    ],
    "181": [
     13,
-    1
+    1,
+    "NFO GK 1"
    ],
    "182": [
     13,
-    1
+    1,
+    "NFO GK 2"
    ],
    "183": [
     13,
-    2
+    2,
+    "NFO DEF 1"
    ],
    "184": [
     13,
-    2
+    2,
+    "NFO DEF 2"
    ],
    "185": [
     13,
-    2
+    2,
+    "NFO DEF 3"
    ],
    "186": [
     13,
-    2
+    2,
+    "NFO DEF 4"
    ],
    "187": [
     13,
-    2
+    2,
+    "NFO DEF 5"
    ],
    "188": [
     13,
-    3
+    3,
+    "NFO MID 1"
    ],
    "189": [
     13,
-    3
+    3,
+    "NFO MID 2"
    ],
    "190": [
     13,
-    3
+    3,
+    "NFO MID 3"
    ],
    "191": [
     13,
-    3
+    3,
+    "NFO MID 4"
    ],
    "192": [
     13,
-    3
+    3,
+    "NFO MID 5"
    ],
    "193": [
     13,
-    4
+    4,
+    "NFO FWD 1"
    ],
    "194": [
     13,
-    4
+    4,
+    "NFO FWD 2"
    ],
    "195": [
     13,
-    4
+    4,
+    "NFO FWD 3"
    ],
    "196": [
     14,
-    1
+    1,
+    "BRE GK 1"
    ],
    "197": [
     14,
-    1
+    1,
+    "BRE GK 2"
    ],
    "198": [
     14,
-    2
+    2,
+    "BRE DEF 1"
    ],
    "199": [
     14,
-    2
+    2,
+    "BRE DEF 2"
    ],
    "200": [
     14,
-    2
+    2,
+    "BRE DEF 3"
    ],
    "201": [
     14,
-    2
+    2,
+    "BRE DEF 4"
    ],
    "202": [
     14,
-    2
+    2,
+    "BRE DEF 5"
    ],
    "203": [
     14,
-    3
+    3,
+    "BRE MID 1"
    ],
    "204": [
     14,
-    3
+    3,
+    "BRE MID 2"
    ],
    "205": [
     14,
-    3
+    3,
+    "BRE MID 3"
    ],
    "206": [
     14,
-    3
+    3,
+    "BRE MID 4"
    ],
    "207": [
     14,
-    3
+    3,
+    "BRE MID 5"
    ],
    "208": [
     14,
-    4
+    4,
+    "BRE FWD 1"
    ],
    "209": [
     14,
-    4
+    4,
+    "BRE FWD 2"
    ],
    "210": [
     14,
-    4
+    4,
+    "BRE FWD 3"
    ],
    "211": [
     15,
-    1
+    1,
+    "EVE GK 1"
    ],
    "212": [
     15,
-    1
+    1,
+    "EVE GK 2"
    ],
    "213": [
     15,
-    2
+    2,
+    "Mykolenko"
    ],
    "214": [
     15,
-    2
+    2,
+    "EVE DEF 2"
    ],
    "215": [
     15,
-    2
+    2,
+    "EVE DEF 3"
    ],
    "216": [
     15,
-    2
+    2,
+    "EVE DEF 4"
    ],
    "217": [
     15,
-    2
+    2,
+    "EVE DEF 5"
    ],
    "218": [
     15,
-    3
+    3,
+    "EVE MID 1"
    ],
    "219": [
     15,
-    3
+    3,
+    "EVE MID 2"
    ],
    "220": [
     15,
-    3
+    3,
+    "EVE MID 3"
    ],
    "221": [
     15,
-    3
+    3,
+    "EVE MID 4"
    ],
    "222": [
     15,
-    3
+    3,
+    "EVE MID 5"
    ],
    "223": [
     15,
-    4
+    4,
+    "EVE FWD 1"
    ],
    "224": [
     15,
-    4
+    4,
+    "EVE FWD 2"
    ],
    "225": [
     15,
-    4
+    4,
+    "EVE FWD 3"
    ],
    "226": [
     16,
-    1
+    1,
+    "WHU GK 1"
    ],
    "227": [
     16,
-    1
+    1,
+    "WHU GK 2"
    ],
    "228": [
     16,
-    2
+    2,
+    "WHU DEF 1"
    ],
    "229": [
     16,
-    2
+    2,
+    "WHU DEF 2"
    ],
    "230": [
     16,
-    2
+    2,
+    "WHU DEF 3"
    ],
    "231": [
     16,
-    2
+    2,
+    "WHU DEF 4"
    ],
    "232": [
     16,
-    2
+    2,
+    "WHU DEF 5"
    ],
    "233": [
     16,
-    3
+    3,
+    "WHU MID 1"
    ],
    "234": [
     16,
-    3
+    3,
+    "WHU MID 2"
    ],
    "235": [
     16,
-    3
+    3,
+    "WHU MID 3"
    ],
    "236": [
     16,
-    3
+    3,
+    "WHU MID 4"
    ],
    "237": [
     16,
-    3
+    3,
+    "WHU MID 5"
    ],
    "238": [
     16,
-    4
+    4,
+    "WHU FWD 1"
    ],
    "239": [
     16,
-    4
+    4,
+    "WHU FWD 2"
    ],
    "240": [
     16,
-    4
+    4,
+    "WHU FWD 3"
    ],
    "241": [
     17,
-    1
+    1,
+    "LEE GK 1"
    ],
    "242": [
     17,
-    1
+    1,
+    "LEE GK 2"
    ],
    "243": [
     17,
-    2
+    2,
+    "LEE DEF 1"
    ],
    "244": [
     17,
-    2
+    2,
+    "LEE DEF 2"
    ],
    "245": [
     17,
-    2
+    2,
+    "LEE DEF 3"
    ],
    "246": [
     17,
-    2
+    2,
+    "LEE DEF 4"
    ],
    "247": [
     17,
-    2
+    2,
+    "LEE DEF 5"
    ],
    "248": [
     17,
-    3
+    3,
+    "LEE MID 1"
    ],
    "249": [
     17,
-    3
+    3,
+    "LEE MID 2"
    ],
    "250": [
     17,
-    3
+    3,
+    "LEE MID 3"
    ],
    "251": [
     17,
-    3
+    3,
+    "LEE MID 4"
    ],
    "252": [
     17,
-    3
+    3,
+    "LEE MID 5"
    ],
    "253": [
     17,
-    4
+    4,
+    "Calvert-Lewin"
    ],
    "254": [
     17,
-    4
+    4,
+    "LEE FWD 2"
    ],
    "255": [
     17,
-    4
+    4,
+    "LEE FWD 3"
    ],
    "256": [
     18,
-    1
+    1,
+    "WOL GK 1"
    ],
    "257": [
     18,
-    1
+    1,
+    "WOL GK 2"
    ],
    "258": [
     18,
-    2
+    2,
+    "WOL DEF 1"
    ],
    "259": [
     18,
-    2
+    2,
+    "WOL DEF 2"
    ],
    "260": [
     18,
-    2
+    2,
+    "WOL DEF 3"
    ],
    "261": [
     18,
-    2
+    2,
+    "WOL DEF 4"
    ],
    "262": [
     18,
-    2
+    2,
+    "WOL DEF 5"
    ],
    "263": [
     18,
-    3
+    3,
+    "WOL MID 1"
    ],
    "264": [
     18,
-    3
+    3,
+    "WOL MID 2"
    ],
    "265": [
     18,
-    3
+    3,
+    "WOL MID 3"
    ],
    "266": [
     18,
-    3
+    3,
+    "WOL MID 4"
    ],
    "267": [
     18,
-    3
+    3,
+    "WOL MID 5"
    ],
    "268": [
     18,
-    4
+    4,
+    "WOL FWD 1"
    ],
    "269": [
     18,
-    4
+    4,
+    "WOL FWD 2"
    ],
    "270": [
     18,
-    4
+    4,
+    "WOL FWD 3"
    ],
    "271": [
     19,
-    1
+    1,
+    "SUN GK 1"
    ],
    "272": [
     19,
-    1
+    1,
+    "SUN GK 2"
    ],
    "273": [
     19,
-    2
+    2,
+    "SUN DEF 1"
    ],
    "274": [
     19,
-    2
+    2,
+    "SUN DEF 2"
    ],
    "275": [
     19,
-    2
+    2,
+    "SUN DEF 3"
    ],
    "276": [
     19,
-    2
+    2,
+    "SUN DEF 4"
    ],
    "277": [
     19,
-    2
+    2,
+    "SUN DEF 5"
    ],
    "278": [
     19,
-    3
+    3,
+    "SUN MID 1"
    ],
    "279": [
     19,
-    3
+    3,
+    "SUN MID 2"
    ],
    "280": [
     19,
-    3
+    3,
+    "SUN MID 3"
    ],
    "281": [
     19,
-    3
+    3,
+    "SUN MID 4"
    ],
    "282": [
     19,
-    3
+    3,
+    "SUN MID 5"
    ],
    "283": [
     19,
-    4
+    4,
+    "SUN FWD 1"
    ],
    "284": [
     19,
-    4
+    4,
+    "SUN FWD 2"
    ],
    "285": [
     19,
-    4
+    4,
+    "SUN FWD 3"
    ],
    "286": [
     20,
-    1
+    1,
+    "BUR GK 1"
    ],
    "287": [
     20,
-    1
+    1,
+    "BUR GK 2"
    ],
    "288": [
     20,
-    2
+    2,
+    "BUR DEF 1"
    ],
    "289": [
     20,
-    2
+    2,
+    "BUR DEF 2"
    ],
    "290": [
     20,
-    2
+    2,
+    "BUR DEF 3"
    ],
    "291": [
     20,
-    2
+    2,
+    "BUR DEF 4"
    ],
    "292": [
     20,
-    2
+    2,
+    "BUR DEF 5"
    ],
    "293": [
     20,
-    3
+    3,
+    "BUR MID 1"
    ],
    "294": [
     20,
-    3
+    3,
+    "BUR MID 2"
    ],
    "295": [
     20,
-    3
+    3,
+    "BUR MID 3"
    ],
    "296": [
     20,
-    3
+    3,
+    "BUR MID 4"
    ],
    "297": [
     20,
-    3
+    3,
+    "BUR MID 5"
    ],
    "298": [
     20,
-    4
+    4,
+    "BUR FWD 1"
    ],
    "299": [
     20,
-    4
+    4,
+    "BUR FWD 2"
    ],
    "300": [
     20,
-    4
+    4,
+    "BUR FWD 3"
    ]
   },
   "mine": {

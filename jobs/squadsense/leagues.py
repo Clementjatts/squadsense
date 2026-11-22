@@ -184,6 +184,8 @@ def table_rows(standings, picks, histories, half):
             "teamName": row["entry_name"],
             "manager": row["player_name"],
             "rank": row["rank"],
+            # Tied teams share a rank (11, 11, 13); rank_sort counts on without gaps.
+            "position": row.get("rank_sort", row["rank"]),
             "lastRank": row["last_rank"],
             "total": row["total"],
             "eventPoints": row["event_total"],

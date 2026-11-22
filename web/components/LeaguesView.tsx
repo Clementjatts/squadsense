@@ -116,7 +116,8 @@ function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot 
       <div className="table-wrap">
         <table className={full ? "bc-table league-table" : "bc-table league-table league-table-short"}>
           <colgroup>
-            <col style={{ width: 76 }} />
+            {/* Big leagues have five-figure ranks, so their rank column is wider. */}
+            <col style={{ width: full ? 76 : 104 }} />
             <col />
             <col style={{ width: 84 }} />
             <col style={{ width: 90 }} />
@@ -155,7 +156,8 @@ interface TableRowsProps {
 function TableRows({ row, previous, full, snapshot }: TableRowsProps) {
   const isMine = row.entry === snapshot.team.id;
   const captain = row.captain ? snapshot.players[String(row.captain)] : undefined;
-  const skipped = previous !== undefined && row.rank > previous.rank + 1;
+  // Only big leagues leave rows out; ties alone (11, 11, 13) aren't a gap, so compare positions.
+  const skipped = !full && previous !== undefined && (row.position ?? row.rank) > (previous.position ?? previous.rank) + 1;
   return (
     <>
       {skipped && (

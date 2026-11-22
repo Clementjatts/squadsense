@@ -51,15 +51,10 @@ def count_free_transfers(gameweek_history, chips_played, next_gameweek, started_
 
     free_transfers = 1
     for gameweek in range(started_event + 1, next_gameweek):
-        if gameweek in chip_weeks:
-            if GAIN_TRANSFER_ON_CHIP_WEEKS:
-                free_transfers += 1
-        else:
-            used = transfers_by_week.get(gameweek, 0)
-            # Extra transfers beyond your free ones cost points but can't take
-            # the bank below zero.
-            free_transfers = max(0, free_transfers - used) + 1
-        free_transfers = min(free_transfers, rules.MAX_BANKED_FREE_TRANSFERS)
+        chip = "wildcard" if gameweek in chip_weeks else None
+        free_transfers = rules.next_free_transfers(
+            free_transfers, transfers_by_week.get(gameweek, 0), chip, gain_on_chip_week=GAIN_TRANSFER_ON_CHIP_WEEKS,
+        )
     return free_transfers
 
 

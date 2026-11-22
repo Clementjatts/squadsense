@@ -423,6 +423,7 @@ def test_review_compares_the_captain_with_the_best_pick(tmp_path, fake_client, m
     team = review["team"]
     assert team["bestCaptain"]["points"] >= team["captain"]["points"]
     assert len(team["starters"]) == 11
+    assert review["season"]["totals"]["weeks"] == CURRENT_WEEK
 
 
 def test_chip_cards_carry_a_decision_risk_and_week_values(tmp_path, fake_client, monkeypatch):
@@ -800,3 +801,103 @@ def test_query_strings_keep_the_trailing_slash_on_the_path():
     fake_http = FakeHttpClient({"leagues-classic/7/standings/?page_standings=2": {"standings": {"results": []}}})
     FplClient(min_seconds_between_requests=0, http_client=fake_http).league_standings(7, 2)
     assert fake_http.requested == ["leagues-classic/7/standings/?page_standings=2"]
+
+
+def test_season_review_adds_up_points_bench_hits_and_captain_choices():
+    from squadsense.review import season_review
+    bootstrap = {"events": [
+        {"id": week, "finished": True, "data_checked": True, "average_entry_score": 50} for week in (1, 2)
+    ] + [{"id": 3, "finished": False, "data_checked": False}]}
+    histories = {10: [{"round": 1, "total_points": 2}, {"round": 2, "total_points": 12}],
+                 20: [{"round": 1, "total_points": 9}, {"round": 2, "total_points": 3}]}
+    rows = {week: {"event": week, "points": points, "event_transfers_cost": cost, "overall_rank": rank, "points_on_bench": bench}
+            for week, points, cost, rank, bench in [(1, 60, 4, 900, 3), (2, 45, 0, 950, 7), (3, 0, 0, 950, 0)]}
+    captain_on = lambda player_id: {"picks": [
+        {"element": 10, "multiplier": 2 if player_id == 10 else 1, "is_captain": player_id == 10},
+        {"element": 20, "multiplier": 2 if player_id == 20 else 1, "is_captain": player_id == 20},
+    ]}
+    season = season_review(bootstrap, histories, rows, {1: captain_on(10), 2: captain_on(10)}, {1: {"expectedPoints": 52.5}})
+    assert [week["gameweek"] for week in season["weeks"]] == [1, 2]  # week 3 isn't finished
+    first, second = season["weeks"]
+    assert first["points"] == 56 and first["captainLost"] == 7  # captained 2 points, 9 was there
+    assert second["captainLost"] == 0 and second["predicted"] is None
+    totals = season["totals"]
+    assert totals["points"] == 101 and totals["benchPoints"] == 10 and totals["transferCost"] == 4
+    assert totals["aboveAverage"] == 1 and totals["captainRight"] == 1 and totals["captainLost"] == 7
+    assert totals["forecastWeeks"] == 1 and totals["forecastPredicted"] == 52.5 and totals["forecastActual"] == 56
+
+
+def test_reused_plans_get_tonights_price_notes():
+    from squadsense.strategy import refresh_price_notes
+    rising = {"id": 7, "price_change_projections": [{"offset": 0, "likelihood": 5}], "price_change_locked_until": None}
+    steady = {"id": 8, "price_change_projections": [{"offset": 0, "likelihood": 0}], "price_change_locked_until": None}
+    plan = {
+        "weeks": [{"moves": [{"out": 8, "in": 7, "priceNote": None}]}, {"moves": [{"out": 8, "in": 7, "priceNote": None}]}],
+        "normalTransfers": {"weeks": [{"moves": [{"out": 8, "in": 7, "priceNote": "stale note"}]}]},
+    }
+    refresh_price_notes(plan, {"elements": [rising, steady]})
+    assert plan["weeks"][0]["moves"][0]["priceNote"] == "buy now: likely to rise £0.1m tonight"
+    assert plan["weeks"][1]["moves"][0]["priceNote"] == "priced £0.1m higher after tonight's likely rise"
+    assert plan["normalTransfers"]["weeks"][0]["moves"][0]["priceNote"] == "buy now: likely to rise £0.1m tonight"
+    refresh_price_notes(plan, {"elements": [dict(rising, price_change_projections=[{"offset": 0, "likelihood": 0}]), steady]})
+    assert plan["weeks"][0]["moves"][0]["priceNote"] is None  # no longer likely, so the old note goes
+    refresh_price_notes(None, {"elements": []})  # an estimate-only result has no plan
+
+
+def shared_rule_cases():
+    """The cases in shared/rule-cases.json, which web/tests/rules.test.mts checks too."""
+    import json
+    from pathlib import Path
+    return json.loads((Path(__file__).resolve().parents[2] / "shared" / "rule-cases.json").read_text())
+
+
+def test_shared_rule_cases_match_the_python_rules():
+    cases = shared_rule_cases()
+    for case in cases["hitPoints"]:
+        assert rules.hit_points(case["transfersMade"], case["freeTransfers"], case["chip"]) == case["expected"], case["why"]
+    for case in cases["nextFreeTransfers"]:
+        assert rules.next_free_transfers(case["freeTransfers"], case["transfersMade"], case["chip"]) == case["expected"], case["why"]
+    for case in cases["clubsOverLimit"]:
+        assert rules.clubs_over_limit(case["clubs"]) == case["expected"], case["why"]
+
+
+def test_price_predictions_are_saved_per_uk_day():
+    from datetime import datetime, timezone
+    from squadsense.price_watch import predictions_record
+    bootstrap = {"elements": [
+        {"id": 1, "now_cost": 55, "price_change_projections": [{"offset": 0, "likelihood": 4}], "price_change_locked_until": None},
+        {"id": 2, "now_cost": 80, "price_change_projections": [{"offset": 0, "likelihood": -5}], "price_change_locked_until": "2026-11-25"},
+    ]}
+    summer_night = predictions_record(bootstrap, datetime(2026, 7, 10, 23, 30, tzinfo=timezone.utc))
+    assert summer_night["day"] == "2026-07-11"  # 00:30 in the UK, after that night's change
+    winter_night = predictions_record(bootstrap, datetime(2026, 11, 22, 23, 45, tzinfo=timezone.utc))
+    assert winter_night["day"] == "2026-11-22"  # still before 00:00 UK
+    assert winter_night["players"] == {"1": [55, 4], "2": [80, 0]}  # a locked price counts as no change
+
+
+def test_price_audit_scores_each_band_against_the_next_day(tmp_path):
+    from squadsense.price_audit import PREFIX, band_table, outcomes, report
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    storage.save_raw(f"{PREFIX}2026-11-20", {"day": "2026-11-20", "players": {"1": [55, 5], "2": [80, -4], "3": [45, 0], "4": [60, 3]}})
+    storage.save_raw(f"{PREFIX}2026-11-21", {"day": "2026-11-21", "players": {"1": [56, 0], "2": [79, 0], "3": [46, 0], "4": [60, 0]}})
+    storage.save_raw(f"{PREFIX}2026-11-23", {"day": "2026-11-23", "players": {"1": [56, 5]}})  # no 24th yet, so skipped
+    records = storage.load_raws(PREFIX)
+    assert [record["day"] for record in records] == ["2026-11-20", "2026-11-21", "2026-11-23"]
+    table = band_table(outcomes(records))
+    assert table[5]["rose"] == 1 and table[-4]["fell"] == 1 and table[3]["unchanged"] == 1
+    assert table[0]["rose"] == 1  # player 3 rose with no warning
+    text = report(records)
+    assert "1 night(s) checked" in text and "Changes FPL rated 0 (no change): 1" in text
+    assert "Not enough data yet" in report(records[:1])
+
+
+def test_tied_teams_keep_a_gap_free_position():
+    from squadsense.leagues import table_rows
+    standings = [
+        {"entry": entry, "entry_name": f"T{entry}", "player_name": "M", "rank": rank, "rank_sort": sort, "last_rank": rank, "total": 100, "event_total": 50}
+        for entry, rank, sort in [(1, 11, 11), (2, 11, 12), (3, 13, 13)]
+    ]
+    rows = table_rows(standings, {}, {}, (1, 19))
+    assert [row["rank"] for row in rows] == [11, 11, 13]
+    assert [row["position"] for row in rows] == [11, 12, 13]  # no gap, so no "..." row on the page

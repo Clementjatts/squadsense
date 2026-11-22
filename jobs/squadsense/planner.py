@@ -133,7 +133,7 @@ def suggest_transfers(squad_state, players_by_id, expected_points, gameweeks, li
 
 def add_hit_or_roll_advice(move, free_transfers):
     """Adds the hit cost and the "make it or roll it" verdict to a move."""
-    hit_cost = 0 if free_transfers >= 1 else rules.POINTS_PER_EXTRA_TRANSFER
+    hit_cost = rules.hit_points(1, free_transfers)  # None (unlimited first week) costs nothing
     keep_value = roll_value(free_transfers)
     move["hit_cost"] = hit_cost
     move["roll_value"] = keep_value

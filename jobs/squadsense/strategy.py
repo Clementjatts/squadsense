@@ -359,6 +359,21 @@ def values_from_json(saved):
     return {chip: {int(week): ChipValue(**value) for week, value in by_week.items()} for chip, by_week in saved.items()}
 
 
+def refresh_price_notes(plan, bootstrap):
+    """Re-labels a saved plan's moves with tonight's likely price changes.
+
+    A plan is reused for up to 12 hours, but FPL's price predictor moves
+    through the day. Only the "buy now" and "sell now" notes are redone;
+    the moves themselves were chosen with the prices known when the plan
+    was solved. Does nothing for an estimate-only result (no plan).
+    """
+    if not plan:
+        return
+    price_moves = likely_price_moves(bootstrap)
+    add_price_notes(plan["weeks"], price_moves)
+    add_price_notes(plan.get("normalTransfers", {}).get("weeks", []), price_moves)
+
+
 def cached_plan_and_chips(storage, bootstrap, fixtures, model_results, squad_state, weeks):
     """plan_and_chips(), reusing the last result while nothing that matters has changed."""
     name = f"strategy/{squad_state.team_id}/{squad_state.gameweek}"
@@ -366,6 +381,7 @@ def cached_plan_and_chips(storage, bootstrap, fixtures, model_results, squad_sta
     saved = storage.load_raw(name) if storage else None
     if saved and saved["key"] == key and datetime.now(timezone.utc) - datetime.fromisoformat(saved["savedAt"]) < timedelta(hours=MAX_PLAN_AGE_HOURS):
         log.info("Reusing the plan from %s (nothing that matters has changed)", saved["savedAt"])
+        refresh_price_notes(saved["plan"], bootstrap)
         return saved["plan"], values_from_json(saved["values"]), saved["decisions"], saved["source"]
     plan, values, decisions, source = plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks)
     if storage:

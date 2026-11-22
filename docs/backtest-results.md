@@ -243,3 +243,34 @@ What it shows:
 - The same manager can score differently between runs: the live strategy got 930 in 2023-24 GW4-19 here and 964 in the first run, because the solver stops at a time limit and three seasons ran at once. Differences under about 30 points per half are noise.
 
 So the live settings stay as they were: `strategy.CHIP_MARGINS` is the Wildcard's 5 points only and `transfer_solver.HIT_PENALTY` is 0. Both are now settings, and `plan_backtest.py` takes `--managers` and `--season`, so other values can be tried later.
+
+## Captain haul and blank chances (22 November 2026)
+
+`python -m squadsense.captain_calibration` checks the "chance of 10+ points" and "chance of 2 or fewer" figures from `captaincy.py`. For every week of 2022-23, 2023-24, 2024-25 and this season so far, it takes the model's top 5 captain options (from what was known before the week, like `backtest.py`), works out both chances with 2,000 simulated matches each, and compares them with each player's real points. A player who didn't play counts as 0 points, since that's a real outcome of the pick. 560 options in all.
+
+The Brier score is the average squared gap between a chance and what happened (1 or 0); lower is better. "Flat guess" is the score of giving every option the overall rate.
+
+```
+                      happened   Brier   flat guess
+Haul (10+ points)        22.1%  0.1768       0.1724
+Blank (2 or fewer)       36.4%  0.2130       0.2316
+
+Haul chance given   options   hauled      Blank chance given   options   blanked
+   0%-10%     81      13.6%                  0%-10%      92       7.6%
+  10%-20%    142      14.1%                 10%-20%      33      21.2%
+  20%-30%    173      25.4%                 20%-30%     118      34.7%
+  30%-40%     79      24.1%                 30%-40%     133      39.1%
+  40%-50%     33      24.2%                 40%-50%     118      51.7%
+  50%-60%     27      51.9%                 50%-60%      34      52.9%
+  60%-70%     15      33.3%                 60%-70%      16      56.2%
+  70%-80%      6      33.3%                 70%-80%      13      53.8%
+  80%-90%      4      25.0%                 80%-90%       3      66.7%
+```
+
+What it shows:
+
+- The haul chance doesn't beat a flat guess (0.1768 against 0.1724). It is too spread out: options given over 60% hauled about 30% of the time, and options given under 10% hauled 13.6% of the time. Between 10% and 30% it's about right, which is where most captain options sit.
+- The blank chance is useful (0.2130 against 0.2316) but a little low: options given 20-30% blanked 35% of the time, and 0-10% blanked 7.6%.
+- Likely causes, not yet tested: the rough bonus guess in `bonus_for`, and treating goals and assists as independent of each other and of minutes.
+
+Nothing in the live advice was changed. The Dashboard and Chip Planner still show these chances; treat a haul chance above about 40% as roughly 25-30%. Fixing the spread is a model change, so it belongs with the other experiments that need their own backtest.

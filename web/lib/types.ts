@@ -279,7 +279,8 @@ export interface LeagueRow {
   entry: number;
   teamName: string;
   manager: string;
-  rank: number;
+  rank: number; // tied teams share a rank, so ranks can skip (11, 11, 13)
+  position?: number; // FPL's rank_sort: counts on without gaps; missing before 22 November 2026
   lastRank: number;
   total: number;
   eventPoints: number;
@@ -325,6 +326,38 @@ export interface GameweekReview {
     predictedTotal: number | null;
     starters: { playerId: number; points: number; xp: number | null }[];
   } | null;
+  season?: SeasonReview | null; // missing in snapshots saved before 22 November 2026
+}
+
+// One finished week of your season. `points` are after hits. `captainLost`
+// is the captain points you'd have gained with the best pick in your
+// eleven (0 when you picked him), or null when your picks weren't read.
+export interface SeasonWeek {
+  gameweek: number;
+  points: number;
+  average: number | null;
+  overallRank: number;
+  benchPoints: number;
+  transferCost: number;
+  predicted: number | null; // the forecast total saved before the deadline
+  captainLost: number | null;
+}
+
+export interface SeasonReview {
+  weeks: SeasonWeek[];
+  totals: {
+    weeks: number;
+    points: number;
+    benchPoints: number;
+    transferCost: number;
+    aboveAverage: number;
+    captainWeeks: number;
+    captainRight: number;
+    captainLost: number;
+    forecastWeeks: number;
+    forecastPredicted: number;
+    forecastActual: number;
+  };
 }
 
 // Every team's picks for the gameweek being played, for the Live page.
@@ -344,7 +377,7 @@ export interface LiveTeamPicks {
 
 export interface LivePicks {
   gameweek: number;
-  elements: Record<string, [number, number]>; // player id -> [club id, position 1-4]
+  elements: Record<string, [number, number, string?]>; // player id -> [club id, position 1-4, short name (missing before 22 November 2026)]
   mine: LiveTeamPicks | null;
   leagues: { id: number; name: string; teams: { entry: number; teamName: string; totalBefore: number; picks: LivePick[]; chip: string | null }[] }[];
 }

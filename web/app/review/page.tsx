@@ -3,6 +3,7 @@
 
 import { PageHero, type HeroFigure } from "@/components/PageHero";
 import { PlayerLink } from "@/components/PlayerPanel";
+import { SeasonReview } from "@/components/SeasonReview";
 import { formatXp } from "@/lib/format";
 import { getSnapshot } from "@/lib/snapshot";
 import type { GameweekReview, Snapshot } from "@/lib/types";
@@ -35,6 +36,7 @@ export default async function ReviewPage() {
           <AcrossFpl review={review} snapshot={snapshot} />
         </div>
       </div>
+      {review.season && <SeasonReview season={review.season} />}
     </div>
   );
 }

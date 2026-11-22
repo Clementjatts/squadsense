@@ -498,7 +498,16 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .review-top-row { height: 40px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 48px 40px; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
 .review-top-row:first-child { border-top: 0; }
 .review-top-row b { text-align: right; }
-.live-row { height: 38px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 52px 56px; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
+.live-row { height: 38px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 36px 52px 56px; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
+.live-row-head { height: 26px; border-top: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.live-row-head span:nth-child(n + 3) { text-align: right; }
+/* Effective ownership under the live table. */
+.live-eo { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--panel-line); }
+.live-eo-title { margin: 0; font-family: var(--condensed); font-weight: 800; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; }
+.live-eo-row { height: 36px; display: grid; grid-template-columns: minmax(0, 1fr) 56px 48px 56px; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
+.live-eo-row.live-row-head { height: 24px; border-top: 0; }
+.live-eo-row.live-row-head span:nth-child(n + 2) { text-align: right; }
+.live-eo-row .num, .live-eo-row b { text-align: right; }
 .live-row:first-child, .live-fixture:first-child { border-top: 0; }
 .live-row b, .live-row .num { text-align: right; }
 .live-fixture { height: 36px; display: grid; grid-template-columns: 1fr 64px 1fr 40px; align-items: center; gap: 8px; border-top: 1px solid var(--panel-line); font-size: 14px; }
@@ -733,6 +742,18 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .league-picker .bc-select { width: 100%; max-width: 560px; height: 42px; font-size: 14px; }
 .league-gap td { height: 28px; text-align: center; letter-spacing: 0.2em; }
 
+/* Review: season totals and the points-per-week chart. Bars over the FPL
+   average are lime; the white tick marks the average. */
+.summary-grid.season-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.season-chart { display: flex; align-items: flex-end; gap: 6px; height: 170px; overflow-x: auto; padding-bottom: 2px; }
+.season-chart-col { flex: 1 0 26px; max-width: 48px; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.season-chart-value { font-family: var(--condensed); font-weight: 700; font-size: 13px; line-height: 14px; }
+.season-chart-track { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.season-chart-bar { width: 100%; background: #2a3a5c; transform: skewX(-8deg); }
+.season-chart-bar.above { background: var(--accent); }
+.season-chart-average { position: absolute; left: -2px; right: -2px; height: 2px; background: var(--ink); }
+.season-chart-label { font-family: var(--condensed); font-size: 12px; color: #8c98b3; }
+
 /* Pieces that only exist on one kind of screen. The phone-only bottom bar
    and the phone-only Planner cards are hidden on wider screens. */
 .bottomnav, .bottomnav-backdrop, .bottomnav-menu { display: none; }
@@ -796,7 +817,7 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   /* Summary tiles grow with their text; four tiles become two by two. */
   .summary-grid > div { height: auto; min-height: 74px; padding: 10px 12px; gap: 4px; }
   .summary-grid b, .summary-grid b .num { font-size: 22px; line-height: 24px; }
-  .summary-grid:has(> :nth-child(4)), .summary-grid.rival-holding { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary-grid:has(> :nth-child(4)), .summary-grid.rival-holding, .summary-grid.season-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   /* Fields use 16 px text, below which iOS Safari zooms in on tap. */
   .bc-select, .compare-input { font-size: 16px; }
@@ -919,6 +940,7 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .league-table tr.bc-mine-row td:nth-child(-n + 2) { background: #111d26; }
   .league-table th:first-child, .league-table td:first-child { left: 0; }
   .league-table th:nth-child(2), .league-table td:nth-child(2) { left: 76px; box-shadow: 1px 0 0 var(--panel-line); }
+  .league-table-short th:nth-child(2), .league-table-short td:nth-child(2) { left: 104px; }
   .league-table td.bc-cell-name { line-height: 18px; }
   .bc-manager { display: block; margin-left: 0; }
 

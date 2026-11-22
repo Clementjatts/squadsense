@@ -4,6 +4,7 @@
 // the tab is open, and shows your eleven, the fixtures and live league tables.
 
 import { useEffect, useState } from "react";
+import type { OwnershipLine } from "@/lib/live";
 import { PageHero } from "./PageHero";
 import { PlayerLink } from "./PlayerPanel";
 
@@ -23,7 +24,12 @@ interface LiveResponse {
   gameweek: number;
   fetchedAt: string;
   mine: { points: number; hits: number; lineup: LiveLine[]; subs: { out: number; in: number }[]; playersLeft: number } | null;
-  leagues: { id: number; name: string; rows: { entry: number; teamName: string; live: number; total: number; chip: string | null; playersLeft: number }[] }[];
+  leagues: {
+    id: number;
+    name: string;
+    rows: { entry: number; teamName: string; live: number; total: number; chip: string | null; playersLeft: number }[];
+    ownership?: (OwnershipLine & { name: string })[]; // missing from responses made before 22 November 2026
+  }[];
   fixtures: { id: number; home: string; away: string; homeScore: number | null; awayScore: number | null; minutes: number; status: string }[];
 }
 
@@ -163,17 +169,63 @@ function LiveLeagues({ leagues }: { leagues: LiveResponse["leagues"] }) {
           <span className="muted">{league.name}</span>
         )}
       </div>
+      <div className="live-row live-row-head muted" aria-hidden="true">
+        <span>#</span>
+        <span>Team</span>
+        <span>Left</span>
+        <span>Live</span>
+        <span>Total</span>
+      </div>
       <ol className="share-list">
         {league.rows.map((row, index) => (
           <li key={row.entry} className="live-row">
             <span className="muted num">{index + 1}</span>
             <span className="share-name">{row.teamName}</span>
+            <span className="num muted" title="Starters whose matches haven't finished">{row.playersLeft}</span>
             <span className="num muted">+{row.live}</span>
             <b className="num">{row.total}</b>
           </li>
         ))}
       </ol>
+      {league.ownership && league.ownership.length > 0 && <OwnershipList lines={league.ownership} />}
     </section>
+  );
+}
+
+// Formats an effective ownership as a percentage, so 1.4 reads "140%".
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+// The players that matter most in this league right now: effective
+// ownership among your rivals against yours, and what each has gained or
+// cost you so far. "Net" is positive when you own him more than they do.
+function OwnershipList({ lines }: { lines: (OwnershipLine & { name: string })[] }) {
+  return (
+    <div className="live-eo">
+      <h3 className="live-eo-title">Effective ownership</h3>
+      <p className="muted small" style={{ margin: 0 }}>
+        Captains count twice. A player your rivals own more than you costs you ground every time he scores.
+      </p>
+      <div className="live-eo-row live-row-head muted" aria-hidden="true">
+        <span>Player</span>
+        <span>Rivals</span>
+        <span>You</span>
+        <span>So far</span>
+      </div>
+      <ul className="share-list">
+        {lines.map((line) => (
+          <li key={line.element} className="live-eo-row">
+            <span className="share-name"><PlayerLink id={line.element} name={line.name} /></span>
+            <span className="num muted">{percent(line.eo)}</span>
+            <span className="num">{percent(line.mine)}</span>
+            <b className={`num ${line.swing > 0 ? "bc-accent" : line.swing < 0 ? "bc-warn" : "muted"}`}>
+              {line.swing > 0 ? "+" : ""}{line.swing.toFixed(1)}
+            </b>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
