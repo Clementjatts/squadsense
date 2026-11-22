@@ -28,7 +28,8 @@ const MAIN_TABS = [
 ];
 
 export function BottomNav() {
-  const pathname = usePathname();
+  // usePathname can be null before the router is ready; treat that as the home page.
+  const pathname = usePathname() ?? "/";
   const [moreOpen, setMoreOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const onMorePage = MORE_PAGES.some((page) => page.href === pathname);
