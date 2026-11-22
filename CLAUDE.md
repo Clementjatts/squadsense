@@ -116,7 +116,7 @@ Website (`web/`, Next.js 16 since 21 November 2026, React 19, TypeScript, plain 
 
 All 47 Python tests pass (about 6 minutes, mostly the chip plan in the agreement test). `next build` passes with no type errors. On 20 November 2026 the real sync ran against the live API (with a model-picked squad), and every page (Dashboard, Planner, Fixtures, Price Watch, Chips, player panel) loaded on real data with no console errors.
 
-On 21 November 2026 hosting went live: Supabase, the private GitHub repo with its Actions schedule, and Vercel at https://squadsense.vercel.app. The scheduled sync writes to Supabase, and the site reads from it and saves push subscriptions with the new `sb_secret_...` key as `SUPABASE_SERVICE_ROLE_KEY`. Alerts work end to end: a test alert (Run workflow, "Only send a test email and phone alert", which runs `python -m squadsense.alerts --test`) reached Clement's inbox and his iPhone's Home Screen app. The iPhone bell menu checks for push support, not `display-mode: standalone`, which an iPhone opened from its icon reported as false.
+On 21 November 2026 hosting went live: Supabase, the private GitHub repo with its Actions schedule, and Vercel at https://squadsense.vercel.app. Since 22 November 2026 it is also at https://squadsense.clementadegbenro.com (Cloudflare CNAME `squadsense`, DNS only, pointing at Vercel; Vercel issues the certificate), and the `SITE_URL` secret uses the new address. The scheduled sync writes to Supabase, and the site reads from it and saves push subscriptions with the new `sb_secret_...` key as `SUPABASE_SERVICE_ROLE_KEY`. Alerts work end to end: a test alert (Run workflow, "Only send a test email and phone alert", which runs `python -m squadsense.alerts --test`) reached Clement's inbox and his iPhone's Home Screen app. The iPhone bell menu checks for push support, not `display-mode: standalone`, which an iPhone opened from its icon reported as false.
 
 ### Not verified
 
@@ -141,7 +141,7 @@ On 21 November 2026 hosting went live: Supabase, the private GitHub repo with it
 
 ## Next steps, in order
 
-1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data; free transfers still to confirm on the site) and the Next.js 16 upgrade (npm audit now clean). Hosting is live on Vercel (Supabase and the Actions schedule too). Still open: a Cloudflare subdomain.
+1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data; free transfers still to confirm on the site) and the Next.js 16 upgrade (npm audit now clean). Hosting is live on Vercel (Supabase and the Actions schedule too). The Cloudflare subdomain is live (22 November).
 2. Price Watch is done, using FPL's own predictor. Still open: check after a few nights whether projection offsets 1 and 2 are the following nights (about 75% sure), and use `price_snapshots` to measure how often the predictor is right.
 3. Chip Planner and Fixture Ticker are done. The five-week plan now covers pairs and rolls. Still open: backtest the captain haul chance and the plan's untested settings.
 4. Player detail panel is done, including "Add to plan" and "Make captain".
