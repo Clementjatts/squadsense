@@ -47,6 +47,10 @@ SOLVER_SECONDS = 300
 SOLVER_GAP = 0.002
 BIG_NUMBER = 20  # larger than any possible count of free transfers or moves
 NEGATIVE_GAIN_TOLERANCE = 0.5  # xP; an unfinished plan worse than doing nothing by more than this is rejected
+# Extra points each -4 hit costs when choosing a plan, on top of the 4 it
+# really costs. Forecasts are rough, so a hit whose gain is only just
+# above 4 is often a loss. Reported gains still use the real 4.
+HIT_PENALTY = 0.0
 SOLVER_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
 
 
@@ -150,7 +154,7 @@ class PlanProblem:
             free_hit = self.free_hit_best.get(week)
             if free_hit:
                 total.append(discount * free_hit["points"] * self.chip_played("freehit", week))
-            total.append(-rules.POINTS_PER_EXTRA_TRANSFER * self.hits[week])
+            total.append(-(rules.POINTS_PER_EXTRA_TRANSFER + HIT_PENALTY) * self.hits[week])
         last = self.weeks[-1]
         total.append(END_FREE_TRANSFER_VALUE * self.carry[last])
         for chip, allowed in self.chip_weeks.items():

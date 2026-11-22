@@ -12,8 +12,10 @@ can never disagree. The rules:
 3. Each chip has a keep value: PLAY_SHARE of its best value later in the
    half, after the five weeks. The plan only plays a chip now if that
    beats saving it. (PLAY_SHARE came from the chip backtest.)
-4. A Wildcard rebuilds the team and can't be undone, so it also has to
-   clear WILDCARD_MARGIN points before the plan uses it.
+4. A chip played now can't be played later, and the forecasts it relies
+   on are rough, so each chip also has to clear its CHIP_MARGINS points
+   before the plan uses it. The Wildcard's is largest, since it rebuilds
+   the team and can't be undone.
 5. Anything within CLOSE_CALL points of saving the chip is shown as a
    close call, for you to decide.
 
@@ -44,7 +46,8 @@ from .transfer_solver import SOLVER_CHIPS, TransferSolverError, solve_transfer_p
 
 log = logging.getLogger("squadsense.strategy")
 
-WILDCARD_MARGIN = 5.0  # points; a judgement call, about 70% confident, until the transfer plan is backtested
+# Points a chip must beat saving it by before the plan plays it. Added to its keep value.
+CHIP_MARGINS = {"wildcard": 5.0, "freehit": 0.0, "bboost": 0.0, "3xc": 0.0}
 CLOSE_CALL = 2.0  # points between playing and saving a chip that count as "your call"
 MAX_PLAN_AGE_HOURS = 12  # re-plan at least twice a day, so new matches and form count
 # How sure is each move: the plan is re-solved this many times with random
@@ -86,14 +89,12 @@ def later_weeks(values, window_end):
 
 
 def keep_values(values, window_end):
-    """What each chip is worth if saved: PLAY_SHARE of its value in its later week, plus the Wildcard margin."""
+    """What each chip is worth if saved: PLAY_SHARE of its value in its later week, plus its margin."""
     saved_for = later_weeks(values, window_end)
     keep = {}
     for chip, by_week in values.items():
         week = saved_for.get(chip)
-        keep[chip] = chips.PLAY_SHARE * by_week[week].gain if week is not None else 0.0
-        if chip == "wildcard":
-            keep[chip] += WILDCARD_MARGIN
+        keep[chip] = (chips.PLAY_SHARE * by_week[week].gain if week is not None else 0.0) + CHIP_MARGINS.get(chip, 0.0)
     return keep
 
 
@@ -248,7 +249,7 @@ def decide(chip, played_week, values, keep, marginal, first_week, saved_for, win
         "laterGain": round(values[chip][best_later].gain, 1) if best_later is not None else None,
     }
     if played_week is not None:
-        saved_worth = keep.get(chip, 0.0) - (WILDCARD_MARGIN if chip == "wildcard" else 0.0)
+        saved_worth = keep.get(chip, 0.0) - CHIP_MARGINS.get(chip, 0.0)
         decision.update(
             action="play", week=played_week, gain=round(marginal, 1),
             closeCall=marginal - saved_worth < CLOSE_CALL, playNow=played_week == first_week,
@@ -329,7 +330,7 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
         normalTransfers={"weeks": normal["weeks"], "gain": normal["gain"], "totalHits": normal["totalHits"]},
         gapToBest=round(gap, 1),
         normalShareOfGap=round(1 - share_left, 2),
-        wildcardMargin=WILDCARD_MARGIN,
+        wildcardMargin=CHIP_MARGINS["wildcard"],
         closeCallPoints=CLOSE_CALL,
     )
     return plan, values, decisions, "plan"

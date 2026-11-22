@@ -3,27 +3,34 @@
 Each half of each downloaded past season is replayed week by week. Every
 week, a manager decides using only matches played before that week, makes
 that week's moves (and plays a chip if the decision says so), and scores
-the real points his lineup got. Four managers are compared:
+the real points his lineup got. The managers (MANAGERS) are:
 
 - strategy: the app's full strategy (strategy.plan_and_chips), transfers
   and chips planned together, exactly the code the website uses
+- margins: the same, but every chip must beat saving it by TIGHTER_MARGINS
+- margins+hits: margins, and each hit costs EXTRA_HIT_PENALTY more when planning
 - plan: the five-week transfer plan with no chips
+- plan+hits: the plan with the extra hit cost
 - single: the best single transfer each week, if it beats rolling
   (planner.suggest_transfers, the older advice)
 - hold: never transfers, never plays a chip
+
+By default the first five run; --managers picks others.
 
 All four start each half from the same model-picked squad (nobody's real
 past squads are available) with one free transfer. Real points use the
 lineup and captain the model would have picked, with automatic subs and
 the vice-captain stepping in, as FPL does.
 
-Run from jobs/ (it takes a while; roughly half an hour):
+Run from jobs/ (it takes a while; about an hour per season). Seasons can
+run side by side in separate terminals with --season:
 
-    python -m squadsense.plan_backtest
+    python -m squadsense.plan_backtest --season 2023-24
 """
 
 import argparse
 import statistics
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -38,8 +45,32 @@ from .squad_state import SquadState
 
 WINDOW = 5
 POOL_PER_POSITION = 50  # players per position the strategy may consider; keeps the backtest's squad searches quick
-MANAGERS = ("strategy", "plan", "single", "hold")
+# Settings the variants try. The live app's own values are in strategy.CHIP_MARGINS and transfer_solver.HIT_PENALTY.
+TIGHTER_MARGINS = {"wildcard": 5.0, "freehit": 3.0, "bboost": 3.0, "3xc": 3.0}
+EXTRA_HIT_PENALTY = 2.0
 CHIP_WINDOWS = [{"start_event": 1, "stop_event": 19}, {"start_event": 20, "stop_event": 38}]
+
+
+@dataclass
+class Settings:
+    """A variant's chip margins and hit penalty. None keeps the live app's value."""
+
+    margins: dict | None = None
+    hit_penalty: float | None = None
+
+
+@contextmanager
+def using(settings):
+    """Swaps in a variant's settings for one decision, then puts the live values back."""
+    saved = strategy.CHIP_MARGINS, transfer_solver.HIT_PENALTY
+    if settings.margins is not None:
+        strategy.CHIP_MARGINS = settings.margins
+    if settings.hit_penalty is not None:
+        transfer_solver.HIT_PENALTY = settings.hit_penalty
+    try:
+        yield
+    finally:
+        strategy.CHIP_MARGINS, transfer_solver.HIT_PENALTY = saved
 
 
 @dataclass
@@ -120,7 +151,16 @@ def hold_decision(forecaster, week, last_week, manager):
     return [], None, None, players, forecast
 
 
-DECIDERS = {"strategy": strategy_decision, "plan": plan_decision, "single": single_decision, "hold": hold_decision}
+MANAGERS = {
+    "strategy": (strategy_decision, Settings()),
+    "margins": (strategy_decision, Settings(margins=TIGHTER_MARGINS)),
+    "margins+hits": (strategy_decision, Settings(margins=TIGHTER_MARGINS, hit_penalty=EXTRA_HIT_PENALTY)),
+    "plan": (plan_decision, Settings()),
+    "plan+hits": (plan_decision, Settings(hit_penalty=EXTRA_HIT_PENALTY)),
+    "single": (single_decision, Settings()),
+    "hold": (hold_decision, Settings()),
+}
+DEFAULT_MANAGERS = ("strategy", "margins", "margins+hits", "plan", "plan+hits")
 
 
 def real_points(squad, chip, players, forecast, forecaster, week):
@@ -165,7 +205,7 @@ def apply_week(manager, moves, chip, free_hit_squad, players, forecast, forecast
     manager.free_transfers = min(rules.MAX_BANKED_FREE_TRANSFERS, max(0, manager.free_transfers - used) + 1)
 
 
-def replay_half(forecaster, start, stop, names=MANAGERS):
+def replay_half(forecaster, start, stop, names=DEFAULT_MANAGERS):
     """Every manager's real points for one half of a season."""
     weeks = [week for week in range(start, stop + 1) if week in forecaster.contexts]
     squad = starting_squad(forecaster, weeks[0])
@@ -173,7 +213,9 @@ def replay_half(forecaster, start, stop, names=MANAGERS):
     managers = {name: Manager(squad=list(squad), bank=rules.STARTING_BUDGET - sum(prices.values()), purchase_prices=dict(prices)) for name in names}
     for week in weeks:
         for name, manager in managers.items():
-            moves, chip, free_hit_squad, players, forecast = DECIDERS[name](forecaster, week, weeks[-1], manager)
+            decider, settings = MANAGERS[name]
+            with using(settings):
+                moves, chip, free_hit_squad, players, forecast = decider(forecaster, week, weeks[-1], manager)
             apply_week(manager, moves, chip, free_hit_squad, players, forecast, forecaster, week)
     return managers
 
@@ -181,28 +223,34 @@ def replay_half(forecaster, start, stop, names=MANAGERS):
 def main():
     parser = argparse.ArgumentParser(description="Backtest the five-week plan and chip strategy on past seasons.")
     parser.add_argument("--past-folder", default=".data/past")
+    parser.add_argument("--season", help="Only this season's folder, e.g. 2023-24")
+    parser.add_argument("--managers", default=",".join(DEFAULT_MANAGERS), help=f"Comma-separated, from: {', '.join(MANAGERS)}")
     args = parser.parse_args()
+    names = args.managers.split(",")
+    unknown = [name for name in names if name not in MANAGERS]
+    if unknown:
+        parser.error(f"Unknown managers: {', '.join(unknown)}")
     # Faster settings than the live app: the backtest solves hundreds of plans.
     transfer_solver.SOLVER_SECONDS, transfer_solver.SOLVER_GAP = 60, 0.005
     strategy.SENSITIVITY_RUNS = 0  # the noisy re-solves only explain moves on the website
 
     results = {}
     for folder in sorted(Path(args.past_folder).iterdir()):
-        if not folder.is_dir():
+        if not folder.is_dir() or (args.season and folder.name != args.season):
             continue
         forecaster = SeasonForecaster(load_season(folder))
         for start, stop in HALVES:
-            managers = replay_half(forecaster, start, stop)
+            managers = replay_half(forecaster, start, stop, names)
             results[f"{folder.name} {start}-{stop}"] = managers
             line = "  ".join(f"{name} {m.points} (hits {m.hits}, chips {m.chip_weeks})" for name, m in managers.items())
             print(f"{folder.name} GW{start}-{stop}: {line}", flush=True)
 
     print("\nReal points per half, after hits")
-    print(f'{"half":14}' + "".join(f"{name:>10}" for name in MANAGERS))
+    print(f'{"half":14}' + "".join(f"{name:>14}" for name in names))
     for half, managers in results.items():
-        print(f"{half:14}" + "".join(f"{managers[name].points:10d}" for name in MANAGERS))
-    averages = [statistics.mean(managers[name].points for managers in results.values()) for name in MANAGERS]
-    print(f'{"average":14}' + "".join(f"{value:10.1f}" for value in averages))
+        print(f"{half:14}" + "".join(f"{managers[name].points:14d}" for name in names))
+    averages = [statistics.mean(managers[name].points for managers in results.values()) for name in names]
+    print(f'{"average":14}' + "".join(f"{value:14.1f}" for value in averages))
 
 
 if __name__ == "__main__":

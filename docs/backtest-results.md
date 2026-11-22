@@ -214,3 +214,32 @@ What it shows:
 - The chip strategy adds much less than expected: 14 points per half over the plan without chips, for four chips, and it lost 2 of the 6 halves. In every half it played all four chips within about the first eight weeks. The 90% "play now" rule came from testing one chip at a time and seems to make the plan spend chips too early when all four are decided together.
 - Hits are sometimes overused: 52 and 56 points of hits in two halves. In 2024-25 GW20-38 holding beat every manager.
 - Six halves with one stand-in squad is a small sample, so treat the chip and hit findings as a reason to retest, not as settled. The next things worth testing with this backtest are a stricter chip rule (a margin for every chip, not just the Wildcard) and a larger hit penalty. Each full run takes about an hour.
+
+### Retest: chip margins and a larger hit penalty (22 November 2026)
+
+The same backtest, with each season run in its own process. Five managers:
+
+- strategy: the live rules (only the Wildcard has a margin, 5 points)
+- margins: every chip must beat saving it by 3 points, the Wildcard by 5 (`TIGHTER_MARGINS`)
+- margins+hits: margins, and every hit counts as 6 points when planning, not 4 (`EXTRA_HIT_PENALTY` 2)
+- plan and plan+hits: the five-week plan with no chips, without and with the extra hit cost
+
+```
+half                strategy       margins  margins+hits          plan     plan+hits
+2022-23 4-19             931           948           964           918           913
+2022-23 20-38           1279          1315          1210          1237          1190
+2023-24 4-19             930           932           871           935           894
+2023-24 20-38           1289          1259          1257          1308          1299
+2024-25 4-19             964           942          1048          1005           986
+2024-25 20-38           1138          1096          1093          1077          1124
+average               1088.5        1082.0        1073.8        1080.0        1067.7
+```
+
+What it shows:
+
+- Neither change helps. Margins on every chip did what they were meant to (chips moved later, often into the second half of each half-season), but scored 6.5 points per half less than the live rules and beat them in only 2 of 6 halves.
+- The extra hit cost cut hits sharply (for the plan, from 148 points of hits in total to 68), yet scored less in both versions: 12 points per half less for the plan, 8 less with margins. The hits it skipped were, on average, worth taking.
+- The live strategy still beats the plan without chips, by 8.5 points per half here (14 in the first run).
+- The same manager can score differently between runs: the live strategy got 930 in 2023-24 GW4-19 here and 964 in the first run, because the solver stops at a time limit and three seasons ran at once. Differences under about 30 points per half are noise.
+
+So the live settings stay as they were: `strategy.CHIP_MARGINS` is the Wildcard's 5 points only and `transfer_solver.HIT_PENALTY` is 0. Both are now settings, and `plan_backtest.py` takes `--managers` and `--season`, so other values can be tried later.
