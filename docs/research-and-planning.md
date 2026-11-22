@@ -4,10 +4,9 @@ Written 19 November 2026, before any code. Exported from the Claude doc of the s
 
 ## Summary
 
-SquadSense can be built on free data alone. FPL gives us almost everything, including xG and xA. UEFA Fantasy only half works: its player feed is public, but reading a team needs a login.
+SquadSense can be built on free data alone. FPL gives us almost everything, including xG and xA.
 
 - FPL is the core. Its public API has no key, includes Opta xG, xA and defensive contribution numbers, and anyone's squad can be read from a team ID. It has two catches. The exact bank, selling prices and free transfers come from `my-team`, which now needs a login. And the API can't be called straight from a browser, so we need a small server.
-- UEFA Fantasy is an add-on, not a second core. The player pool, prices and points come from a public feed. A user's own squad is only reachable while signed in, so the realistic option is a manual import (paste the team or enter IDs). I'd build it after FPL works.
 - Free outside data is thin, and we barely need it. FBref dropped its advanced stats in January 2026. Understat still has free xG. Odds and API-Football have small free quotas that only suit a once-a-day job.
 - Family use means storing several team IDs with no user accounts. Only you would get the optional FPL login.
 
@@ -48,20 +47,13 @@ Here's what I recommend:
 - Prices change once a day at about 00:00 UK time. Gameweek scores are now final at 09:00 UK the day after the last match, and live points are provisional until then ([Premier League](https://www.premierleague.com/en/news/4679873/all-you-need-to-know-about-changes-to-fpl-for-202627)).
 - Expect the 503 "game is updating" outage around deadlines and price changes. This is from community experience, not something I verified.
 
-### UEFA Fantasy
-
-- The player feed is public. It comes from `gaming.uefa.com/.../services/feeds/players/...json` and has prices, positions, ownership and points. Open-source tools use it ([ucl-fantasy-predictor](https://github.com/alexg171/ucl-fantasy-predictor)). The exact URL needs pulling from the site's network traffic once the competition is live.
-- Your own team needs a login. Existing tools ask you to sign in and copy the `team?matchdayId=` response out of the browser's developer tools ([TheFantasyTool](https://thefantasytool.com/my-team-ucl)). Plan on a manual import.
-- Rules: €100m, 15 players (2 GK, 5 DEF, 5 MID, 3 FWD), at most 3 per club. Chips include Wildcard and Limitless. I'm under 80% confident on the club limit in the knockout rounds and the full chip list, so we'll confirm those from the official rules before building.
-- Free match data for the Champions League: ESPN's site API (`site.api.espn.com/.../soccer/uefa.champions`) has free fixtures, but one project saw it return 403 to some clients ([nimeshjm #58](https://github.com/nimeshjm/fantasy-football/issues/58)).
-
 ### Free outside sources
 
 | Source | Free tier | Useful for | Verdict |
 | --- | --- | --- | --- |
 | FPL itself | Unlimited, in practice | Opta xG, xA, xGC, defensive contributions, injury news, chance of playing | Primary |
 | [Understat](https://understat.com) | Free, no key; the data sits as JSON inside its pages | npxG, xGChain and shot data per player and per team for the top 6 leagues | Secondary model input. Scrape nightly and cache. |
-| [API-Football](https://www.api-football.com/pricing) | 100 requests a day, 10 a minute, all endpoints | Injuries, lineups, odds, Champions League data | One cron job a day only |
+| [API-Football](https://www.api-football.com/pricing) | 100 requests a day, 10 a minute, all endpoints | Injuries, lineups, odds | One cron job a day only |
 | [The Odds API](https://the-odds-api.com/) | 500 credits a month; one call costs markets times regions | Match odds turned into clean-sheet and goal probabilities | Weekly, featured markets only |
 | FBref | Basic stats only since January 2026 | Nothing advanced | Skip |
 | Sportmonks | Free plan covers only Denmark and Scotland | Nothing | Skip |
@@ -188,7 +180,7 @@ The phone only ever talks to our database. It never calls FPL directly, so pages
 
 Alerts go out 24 hours and 2 hours before each deadline, around 22:00 for price moves on your players, and whenever there's injury news on a player you own.
 
-Data flow (a diagram in the original doc): FPL API, Understat, ESPN (UEFA) and odds/API-Football feed a GitHub Actions cron job (fetch and cache, build tables, run the xP model, queue alerts, 1 request a second). The job writes to Supabase Postgres (raw cache, stats and predictions, plans and managers). The Next.js PWA and the alerts read from the database. All outside calls happen in the scheduled jobs.
+Data flow (a diagram in the original doc): FPL API, Understat and odds/API-Football feed a GitHub Actions cron job (fetch and cache, build tables, run the xP model, queue alerts, 1 request a second). The job writes to Supabase Postgres (raw cache, stats and predictions, plans and managers). The Next.js PWA and the alerts read from the database. All outside calls happen in the scheduled jobs.
 
 ## 5. Questions for Clement
 
@@ -199,7 +191,6 @@ These were the open questions at the time. `CLAUDE.md` has his answers.
 - [ ] How do you like to play: template-safe or chasing differentials? How many -4 hits a season are you comfortable with? Should the window default to 3 or 5 gameweeks?
 - [ ] How should alerts reach you: phone push, Telegram or email?
 - [ ] Are you comfortable with Python for the jobs and TypeScript for the app, or would you rather use one language? Do you already have GitHub, Vercel and Supabase accounts?
-- [ ] For UEFA, is it Champions League Fantasy only, or Europa and Conference League too? Is a paste-in team import acceptable?
 - [ ] Should backtesting use your own past FPL seasons, so we can measure the model against the decisions you actually made?
 
 ## Sources
@@ -213,9 +204,6 @@ These were the open questions at the time. `CLAUDE.md` has his answers.
 - [How FPL price changes work (OneFPL)](https://onefpl.com/blog/how-fpl-price-changes-work)
 - [FPL login and my_team (fantasypl/mcp #71)](https://github.com/fantasypl/mcp/pull/71)
 - [my-team returns 403 without login (fpl-rank-solver #30)](https://github.com/flusskrebs-max/fpl-rank-solver/pull/30)
-- [UCL Fantasy predictor and feed (GitHub)](https://github.com/alexg171/ucl-fantasy-predictor)
-- [UCL team import steps (TheFantasyTool)](https://thefantasytool.com/my-team-ucl)
-- [ESPN free API for UEFA fixtures (GitHub issue)](https://github.com/nimeshjm/fantasy-football/issues/58)
 - [FBref advanced stats removed (The IX)](https://www.theixsports.com/the-ix-soccer/fbrefs-loss-advanced-stats-womens-soccer-data-accessibility/)
 - [API-Football pricing](https://www.api-football.com/pricing)
 - [The Odds API](https://the-odds-api.com/)

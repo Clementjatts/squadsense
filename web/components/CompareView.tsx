@@ -88,7 +88,8 @@ export function CompareView({ initialIds }: { initialIds: number[] }) {
       <div className="table-wrap">
         <table className="bc-table compare-table">
           <colgroup>
-            <col style={{ width: 280 }} />
+            {/* Width set in CSS: 280px on a Mac, narrower on phones. */}
+            <col className="compare-stat-col" />
             {Array.from({ length: MAX_PLAYERS }, (_, index) => <col key={index} />)}
           </colgroup>
           <thead>

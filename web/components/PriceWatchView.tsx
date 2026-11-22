@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { formatCount, formatPrice } from "@/lib/format";
+import { changesTonight } from "@/lib/prices";
 import type { PriceWatch, PriceWatchRow } from "@/lib/types";
 import { useWatchlist } from "@/lib/watchlist";
 import { PlayerLink } from "./PlayerPanel";
@@ -71,7 +72,13 @@ export function PriceWatchView({ watch }: PriceWatchViewProps) {
           />
           <span className="muted">Sorted by progress to a change</span>
         </div>
-        <div className="table-wrap">
+        {/* Phones get two-line cards instead of the wide table; CSS shows one or the other. */}
+        <ul className="price-cards phone-only">
+          {shown.map((row) => (
+            <PriceCard key={row.id} row={row} watched={watchlist.includes(row.id)} onToggleWatch={toggleWatch} />
+          ))}
+        </ul>
+        <div className="table-wrap desktop-only">
           <table className="prices">
             <thead>
               <tr>
@@ -159,22 +166,19 @@ function emptyMessage(filter: Filter): string {
   return "No players to show here right now.";
 }
 
+interface PriceItemProps {
+  row: PriceWatchRow;
+  watched: boolean;
+  onToggleWatch: (id: number) => void;
+}
+
 // One table row: name with a watchlist star, club, numbers, progress bar.
-function PriceRow({ row, watched, onToggleWatch }: { row: PriceWatchRow; watched: boolean; onToggleWatch: (id: number) => void }) {
-  const rising = row.progress >= 0;
+function PriceRow({ row, watched, onToggleWatch }: PriceItemProps) {
   return (
     <tr>
       <td>
         <span className="player-cell">
-          <button
-            type="button"
-            className="star"
-            aria-pressed={watched}
-            aria-label={watched ? `Remove ${row.name} from watchlist` : `Add ${row.name} to watchlist`}
-            onClick={() => onToggleWatch(row.id)}
-          >
-            {watched ? "★" : "☆"}
-          </button>
+          <WatchStar row={row} watched={watched} onToggleWatch={onToggleWatch} />
           <PlayerLink id={row.id} name={row.name} />
           {row.inSquad && <span className="chip good">Yours</span>}
         </span>
@@ -186,21 +190,85 @@ function PriceRow({ row, watched, onToggleWatch }: { row: PriceWatchRow; watched
       <td className="right muted">{row.ownership.toFixed(1)}%</td>
       <td className="right num">{formatCount(row.netTransfers)}</td>
       <td className="progress-cell">
-        <span className={`progress ${rising ? "rise" : "fall"}${Math.abs(row.progress) >= IMMINENT_PROGRESS ? " imminent" : ""}`}>
-          <span aria-hidden="true">{rising ? "↑" : "↓"}</span>
-          <span className="progress-track">
-            <span className="progress-fill" style={{ width: `${Math.min(Math.abs(row.progress), 100)}%` }} />
-          </span>
-          <b>{Math.abs(row.progress).toFixed(0)}%</b>
-        </span>
+        <ProgressBar row={row} />
       </td>
       <td className="muted">
-        {row.prediction}
-        {row.projected !== null && !row.lockedUntil && (
-          <span className="small"> · {Math.abs(row.projected).toFixed(0)}% by 00:00</span>
-        )}
+        <Prediction row={row} />
       </td>
     </tr>
+  );
+}
+
+// The same facts as a table row, stacked into two lines for a phone screen:
+// star, name and club with the progress figure, then the bar, then FPL's
+// prediction and this gameweek's net transfers.
+function PriceCard({ row, watched, onToggleWatch }: PriceItemProps) {
+  const rising = row.progress >= 0;
+  return (
+    <li className="price-card">
+      <div className="price-card-top">
+        <WatchStar row={row} watched={watched} onToggleWatch={onToggleWatch} />
+        <span className="price-card-name">
+          <PlayerLink id={row.id} name={row.name} />
+          {row.inSquad && <span className="chip good">Yours</span>}
+          <span className="muted small">
+            {row.team} · {row.position} · {formatPrice(row.price)}
+          </span>
+        </span>
+        <b className={`price-card-progress ${rising ? "bc-accent" : "bc-warn"}`}>
+          {rising ? "↑" : "↓"} {Math.abs(row.progress).toFixed(0)}%
+        </b>
+        {changesTonight(row.likelihood) && <span className={rising ? "bc-tag" : "bc-tag bc-tag-warn"}>TONIGHT</span>}
+      </div>
+      <ProgressBar row={row} />
+      <div className="price-card-foot muted small">
+        <span><Prediction row={row} /></span>
+        <span className="num">{formatCount(row.netTransfers)} this GW</span>
+      </div>
+    </li>
+  );
+}
+
+// The star that adds a player to (or removes him from) this device's watchlist.
+function WatchStar({ row, watched, onToggleWatch }: PriceItemProps) {
+  return (
+    <button
+      type="button"
+      className="star"
+      aria-pressed={watched}
+      aria-label={watched ? `Remove ${row.name} from watchlist` : `Add ${row.name} to watchlist`}
+      onClick={() => onToggleWatch(row.id)}
+    >
+      {watched ? "★" : "☆"}
+    </button>
+  );
+}
+
+// An arrow, a bar filled to the progress figure and the figure itself.
+// Players close to a change glow.
+function ProgressBar({ row }: { row: PriceWatchRow }) {
+  const rising = row.progress >= 0;
+  return (
+    <span className={`progress ${rising ? "rise" : "fall"}${Math.abs(row.progress) >= IMMINENT_PROGRESS ? " imminent" : ""}`}>
+      <span aria-hidden="true">{rising ? "↑" : "↓"}</span>
+      <span className="progress-track">
+        <span className="progress-fill" style={{ width: `${Math.min(Math.abs(row.progress), 100)}%` }} />
+      </span>
+      <b>{Math.abs(row.progress).toFixed(0)}%</b>
+    </span>
+  );
+}
+
+// FPL's prediction in words, plus where progress should be by 00:00 when
+// FPL gives a projection and the price isn't locked.
+function Prediction({ row }: { row: PriceWatchRow }) {
+  return (
+    <>
+      {row.prediction}
+      {row.projected !== null && !row.lockedUntil && (
+        <span className="small"> · {Math.abs(row.projected).toFixed(0)}% by 00:00</span>
+      )}
+    </>
   );
 }
 

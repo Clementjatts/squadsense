@@ -109,7 +109,7 @@ function ChipReasons({ snapshot, plan }: { snapshot: Snapshot; plan: SolverPlan 
         </span>
       </div>
       <div className="table-wrap">
-        <table className="bc-table">
+        <table className="bc-table chip-reasons-table">
           <colgroup>
             <col style={{ width: 150 }} /><col style={{ width: 190 }} /><col style={{ width: 90 }} /><col style={{ width: 150 }} /><col />
           </colgroup>

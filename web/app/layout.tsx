@@ -1,6 +1,6 @@
 // The app frame shared by every page: header on top, page below, sync note in the footer.
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PlayerPanelProvider } from "@/components/PlayerPanel";
 import { TopNav } from "@/components/TopNav";
@@ -19,6 +19,17 @@ export const metadata: Metadata = {
   // iPhone versions still look for Apple's own name before opening the
   // site as an app, so it is added by hand.
   other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+// Phone screen settings. "cover" lets the dark page run under the iPhone
+// notch and home bar in the Home Screen app; the CSS pads controls clear of
+// them with env(safe-area-inset-*). The theme color matches the page
+// background, so the status bar area blends in.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#070b14",
 };
 
 // Fonts load from Google in the browser. next/font would bundle them at

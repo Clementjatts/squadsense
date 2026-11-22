@@ -2,20 +2,31 @@
 
 // The interactive Transfer Planner. Click a player on the pitch or bench,
 // pick a replacement from the table, and every number updates straight away.
-// Nothing here talks to FPL: it's a sandbox for testing ideas.
+// Nothing here talks to FPL: it's a sandbox for testing ideas. Phones hide
+// the pitch and use the "Pick who to sell" list (SellList) instead.
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { ApplyToFpl } from "./ApplyToFpl";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
+import { SellList } from "./SellList";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
 import {
   MAX_PER_CLUB, planScore, plannerRequest, replacementOptions, simulatePlan,
   type FreeHitSquads, type PlannedCaptains, type PlannedChips, type PlannedMove, type PlannerChip,
 } from "@/lib/planning";
-import type { Player, SolverPlan, Snapshot } from "@/lib/types";
+import type { Player, SolverPlan, Snapshot, Suggestion } from "@/lib/types";
+
+// The same width the phone CSS uses, so the scrolling below only happens on phones.
+const PHONE_QUERY = "(max-width: 560px)";
+
+// Scrolls a card to the top of the screen on phones, where it may be far
+// from what was just tapped. On wider screens everything is already in view.
+function scrollIntoViewOnPhone(element: HTMLElement | null) {
+  if (element && window.matchMedia(PHONE_QUERY).matches) element.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
 
@@ -59,6 +70,8 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const [swapOutId, setSwapOutId] = useState<number | null>(null);
   const [bringInId, setBringInId] = useState<number | null>(null); // a player to buy, waiting for you to pick who he replaces
   const [captains, setCaptains] = useState<PlannedCaptains>({});
+  const replaceCardRef = useRef<HTMLElement>(null);
+  const sellListRef = useRef<HTMLElement>(null);
 
   // Links from the player panel (?buy=, ?sell= or ?captain=) start the
   // Planner with that player chosen. The address is then tidied, so a
@@ -99,11 +112,13 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
     setBringInId(null);
   }
 
-  // A pitch click starts a normal "replace this player" search, and drops
-  // any player waiting to be brought in.
+  // A pitch click (or Sell on a phone) starts a normal "replace this player"
+  // search, and drops any player waiting to be brought in. On phones the
+  // replacement list sits above the sell list, so the page scrolls up to it.
   function pickPlayerToReplace(id: number) {
     setBringInId(null);
     setSwapOutId(id);
+    scrollIntoViewOnPhone(replaceCardRef.current);
   }
 
   // Why selling `outId` for `inId` this week isn't allowed, or null if it is.
@@ -178,7 +193,8 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
       </section>
 
       <div className="row">
-        <div className="col-wide" style={{ flex: "1.25 1 660px" }}>
+        {/* Hidden on phones, where the "Pick who to sell" list replaces the pitch. */}
+        <div className="col-wide planner-pitch-col" style={{ flex: "1.25 1 660px" }}>
           <BroadcastPitch
             title={`GW${selectedWeek} SQUAD`}
             hint="Click a player to replace him"
@@ -196,7 +212,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
         </div>
 
         <div className="col-narrow" style={{ flex: "1 1 460px" }}>
-          <section className="card">
+          <section className="card planner-check">
             <div className="card-head">
               <h2>GW{selectedWeek} check</h2>
             </div>
@@ -292,8 +308,13 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                 ))}
               </AnimatePresence>
             </div>
+            {/* Phones only: the pitch is hidden there, so this jumps to the sell list. */}
+            <button type="button" className="btn phone-only planner-add-another" onClick={() => scrollIntoViewOnPhone(sellListRef.current)}>
+              Add another transfer
+            </button>
           </section>
-          <section className="card">
+          <MakeOrRollCard suggestion={matchingSuggestion(snapshot.suggestions, weekMoves, selectedWeek === weeks[0])} weeks={weeks} />
+          <section className="card" ref={replaceCardRef}>
             {/* Crossfade between "Suggested moves" and "Replace ...": the old
                 view fades out before the new one fades in. */}
             <AnimatePresence mode="wait" initial={false}>
@@ -409,7 +430,8 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                       ))}
                     </ul>
                     <p className="muted" style={{ margin: 0 }}>
-                      Or click any player on the pitch to search for a replacement yourself.
+                      <span className="desktop-only">Or click any player on the pitch to search for a replacement yourself.</span>
+                      <span className="phone-only">Or choose Sell on any player below to search for a replacement yourself.</span>
                     </p>
                   </>
                 )}
@@ -428,9 +450,64 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               }}
             />
           )}
+          <SellList
+            ref={sellListRef}
+            squad={weekPlan.squad}
+            players={players}
+            captain={weekPlan.captain}
+            sellingIds={weekMoves.map((move) => move.outId)}
+            selectedId={swapOutId}
+            onSell={pickPlayerToReplace}
+          />
         </div>
       </div>
     </>
+  );
+}
+
+// The sync's single-move suggestion that matches this week's plan, if any.
+// Only those carry a value for rolling the transfer, so the card below
+// can only judge a move the sync also looked at, and only in the first week.
+function matchingSuggestion(suggestions: Suggestion[], weekMoves: PlannedMove[], isFirstWeek: boolean): Suggestion | null {
+  if (!isFirstWeek || weekMoves.length !== 1) return null;
+  const [move] = weekMoves;
+  return suggestions.find((suggestion) => suggestion.out === move.outId && suggestion.in === move.inId) ?? null;
+}
+
+// "Make it now or roll?": the move's gain against the value of saving the
+// free transfer for next week, using the sync's numbers. Hidden for any
+// move the sync didn't suggest, since there's no roll value for it.
+function MakeOrRollCard({ suggestion, weeks }: { suggestion: Suggestion | null; weeks: number[] }) {
+  if (!suggestion) return null;
+  const worthIt = suggestion.advice === "make";
+  return (
+    <section className="card" aria-label="Make it now or roll">
+      <div className="card-head">
+        <h2>Make it now or roll?</h2>
+      </div>
+      <ul className="list">
+        <li>
+          <span className="grow">This transfer, GW{weeks[0]} to GW{weeks[weeks.length - 1]}</span>
+          <b className="gain">{formatGain(suggestion.gain)} xP</b>
+        </li>
+        {suggestion.hit_cost > 0 && (
+          <li>
+            <span className="grow">Points hit</span>
+            <b className="bc-warn">-{suggestion.hit_cost}</b>
+          </li>
+        )}
+        <li>
+          <span className="grow">Value of rolling it</span>
+          <b>{formatGain(suggestion.roll_value)} xP</b>
+        </li>
+      </ul>
+      <p style={{ margin: 0 }}>
+        <b className={worthIt ? "bc-accent" : "bc-warn"}>{worthIt ? "Make it:" : "Roll it:"}</b>{" "}
+        {worthIt
+          ? `worth ${formatXp(suggestion.net_gain)} xP more than rolling.`
+          : `rolling is worth ${formatXp(-suggestion.net_gain)} xP more.`}
+      </p>
+    </section>
   );
 }
 
@@ -506,7 +583,7 @@ function SolverPlanCard({ plan, snapshot, onApply }: { plan: SolverPlan; snapsho
         ))}
       </ol>
       <a href="/plan" className="btn">See the full plan and why</a>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="solver-actions">
         <button type="button" className="btn primary" onClick={onApply}>Load into planner</button>
         <span className="muted">
           Replaces the moves and chips you&apos;ve planned so far.

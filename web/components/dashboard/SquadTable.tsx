@@ -4,6 +4,7 @@
 
 import { formatPrice, formatXp } from "@/lib/format";
 import { FPL_GAP_TO_FLAG, fplGap, nextFixtures, priceRow, setPieceTags, tableOrder } from "@/lib/dashboard";
+import { changesTonight } from "@/lib/prices";
 import type { Player, Snapshot } from "@/lib/types";
 import { PlayerLink } from "../PlayerPanel";
 import { Sparkline } from "./Sparkline";
@@ -16,7 +17,7 @@ export function SquadTable({ snapshot }: { snapshot: Snapshot }) {
   return (
     <section className="bc-card bc-table-card">
       <div className="table-wrap">
-        <table className="bc-table" style={{ minWidth: 880 }}>
+        <table className="bc-table squad-table" style={{ minWidth: 880 }}>
           <colgroup>
             <col style={{ width: 58 }} />
             <col />
@@ -92,7 +93,7 @@ function FplOpinion({ player, week }: { player: Player; week: number }) {
 function PriceChange({ progress, likelihood }: { progress: number; likelihood: number }) {
   if (Math.round(progress) === 0) return <span className="bc-cell-num muted">0%</span>;
   const rising = progress > 0;
-  const tonight = Math.abs(likelihood) >= 5;
+  const tonight = changesTonight(likelihood);
   const tone = tonight ? (rising ? "bc-accent" : "bc-warn") : progress < 0 ? "bc-warn" : "muted";
   return (
     <span className="bc-price-change">

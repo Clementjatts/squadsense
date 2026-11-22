@@ -104,7 +104,7 @@ function MyLineup({ mine, names }: { mine: NonNullable<LiveResponse["mine"]>; na
   return (
     <section className="bc-card bc-table-card">
       <div className="table-wrap">
-        <table className="bc-table" style={{ minWidth: 560 }}>
+        <table className="bc-table live-table">
           <colgroup>
             <col />
             <col style={{ width: 120 }} />

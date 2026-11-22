@@ -2,12 +2,14 @@
 
 // The header on every page: logo, page links and the gameweek deadline.
 // It's a client component because it highlights the page you're on, and
-// the lime highlight slides between links when you change page.
+// the lime highlight slides between links when you change page. On phones
+// the page links are hidden and BottomNav's tab bar is used instead.
 
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDeadline } from "@/lib/format";
+import { BottomNav } from "./BottomNav";
 import { BrandMark } from "./BrandMark";
 import { AccountMenu } from "./AccountMenu";
 import { SearchPalette } from "./SearchPalette";
@@ -53,9 +55,14 @@ export function TopNav({ gameweek, deadline }: TopNavProps) {
       <AccountMenu />
       <div className="topnav-deadline">
         <span className="topnav-dot" aria-hidden="true" />
-        <span className="topnav-deadline-label">GW{gameweek} deadline</span>
+        {/* On phones only "GW13" shows; the word "deadline" is hidden to save room. */}
+        <span className="topnav-deadline-label">
+          GW{gameweek}
+          <span className="topnav-deadline-word"> deadline</span>
+        </span>
         <b>{formatDeadline(deadline)}</b>
       </div>
+      <BottomNav />
     </header>
   );
 }

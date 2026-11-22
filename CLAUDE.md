@@ -13,7 +13,6 @@ It should:
 3. Track price changes and send alerts before deadlines and before the nightly price change.
 4. Plan transfers across a 3 to 5 gameweek window and suggest when to play chips.
 5. Let Clement test squad changes and budget maths before he makes them on the official FPL site. The app never makes transfers itself.
-6. Support UEFA Champions League Fantasy as an add-on, using a manual team import.
 
 ## How Clement wants to work
 
@@ -31,8 +30,7 @@ This project lives in `Documents/Workspace/Coding-Workspace/Output/squadsense/`.
 
 | Topic | Decision | Why |
 | --- | --- | --- |
-| Platforms | FPL first. Champions League Fantasy only, as an add-on. | FPL has a free public API. UEFA's player feed is public, but reading your own team needs a login. |
-| UEFA team | Manual import: paste team data or pick players by hand | Avoids storing UEFA logins |
+| Platforms | FPL only. Champions League Fantasy was dropped on 22 November 2026. | Clement no longer needs it. |
 | Data sources | Free only. FPL's own API covers xG, xA, defensive contributions and injury news. | Clement's choice. FBref lost its advanced stats in January 2026. |
 | FPL login | The sync still reads public data only. Since 21 November 2026 the Planner can sign in and apply a planned gameweek (transfers, lineup, captain, chips), but only on the copy running on his Mac, with FPL_EMAIL and FPL_PASSWORD in `web/.env.local`. Never on Vercel. | Clement's choice, after the GitHub research. Signing in follows AIrsenal's steps without pretending to be a browser, so FPL may refuse it. |
 | Dashboard access | One password (`SITE_PASSWORD`) and a signed 30-day cookie (`SITE_SECRET`), checked by `web/proxy.ts` (Next 16's name for middleware) on every page and API route | Clement's choice over Cloudflare Access; works locally and on Vercel |
@@ -48,7 +46,7 @@ This project lives in `Documents/Workspace/Coding-Workspace/Output/squadsense/`.
 
 ### Research (`docs/research-and-planning.md`)
 
-FPL endpoints, rate limits, login situation, UEFA feed, free data sources, 2026/27 rules, the expected points (xP) formula, fixture difficulty, risk flags and the architecture. A few details there were later changed. Tailwind wasn't used (plain CSS). Alerts are push and email (not Telegram). Section 5's questions are answered in the table above.
+FPL endpoints, rate limits, login situation, free data sources, 2026/27 rules, the expected points (xP) formula, fixture difficulty, risk flags and the architecture. A few details there were later changed. Tailwind wasn't used (plain CSS). Alerts are push and email (not Telegram). Section 5's questions are answered in the table above.
 
 ### Design (`docs/design/`)
 
@@ -97,7 +95,7 @@ Database: `db/schema.sql` creates the tables (`api_cache`, `player_history`, `pr
 Scheduling: `.github/workflows/sync.yml` (the repo is private, so it's sized for 2,000 free minutes a month, about 900 to 1,000 used): every 2 hours from 07:17 to 21:17 UTC, at 22:15, 22:45, 23:15 and 23:45 before the midnight price change, and a nightly run at 01:37 that also re-downloads players whose club played in the last 36 hours (`sync.clubs_that_played_recently`). It does nothing until the repo is on GitHub with the `DATABASE_URL` and `FPL_TEAM_ID` secrets set.
 
 Website (`web/`, Next.js 16 since 21 November 2026, React 19, TypeScript, plain CSS):
-- Top header on every page (`TopNav.tsx`): logo, page links with a sliding slanted highlight, and the deadline. A footer carries the last-sync note. The old sidebar is gone; Champions League and Alerts have no link until they're built.
+- Top header on every page (`TopNav.tsx`): logo, page links with a sliding slanted highlight, and the deadline. A footer carries the last-sync note. The old sidebar is gone; the Alerts page from the design has no link because it isn't built.
 - Broadcast redesign (21 November 2026), mocked up on the canvas at https://claude.ai/artifact/B6K3UD5vNh16phcUFEp6kQ (board D). Rule: every fact appears in one place only on a page, and every repeated element sits in a fixed-size slot so text length never shifts the layout. Styles are the `bc-` classes at the end of `globals.css`; fonts are Barlow Condensed (headings, numbers), Inter and Space Grotesk. Every page now uses it: each has a `PageHero` (big italic title, subtitle, and only figures unique to that page: live plan figures on the Planner, the 00:00 countdown on Price Watch, chips and gameweeks left on Chips). The pitch is one shared component, `BroadcastPitch`, used by the Dashboard (opens the player panel) and the Planner (picks a player to replace, with orange and lime states).
 - Polish pass (commit f730550; the guide it followed was later deleted): card lighting, focus rings, tabular digits, pitch markings, club shirts (`ClubKit.tsx`, colors keyed by club code, 2026/27 clubs plus recently relegated ones), counting numbers (`AnimatedNumber.tsx`), and Motion (`motion` package) for the sliding toggle and sidebar pills, ticker row reordering, the player panel's enter and exit, and the Planner's move list. `MotionConfig reducedMotion="user"` in `PlayerPanel.tsx` and CSS media queries turn motion off when macOS "Reduce motion" is on. Motion adds about 50 KB to each page's first load; `LazyMotion` could trim it.
 - Dashboard (`app/page.tsx`, sections in `components/dashboard/`, helpers in `lib/dashboard.ts`): projection hero with five-week bars, squad money card, pitch and substitutes with club shirts (`LineupBoard`), a "This week" card with the three decisions (transfer, captain, chip), then a Squad analysis section with a table (price, five-week xP, form sparkline from the new `form` field, next three fixtures, price change with a TONIGHT tag) and "Keep an eye on" (player warnings and chips for later weeks).
@@ -148,10 +146,9 @@ On 21 November 2026 hosting went live: Supabase, the private GitHub repo with it
 3. Chip Planner and Fixture Ticker are done. The five-week plan now covers pairs and rolls. Still open: backtest the captain haul chance and the plan's untested settings.
 4. Player detail panel is done, including "Add to plan" and "Make captain".
 5. Alerts are built (`jobs/squadsense/alerts.py`, `web/components/AccountMenu.tsx`, `web/public/sw.js`); keys are set and alerts are on for his iPhone. Turn them on for other devices from the bell.
-6. Phone layouts for the built pages.
-7. Champions League page with manual import.
-8. Backtesting is done for the xP model (see `docs/backtest-results.md`). Clement's own past seasons can't be replayed: the API only keeps season totals for past seasons, not weekly picks. Still open: backtest the chip and transfer advice.
-9. Family teams: a team switcher, by team ID.
+6. Phone layouts are built (22 November 2026), following `docs/mobile-plan.md` and the approved mockups at https://claude.ai/artifact/MfzmVt6Nv2uBrQFSH1wTX1. Below 560 px the header is one row and a bottom tab bar (`BottomNav.tsx`: Squad, Plan, Fixtures, Prices, More) replaces the page links. The Planner hides its pitch and uses "Pick who to sell" (`SellList.tsx`), plus a "Make it now or roll?" card that only shows for a move the sync suggested. Price Watch shows two-line cards, and `lib/prices.ts` holds the shared TONIGHT rule. Checked at 390 px on local data; not yet checked on a real iPhone.
+7. Backtesting is done for the xP model (see `docs/backtest-results.md`). Clement's own past seasons can't be replayed: the API only keeps season totals for past seasons, not weekly picks. Still open: backtest the chip and transfer advice.
+8. Family teams: a team switcher, by team ID.
 
 ## Things to watch out for
 

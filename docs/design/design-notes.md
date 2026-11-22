@@ -16,7 +16,7 @@ The `.dc.html` files are written in the canvas's own format. They load a `suppor
 | Muted text | `#9AA6BF` | Labels, secondary text |
 | Accent (lime) | `#B7F34A` | Primary buttons, captain badge, rises, "good" chips |
 | Warning (orange) | `#FFA24C` | Injury flags, price falls, players going out |
-| Blue | `#6CB4FF` | xA bars, Champions League |
+| Blue | `#6CB4FF` | xA bars |
 | Pitch stripes | `#13301F` and `#153622` | The pitch background |
 
 Fonts are Inter for text and Space Grotesk for headings and big numbers. Rises and falls are told apart by arrow direction and lightness as well as color, so they work for color-blind users. Touch targets are at least 44px.
@@ -36,7 +36,6 @@ Desktop (MacBook) is the main workspace; the phone screens are for quick checks.
 | Fixture Ticker | `desktop/Desktop-Fixtures.dc.html` | `phone/Fixtures.dc.html` | Desktop yes |
 | Price Watch | `desktop/Desktop-Prices.dc.html` | `phone/Prices.dc.html` | Desktop yes |
 | Chip Planner | `desktop/Desktop-Chips.dc.html` | `phone/Chips.dc.html` | Desktop yes |
-| Champions League | `desktop/Desktop-UCL.dc.html` | `phone/UCL.dc.html` | No |
 | Alerts and settings | `desktop/Desktop-Alerts.dc.html` | `phone/Alerts.dc.html` | No |
 
 `canvas.json` records where each screen sits on the canvas and its title.

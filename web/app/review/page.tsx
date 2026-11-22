@@ -95,7 +95,7 @@ function TeamWeek({ review, snapshot }: { review: GameweekReview; snapshot: Snap
       </section>
       <section className="bc-card bc-table-card">
         <div className="table-wrap">
-          <table className="bc-table" style={{ minWidth: 520 }}>
+          <table className="bc-table review-table">
             <colgroup>
               <col />
               <col style={{ width: 90 }} />

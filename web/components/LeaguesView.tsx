@@ -57,7 +57,7 @@ function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot 
   return (
     <section className="bc-card bc-table-card">
       <div className="table-wrap">
-        <table className="bc-table">
+        <table className="bc-table league-table">
           <colgroup>
             <col style={{ width: 76 }} />
             <col />

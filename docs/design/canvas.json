@@ -66,14 +66,6 @@
    "title": "Chip Planner",
    "is_interactive": true
   },
-  "UCL.dc.html": {
-   "x": 940,
-   "y": 1460,
-   "w": 390,
-   "h": 1010,
-   "title": "Champions League",
-   "is_interactive": true
-  },
   "Alerts.dc.html": {
    "x": 1410,
    "y": 1460,
@@ -136,15 +128,6 @@
    "expand": "fill",
    "is_interactive": true
   },
-  "Desktop-UCL.dc.html": {
-   "x": 0,
-   "y": 6110,
-   "w": 1440,
-   "h": 960,
-   "title": "Champions League (desktop)",
-   "expand": "fill",
-   "is_interactive": true
-  },
   "Desktop-Alerts.dc.html": {
    "x": 1560,
    "y": 6110,
@@ -163,7 +146,6 @@
   "Fixtures.dc.html",
   "Prices.dc.html",
   "Chips.dc.html",
-  "UCL.dc.html",
   "Alerts.dc.html",
   "Desktop-Dashboard.dc.html",
   "Planner-Desktop.dc.html",
@@ -171,7 +153,6 @@
   "Desktop-Prices.dc.html",
   "Desktop-Player.dc.html",
   "Desktop-Chips.dc.html",
-  "Desktop-UCL.dc.html",
   "Desktop-Alerts.dc.html"
  ],
  "notes": {
@@ -185,7 +166,7 @@
   "t2": {
    "x": 0,
    "y": 1160,
-   "text": "Prices, chips, Champions League and alerts",
+   "text": "Prices, chips and alerts",
    "kind": "title1",
    "maxW": 1800
   },

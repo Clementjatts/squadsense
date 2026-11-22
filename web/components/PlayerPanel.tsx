@@ -83,6 +83,17 @@ function PlayerPanel({ playerId, onClose }: { playerId: number; onClose: () => v
     closeButton.current?.focus();
   }, []);
 
+  // Stop the page behind the panel scrolling while it's open (most noticeable
+  // on a phone, where a swipe inside the panel could move the page). The
+  // cleanup gives the page its scroll back however the panel is closed.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();

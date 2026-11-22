@@ -13,7 +13,7 @@ Built so far, all on real FPL data:
 - Live: points during a gameweek, with provisional bonus, automatic subs and live league tables, refreshed every minute.
 - Compare: up to three players side by side. Press ⌘K on any page to search for a player.
 
-Champions League and alerts are designed but not built yet.
+Alerts reach your phone and email; the separate Alerts settings page from the design isn't built.
 
 ## How it fits together
 
@@ -152,4 +152,4 @@ Rival team and manager names come from FPL's public standings. They're saved in 
 
 ## Next build
 
-Hosting first (Supabase, GitHub Actions and Vercel, steps 3 to 5), then phone push and email alerts, the Champions League import and phone layouts.
+Hosting first (Supabase, GitHub Actions and Vercel, steps 3 to 5), then phone push and email alerts and phone layouts.
