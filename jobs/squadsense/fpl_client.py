@@ -46,10 +46,13 @@ class FplClient:
         """Fetches one endpoint and returns the parsed JSON.
 
         Every FPL path needs a trailing slash, otherwise the API answers
-        with an empty redirect, so we add it if it's missing.
+        with an empty redirect, so we add it if it's missing. The slash
+        goes before any "?page=..." part, not after it.
         """
-        if not path.endswith("/"):
-            path += "/"
+        base, question_mark, query = path.partition("?")
+        if not base.endswith("/"):
+            base += "/"
+        path = base + question_mark + query
 
         for attempt in range(1, self.max_attempts + 1):
             self._wait_for_rate_limit()
@@ -99,9 +102,11 @@ class FplClient:
     def entry_picks(self, team_id, gameweek):
         return self.get(f"entry/{team_id}/event/{gameweek}/picks/")
 
-    def league_standings(self, league_id):
-        """First page (up to 50 teams) of a classic league's table."""
-        return self.get(f"leagues-classic/{league_id}/standings/")
+    def league_standings(self, league_id, page=1):
+        """One page (up to 50 teams) of a classic league's table. Page 1 is the top."""
+        if page == 1:
+            return self.get(f"leagues-classic/{league_id}/standings/")
+        return self.get(f"leagues-classic/{league_id}/standings/?page_standings={page}")
 
     def event_live(self, gameweek):
         return self.get(f"event/{gameweek}/live/")

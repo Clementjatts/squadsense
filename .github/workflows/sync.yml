@@ -34,7 +34,9 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The first sync after each deadline reads about 400 rivals' picks (one
+    # request a second), so it can take 15 minutes longer than the others.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: jobs

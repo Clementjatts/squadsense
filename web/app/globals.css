@@ -727,6 +727,12 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .live-table { min-width: 560px; }
 .solver-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* Leagues: the dropdown of every league, and the "..." row between the
+   top 50 and the teams around you in a big league. */
+.league-picker { display: flex; align-items: center; gap: 12px; }
+.league-picker .bc-select { width: 100%; max-width: 560px; height: 42px; font-size: 14px; }
+.league-gap td { height: 28px; text-align: center; letter-spacing: 0.2em; }
+
 /* Pieces that only exist on one kind of screen. The phone-only bottom bar
    and the phone-only Planner cards are hidden on wider screens. */
 .bottomnav, .bottomnav-backdrop, .bottomnav-menu { display: none; }
@@ -904,6 +910,10 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .share-track { display: none; }
   .share-row { grid-template-columns: minmax(0, 1fr) 40px 44px 58px; gap: 8px; }
   .league-table { min-width: 720px; }
+  /* Big leagues have no captain or chip columns, so their table fits the screen. */
+  .league-table.league-table-short { min-width: 0; }
+  .league-picker { flex-direction: column; align-items: stretch; gap: 6px; }
+  .league-picker .bc-select { max-width: none; font-size: 16px; }
   .league-table th:nth-child(-n + 2), .league-table td:nth-child(-n + 2) { position: sticky; z-index: 1; background: var(--panel); }
   .league-table th:nth-child(-n + 2) { background: #0f1830; }
   .league-table tr.bc-mine-row td:nth-child(-n + 2) { background: #111d26; }

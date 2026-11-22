@@ -18,14 +18,14 @@ export default async function LeaguesPage() {
         title="MINI-LEAGUES"
         subtitle="What your rivals own and captain. Owning what they own keeps you level; owning what they don't is how you gain ground."
         figures={[
-          { label: "Leagues tracked", value: leagues.length, accent: true },
+          { label: "Private leagues", value: leagues.length, accent: true },
           { label: "Rival squads read", value: rivalsRead },
         ]}
       />
       {leagues.length === 0 ? (
         <section className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No mini-leagues found. The sync picks your smallest private leagues (50 teams or fewer), or the ones listed in
+            No mini-leagues found. The sync shows every private league you&apos;re in, or only the ones listed in
             SQUADSENSE_LEAGUES.
           </p>
         </section>

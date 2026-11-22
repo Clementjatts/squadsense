@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-21T16:45:32.966321+00:00",
+ "generatedAt": "2026-11-22T02:39:21.086175+00:00",
  "modelVersion": "v2",
  "team": {
   "id": 11304359,
@@ -4837,7 +4837,6 @@
    {
     "gameweek": 13,
     "squad": [
-     1,
      3,
      8,
      18,
@@ -4846,54 +4845,11 @@
      46,
      53,
      78,
+     83,
      103,
      113,
      127,
-     176,
-     213,
-     253
-    ],
-    "freeHitSquad": null,
-    "moves": [
-     {
-      "out": 79,
-      "in": 127,
-      "value": 3.48
-     },
-     {
-      "out": 83,
-      "in": 23,
-      "value": 17.83
-     },
-     {
-      "out": 114,
-      "in": 176,
-      "value": 4.79
-     }
-    ],
-    "hits": 0,
-    "freeTransfers": 5,
-    "bank": 3,
-    "captain": 23,
-    "chip": "3xc",
-    "xp": 72.0
-   },
-   {
-    "gameweek": 14,
-    "squad": [
-     3,
-     10,
-     18,
-     23,
-     28,
-     46,
-     53,
-     103,
-     113,
-     127,
-     169,
-     176,
-     181,
+     151,
      213,
      253
     ],
@@ -4901,32 +4857,94 @@
     "moves": [
      {
       "out": 1,
-      "in": 181,
-      "value": 2.88
+      "in": 151,
+      "value": 3.57,
+      "priceNote": null,
+      "sameWeekShare": 0.0,
+      "anyWeekShare": 0.13
      },
      {
-      "out": 8,
-      "in": 10,
-      "value": 2.19
+      "out": 79,
+      "in": 127,
+      "value": 2.2,
+      "priceNote": null,
+      "sameWeekShare": 0.67,
+      "anyWeekShare": 0.67
      },
+     {
+      "out": 114,
+      "in": 23,
+      "value": 20.44,
+      "priceNote": null,
+      "sameWeekShare": 0.8,
+      "anyWeekShare": 0.8
+     }
+    ],
+    "hits": 0,
+    "freeTransfers": 5,
+    "bank": 11,
+    "captain": 23,
+    "chip": "3xc",
+    "xp": 72.1
+   },
+   {
+    "gameweek": 14,
+    "squad": [
+     3,
+     8,
+     18,
+     23,
+     28,
+     46,
+     53,
+     103,
+     113,
+     127,
+     151,
+     169,
+     180,
+     192,
+     213
+    ],
+    "freeHitSquad": null,
+    "moves": [
      {
       "out": 78,
       "in": 169,
-      "value": 0.92
+      "value": 0.67,
+      "priceNote": null,
+      "sameWeekShare": 0.33,
+      "anyWeekShare": 0.33
+     },
+     {
+      "out": 83,
+      "in": 192,
+      "value": -0.35,
+      "priceNote": null,
+      "sameWeekShare": 0.07,
+      "anyWeekShare": 0.13
+     },
+     {
+      "out": 253,
+      "in": 180,
+      "value": 0.5,
+      "priceNote": "priced \u00a30.1m higher after tonight's likely rise",
+      "sameWeekShare": 0.4,
+      "anyWeekShare": 0.4
      }
     ],
     "hits": 0,
     "freeTransfers": 3,
-    "bank": 7,
+    "bank": 4,
     "captain": 23,
     "chip": "bboost",
-    "xp": 80.68
+    "xp": 81.5
    },
    {
     "gameweek": 15,
     "squad": [
      3,
-     10,
+     8,
      18,
      23,
      28,
@@ -4935,26 +4953,26 @@
      103,
      113,
      127,
+     151,
      169,
-     176,
-     181,
-     213,
-     253
+     180,
+     192,
+     213
     ],
     "freeHitSquad": null,
     "moves": [],
     "hits": 0,
     "freeTransfers": 1,
-    "bank": 7,
+    "bank": 4,
     "captain": 23,
     "chip": null,
-    "xp": 67.51
+    "xp": 66.79
    },
    {
     "gameweek": 16,
     "squad": [
      3,
-     10,
+     8,
      18,
      23,
      28,
@@ -4963,11 +4981,11 @@
      103,
      113,
      127,
+     151,
      169,
-     176,
-     181,
-     213,
-     253
+     180,
+     192,
+     213
     ],
     "freeHitSquad": [
      3,
@@ -4989,7 +5007,7 @@
     "moves": [],
     "hits": 0,
     "freeTransfers": 2,
-    "bank": 7,
+    "bank": 4,
     "captain": 23,
     "chip": "freehit",
     "xp": 125.68
@@ -4998,7 +5016,7 @@
     "gameweek": 17,
     "squad": [
      3,
-     10,
+     8,
      18,
      23,
      28,
@@ -5007,20 +5025,20 @@
      103,
      113,
      127,
+     151,
      169,
-     176,
-     181,
-     213,
-     253
+     180,
+     192,
+     213
     ],
     "freeHitSquad": null,
     "moves": [],
     "hits": 0,
     "freeTransfers": 3,
-    "bank": 7,
+    "bank": 4,
     "captain": 23,
     "chip": null,
-    "xp": 67.17
+    "xp": 66.8
    }
   ],
   "totalHits": 0,
@@ -5029,8 +5047,28 @@
    "bboost": 14,
    "freehit": 16
   },
-  "gain": 75.21,
+  "gain": 75.22,
   "finishedSearch": true,
+  "sensitivity": {
+   "runs": 15,
+   "firstWeekAlternatives": [
+    {
+     "out": 83,
+     "in": 23,
+     "share": 0.2
+    },
+    {
+     "out": 79,
+     "in": 244,
+     "share": 0.2
+    },
+    {
+     "out": 114,
+     "in": 176,
+     "share": 0.13
+    }
+   ]
+  },
   "normalTransfers": {
    "weeks": [
     {
@@ -5057,17 +5095,20 @@
       {
        "out": 1,
        "in": 76,
-       "value": 4.67
+       "value": 4.67,
+       "priceNote": "buy now: likely to rise \u00a30.1m tonight"
       },
       {
        "out": 79,
        "in": 127,
-       "value": 3.88
+       "value": 3.88,
+       "priceNote": null
       },
       {
        "out": 114,
        "in": 23,
-       "value": 19.94
+       "value": 19.94,
+       "priceNote": null
       }
      ],
      "hits": 0,
@@ -5101,22 +5142,25 @@
       {
        "out": 8,
        "in": 10,
-       "value": 2.28
+       "value": 2.28,
+       "priceNote": null
       },
       {
        "out": 83,
        "in": 72,
-       "value": 2.19
+       "value": 2.19,
+       "priceNote": null
       },
       {
        "out": 253,
        "in": 14,
-       "value": 3.5
+       "value": 3.5,
+       "priceNote": null
       }
      ],
      "hits": 0,
      "freeTransfers": 3,
-     "bank": 22,
+     "bank": 24,
      "captain": 23,
      "chip": null,
      "xp": 66.04
@@ -5144,7 +5188,7 @@
      "moves": [],
      "hits": 0,
      "freeTransfers": 1,
-     "bank": 22,
+     "bank": 24,
      "captain": 23,
      "chip": null,
      "xp": 65.76
@@ -5173,17 +5217,19 @@
       {
        "out": 103,
        "in": 75,
-       "value": 1.92
+       "value": 1.92,
+       "priceNote": "priced \u00a30.1m higher after tonight's likely rise"
       },
       {
        "out": 113,
        "in": 68,
-       "value": 2.13
+       "value": 2.13,
+       "priceNote": null
       }
      ],
      "hits": 0,
      "freeTransfers": 2,
-     "bank": 76,
+     "bank": 78,
      "captain": 23,
      "chip": null,
      "xp": 122.51
@@ -5211,7 +5257,7 @@
      "moves": [],
      "hits": 0,
      "freeTransfers": 1,
-     "bank": 76,
+     "bank": 78,
      "captain": 23,
      "chip": null,
      "xp": 65.14
@@ -10090,16 +10136,16 @@
      "laterGain": null,
      "action": "play",
      "week": 14,
-     "gain": 14.6,
+     "gain": 16.1,
      "closeCall": false,
      "playNow": false,
-     "planReason": "The plan's bench that week (S\u00e1nchez, Isak, Mykolenko, Calvert-Lewin) is expected to add 14.6 xP.",
+     "planReason": "The plan's bench that week (S\u00e1nchez, FUL DEF 2, Isak, Mykolenko) is expected to add 16.1 xP.",
      "planRisk": {
-      "allBenchPlay": 0.64
+      "allBenchPlay": 0.8
      }
     },
     "risk": {
-     "allBenchPlay": 0.64
+     "allBenchPlay": 0.8
     },
     "quality": "near",
     "byWeek": [
@@ -10133,7 +10179,7 @@
      }
     ],
     "source": "plan",
-    "reason": "The five-week plan plays Bench Boost in GW14: +14.6 xP over the best plan without it. The plan's bench that week (S\u00e1nchez, Isak, Mykolenko, Calvert-Lewin) is expected to add 14.6 xP."
+    "reason": "The five-week plan plays Bench Boost in GW14: +16.1 xP over the best plan without it. The plan's bench that week (S\u00e1nchez, FUL DEF 2, Isak, Mykolenko) is expected to add 16.1 xP."
    },
    {
     "chip": "3xc",
@@ -10206,10 +10252,10 @@
      "laterGain": null,
      "action": "play",
      "week": 16,
-     "gain": 21.7,
+     "gain": 22.9,
      "closeCall": false,
      "playNow": false,
-     "planReason": "A one-week squad scores 21.7 xP more than your own squad would that week; yours comes back the week after.",
+     "planReason": "A one-week squad scores 22.9 xP more than your own squad would that week; yours comes back the week after.",
      "planRisk": {}
     },
     "risk": {},
@@ -10245,7 +10291,7 @@
      }
     ],
     "source": "plan",
-    "reason": "The five-week plan plays Free Hit in GW16: +21.7 xP over the best plan without it. A one-week squad scores 21.7 xP more than your own squad would that week; yours comes back the week after."
+    "reason": "The five-week plan plays Free Hit in GW16: +22.9 xP over the best plan without it. A one-week squad scores 22.9 xP more than your own squad would that week; yours comes back the week after."
    },
    {
     "chip": "wildcard",
@@ -49340,9 +49386,11 @@
   {
    "id": 555,
    "name": "Family League",
+   "kind": "full",
    "size": 4,
    "rivalsWithPicks": 3,
    "myRank": 2,
+   "myLastRank": 3,
    "table": [
     {
      "entry": 11304359,
@@ -51458,5 +51506,6 @@
    "name": "wildcard",
    "gameweek": 7
   }
- ]
+ ],
+ "changes": []
 }

@@ -288,12 +288,17 @@ export interface LeagueRow {
   chipsLeft: ChipCode[] | null;
 }
 
+// "full": every rival's picks were read (leagues of up to 100 teams).
+// "table": a bigger league with only its top 50 and the 50 around you, and
+// no threats, differentials or captains.
 export interface League {
   id: number;
   name: string;
-  size: number;
+  kind?: "full" | "table"; // missing in snapshots saved before 22 November 2026
+  size: number; // teams in the whole league, not just the rows in `table`
   rivalsWithPicks: number;
   myRank: number | null;
+  myLastRank: number | null;
   table: LeagueRow[];
   mySquad: LeaguePlayerLine[];
   threats: LeaguePlayerLine[];

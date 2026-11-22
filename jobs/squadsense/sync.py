@@ -175,6 +175,8 @@ def live_picks(storage, client, team_id, current_week, is_public, league_data, b
     the automatic substitutions need.
     """
     mine = leagues.cached_picks(client, storage, team_id, current_week) if is_public else None
+    # Live totals need every team's picks, which only fully analysed leagues have.
+    league_data = [league for league in league_data if league["kind"] == "full"]
     for league in league_data:
         league["picks"][team_id] = mine
     hits = lambda picks: ((picks or {}).get("entry_history") or {}).get("event_transfers_cost", 0)

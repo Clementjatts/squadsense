@@ -13,11 +13,18 @@ the last gameweek that has passed its deadline and works out:
 It also reads each rival's season history for the chips they've played,
 so the Chip Planner can show what your rivals still have.
 
+Every private league you're in is listed. Reading rivals' picks costs two
+requests per rival, so that full analysis is only done for leagues of up
+to FULL_ANALYSIS_MAX teams. Bigger leagues get their table only: the top
+50 and the 50 around you, fetched once a day.
+
 Rival picks for a past deadline never change, so each one is cached and
 only fetched once per gameweek. Histories are cached the same way.
 """
 
+import datetime
 import logging
+import math
 import os
 from collections import Counter
 
@@ -25,8 +32,8 @@ from .fpl_client import FplApiError
 
 log = logging.getLogger("squadsense.leagues")
 
-MAX_LEAGUE_SIZE = 50  # one page of standings; bigger leagues aren't really mini-leagues
-MAX_LEAGUES = 4
+FULL_ANALYSIS_MAX = 100  # rivals' picks are read for leagues this size or smaller
+STANDINGS_PAGE_SIZE = 50  # FPL returns a league table 50 teams at a time
 ALL_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
 RIVAL_CHIP_ROWS = 12  # rivals listed per league on the Chip Planner
 THREATS_SHOWN = 6
@@ -42,19 +49,53 @@ def league_ids_from_env():
 
 
 def choose_leagues(team_entry, chosen_ids=None):
-    """The leagues to analyse: the ones named, or the smallest private ones.
+    """The leagues to show: the ones named, or every private league, smallest first.
 
     Private leagues have league_type "x". Public ones such as "Overall"
     have millions of teams, so they're left out.
     """
     classic = team_entry.get("leagues", {}).get("classic", [])
     if chosen_ids:
-        return [league for league in classic if league["id"] in chosen_ids]
-    private = [
-        league for league in classic
-        if league["league_type"] == "x" and 0 < (league.get("rank_count") or 0) <= MAX_LEAGUE_SIZE
-    ]
-    return sorted(private, key=lambda league: league["rank_count"])[:MAX_LEAGUES]
+        chosen = [league for league in classic if league["id"] in chosen_ids]
+    else:
+        chosen = [league for league in classic if league["league_type"] == "x" and (league.get("rank_count") or 0) > 0]
+    return sorted(chosen, key=lambda league: league.get("rank_count") or 0)
+
+
+def is_fully_analysed(info):
+    """True for a league small enough to read every rival's picks."""
+    return (info.get("rank_count") or 0) <= FULL_ANALYSIS_MAX
+
+
+def all_standings(client, league_id):
+    """Every row of a small league's table, reading as many 50-team pages as it has."""
+    rows, page = [], 1
+    while True:
+        standings = client.league_standings(league_id, page)["standings"]
+        rows.extend(standings["results"])
+        if not standings.get("has_next") or page * STANDINGS_PAGE_SIZE >= FULL_ANALYSIS_MAX:
+            return rows
+        page += 1
+
+
+def top_and_nearby_standings(client, storage, info, today):
+    """A big league's top 50 and the 50 teams around you, saved and reused for a day.
+
+    Big leagues barely change within a day, and fetching them on every
+    sync would cost two requests per league each time.
+    """
+    name = f"standings/{info['id']}"
+    saved = storage.load_raw(name)
+    if saved and saved.get("day") == today:
+        return saved["rows"]
+    my_page = math.ceil((info.get("entry_rank") or 1) / STANDINGS_PAGE_SIZE)
+    rows = {}
+    for page in sorted({1, my_page}):
+        for row in client.league_standings(info["id"], page)["standings"]["results"]:
+            rows[row["entry"]] = row
+    ordered = sorted(rows.values(), key=lambda row: row["rank"])
+    storage.save_raw(name, {"day": today, "rows": ordered})
+    return ordered
 
 
 def cached_picks(client, storage, entry_id, gameweek):
@@ -91,25 +132,36 @@ def cached_history(client, storage, entry_id, gameweek):
     return history
 
 
-def fetch_leagues(client, storage, team_entry, gameweek, chosen_ids=None):
-    """Standings and every rival's picks for each chosen league.
+def fetch_leagues(client, storage, team_entry, gameweek, chosen_ids=None, today=None):
+    """Standings for every chosen league, plus rivals' picks for the small ones.
 
-    Returns a list of {"info", "standings", "picks"} where `picks` maps
-    team id to that team's picks for `gameweek` (None if it has none).
+    Returns a list of {"info", "kind", "standings", "picks", "histories"}.
+    `kind` is "full" when every rival's picks for `gameweek` were read,
+    and "table" for a big league, whose `picks` and `histories` are empty.
     Your own team is left out of `picks`; the sync reads those itself.
     """
-    my_team_id = team_entry["id"]
+    today = today or datetime.date.today().isoformat()
     leagues = []
     for info in choose_leagues(team_entry, chosen_ids):
-        standings = client.league_standings(info["id"])["standings"]["results"]
-        picks = {
-            row["entry"]: cached_picks(client, storage, row["entry"], gameweek)
-            for row in standings if row["entry"] != my_team_id
-        }
-        histories = {entry: cached_history(client, storage, entry, gameweek) for entry in picks}
-        log.info("League %s: %d teams", info["name"], len(standings))
-        leagues.append({"info": info, "standings": standings, "picks": picks, "histories": histories})
+        if is_fully_analysed(info):
+            leagues.append(fetch_full_league(client, storage, info, team_entry["id"], gameweek))
+        else:
+            standings = top_and_nearby_standings(client, storage, info, today)
+            log.info("League %s: %d teams, table only", info["name"], info.get("rank_count") or 0)
+            leagues.append({"info": info, "kind": "table", "standings": standings, "picks": {}, "histories": {}})
     return leagues
+
+
+def fetch_full_league(client, storage, info, my_team_id, gameweek):
+    """A small league's whole table, with every rival's picks and chip history."""
+    standings = all_standings(client, info["id"])
+    picks = {
+        row["entry"]: cached_picks(client, storage, row["entry"], gameweek)
+        for row in standings if row["entry"] != my_team_id
+    }
+    histories = {entry: cached_history(client, storage, entry, gameweek) for entry in picks}
+    log.info("League %s: %d teams, rivals' picks read", info["name"], len(standings))
+    return {"info": info, "kind": "full", "standings": standings, "picks": picks, "histories": histories}
 
 
 def chips_left(history, half):
@@ -174,12 +226,15 @@ def summarise_league(league, my_team_id, my_squad, expected_points, next_week, h
 
     rows = table_rows(league["standings"], league["picks"], league.get("histories", {}), half)
     my_row = next((row for row in rows if row["entry"] == my_team_id), None)
+    info = league["info"]
     return {
-        "id": league["info"]["id"],
-        "name": league["info"]["name"],
-        "size": len(rows),
+        "id": info["id"],
+        "name": info["name"],
+        "kind": league.get("kind", "full"),
+        "size": info.get("rank_count") or len(rows),
         "rivalsWithPicks": rival_total,
-        "myRank": my_row["rank"] if my_row else None,
+        "myRank": my_row["rank"] if my_row else info.get("entry_rank"),
+        "myLastRank": my_row["lastRank"] if my_row else info.get("entry_last_rank"),
         "table": rows,
         "mySquad": [player_line(player_id) for player_id in my_squad],
         "threats": [player_line(player_id) for player_id in threats],
@@ -194,9 +249,12 @@ def build_leagues(league_data, my_team_id, my_squad, expected_points, next_week,
 
 
 def rival_chip_summary(leagues):
-    """For the Chip Planner: per league, how many rivals hold each chip, and the top rivals' chips left."""
+    """For the Chip Planner: per league, how many rivals hold each chip, and the top rivals' chips left.
+
+    Only fully analysed leagues are included; big leagues have no chip histories.
+    """
     summaries = []
-    for league in leagues:
+    for league in (league for league in leagues if league["kind"] == "full"):
         known = [row for row in league["table"] if row["chipsLeft"] is not None]
         summaries.append({
             "id": league["id"],

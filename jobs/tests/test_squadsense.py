@@ -723,3 +723,80 @@ def test_no_alert_settings_means_nothing_is_sent(tmp_path):
     from squadsense.storage import FileStorage
     now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
     assert run_alerts(FileStorage(tmp_path), alert_snapshot(), now, Channels(), FakeResend(), now) == []
+
+
+class FakeLeagueClient:
+    """Answers league table pages from made-up leagues, and records each page asked for.
+
+    `sizes` maps league id to its number of teams. Teams are numbered so
+    team 5000 + rank sits at that rank, and every team has empty picks.
+    """
+
+    def __init__(self, sizes):
+        self.sizes = sizes
+        self.pages_asked = []
+
+    def league_standings(self, league_id, page=1):
+        self.pages_asked.append((league_id, page))
+        size = self.sizes[league_id]
+        ranks = range((page - 1) * 50 + 1, min(page * 50, size) + 1)
+        rows = [{"entry": 5000 + rank, "entry_name": f"Team {rank}", "player_name": f"Manager {rank}", "rank": rank,
+                 "last_rank": rank, "total": 1000 - rank, "event_total": 50} for rank in ranks]
+        return {"standings": {"has_next": page * 50 < size, "page": page, "results": rows}}
+
+    def entry_picks(self, team_id, gameweek):
+        return {"picks": [], "active_chip": None}
+
+    def entry_history(self, team_id):
+        return {"chips": []}
+
+
+def league_entry(*leagues):
+    """A team entry listing the given (id, size, my rank) private leagues."""
+    return {"id": TEAM_ID, "leagues": {"classic": [
+        {"id": league_id, "name": f"League {league_id}", "league_type": "x", "rank_count": size, "entry_rank": rank, "entry_last_rank": rank}
+        for league_id, size, rank in leagues
+    ]}}
+
+
+def test_every_private_league_is_listed_and_big_ones_are_table_only(tmp_path):
+    from squadsense import leagues
+    from squadsense.storage import FileStorage
+    client = FakeLeagueClient({1: 10, 2: 80, 3: 500})
+    fetched = leagues.fetch_leagues(client, FileStorage(tmp_path), league_entry((3, 500, 230), (1, 10, 4), (2, 80, 60)), 12, today="2026-11-22")
+    assert [league["info"]["id"] for league in fetched] == [1, 2, 3]  # smallest first
+    assert [league["kind"] for league in fetched] == ["full", "full", "table"]
+    assert len(fetched[1]["standings"]) == 80  # both 50-team pages of a full league
+    big = fetched[2]
+    assert big["picks"] == {} and [row["rank"] for row in big["standings"]][:1] == [1]
+    assert 230 in [row["rank"] for row in big["standings"]]  # the page around you
+    assert (3, 1) in client.pages_asked and (3, 5) in client.pages_asked
+
+
+def test_big_league_tables_are_reused_for_the_rest_of_the_day(tmp_path):
+    from squadsense import leagues
+    from squadsense.storage import FileStorage
+    storage, entry = FileStorage(tmp_path), league_entry((3, 500, 230))
+    leagues.fetch_leagues(FakeLeagueClient({3: 500}), storage, entry, 12, today="2026-11-22")
+    same_day = FakeLeagueClient({3: 500})
+    leagues.fetch_leagues(same_day, storage, entry, 12, today="2026-11-22")
+    next_day = FakeLeagueClient({3: 500})
+    leagues.fetch_leagues(next_day, storage, entry, 12, today="2026-11-23")
+    assert same_day.pages_asked == [] and len(next_day.pages_asked) == 2
+
+
+def test_table_only_leagues_have_no_rival_lists_or_chip_rows(tmp_path):
+    from squadsense import leagues
+    from squadsense.storage import FileStorage
+    fetched = leagues.fetch_leagues(FakeLeagueClient({1: 10, 3: 500}), FileStorage(tmp_path), league_entry((1, 10, 4), (3, 500, 230)), 12, today="2026-11-22")
+    summaries = leagues.build_leagues(fetched, TEAM_ID, [], {}, 13, (1, 19))
+    big = summaries[1]
+    assert big["kind"] == "table" and big["size"] == 500 and big["myRank"] == 230
+    assert big["threats"] == [] and big["rivalsWithPicks"] == 0
+    assert [summary["id"] for summary in leagues.rival_chip_summary(summaries)] == [1]
+
+
+def test_query_strings_keep_the_trailing_slash_on_the_path():
+    fake_http = FakeHttpClient({"leagues-classic/7/standings/?page_standings=2": {"standings": {"results": []}}})
+    FplClient(min_seconds_between_requests=0, http_client=fake_http).league_standings(7, 2)
+    assert fake_http.requested == ["leagues-classic/7/standings/?page_standings=2"]
