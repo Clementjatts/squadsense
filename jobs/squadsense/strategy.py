@@ -55,7 +55,7 @@ MAX_PLAN_AGE_HOURS = 12  # re-plan at least twice a day, so new matches and form
 SENSITIVITY_RUNS = 15
 SENSITIVITY_SECONDS = 30  # per run; these runs only check the transfers, chips stay as decided
 # Bump this whenever the strategy's rules change, so a saved plan made under old rules isn't reused.
-STRATEGY_VERSION = 6
+STRATEGY_VERSION = 7  # 7: plans carry every week's Free Hit squad
 
 
 def scaled(value, keep_share, note):
@@ -332,6 +332,9 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
         normalShareOfGap=round(1 - share_left, 2),
         wildcardMargin=CHIP_MARGINS["wildcard"],
         closeCallPoints=CLOSE_CALL,
+        # The best one-week squad for every week Free Hit could be played,
+        # so the Planner can try it in any of them, not just the plan's pick.
+        freeHitSquads={str(week): best["squad"] for week, best in free_hit_best.items()},
     )
     return plan, values, decisions, "plan"
 

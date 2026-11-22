@@ -20,13 +20,24 @@ export interface PlannedMove {
 
 // The chips the sandbox understands. Free Hit needs a one-week squad, which
 // comes from the five-week plan (FreeHitSquads), so it's only offered in
-// the week the plan picked one for.
+// weeks the plan built one for.
 export type PlannerChip = ChipCode;
 export type PlannedChips = Partial<Record<number, PlannerChip>>; // gameweek -> chip
 export type FreeHitSquads = Partial<Record<number, number[]>>; // gameweek -> the one-week squad
 // Captains you chose (gameweek -> player). Weeks without one use the
 // highest-xP starter, as planner.py does.
 export type PlannedCaptains = Partial<Record<number, number>>;
+
+// A lineup you picked yourself for one week: eleven starters, the bench
+// in order (backup keeper first), captain and vice-captain. Weeks without
+// one use the model's best eleven.
+export interface LineupChoice {
+  starters: number[];
+  bench: number[];
+  captain: number;
+  viceCaptain: number;
+}
+export type PlannedLineups = Partial<Record<number, LineupChoice>>; // gameweek -> your lineup
 
 export interface WeekPlan {
   week: number;
@@ -39,6 +50,7 @@ export interface WeekPlan {
   viceCaptain: number;
   captainChosen: boolean; // true when the captain is your pick, not the model's
   captainNotStarting: boolean; // you picked a captain who isn't in this week's best eleven
+  lineupChosen: boolean; // true when the eleven is one you picked, not the model's
   expectedPoints: number;
   transfersMade: number;
   freeTransfersBefore: number | null;
@@ -80,6 +92,99 @@ export function bestLineup(squad: number[], players: Record<string, Player>, wee
   const [captain, viceCaptain] = [...starters].sort((a, b) => xpFor(players[b], week) - xpFor(players[a], week));
   const total = starters.reduce((sum, id) => sum + xpFor(players[id], week), 0) + xpFor(players[captain], week);
   return { starters, bench, captain, viceCaptain, expectedPoints: total };
+}
+
+/** True if eleven players in these positions make a legal FPL formation. Mirrors rules.is_valid_formation. */
+export function isValidFormation(positions: Position[]): boolean {
+  if (positions.length !== 11) return false;
+  return (Object.keys(MIN_STARTERS) as Position[]).every((position) => {
+    const count = positions.filter((each) => each === position).length;
+    return count >= MIN_STARTERS[position] && count <= MAX_STARTERS[position];
+  });
+}
+
+/** A chosen lineup's expected points: every starter once, plus the captain once more. */
+export function lineupScore(choice: LineupChoice, players: Record<string, Player>, week: number): number {
+  return choice.starters.reduce((sum, id) => sum + xpFor(players[id], week), 0) + xpFor(players[choice.captain], week);
+}
+
+/** True when a chosen lineup uses exactly this 15-man squad, with a legal eleven and two different armbands. */
+export function choiceFitsSquad(choice: LineupChoice, squad: number[], players: Record<string, Player>): boolean {
+  const chosen = [...choice.starters, ...choice.bench];
+  return (
+    choice.starters.length === 11 && choice.bench.length === 4 && chosen.length === squad.length
+    && chosen.every((id) => squad.includes(id))
+    && isValidFormation(choice.starters.map((id) => players[id].position))
+    && choice.starters.includes(choice.captain) && choice.starters.includes(choice.viceCaptain)
+    && choice.captain !== choice.viceCaptain
+  );
+}
+
+/**
+ * Carries a chosen lineup through planned transfers: each player sold
+ * hands his slot (and armband) to the player bought for him. Transfers are
+ * always like for like by position, so the formation stays the same.
+ */
+export function carryChoiceThroughMoves(choice: LineupChoice, moves: PlannedMove[]): LineupChoice {
+  const replace = (id: number) => moves.reduce((current, move) => (current === move.outId ? move.inId : current), id);
+  return {
+    starters: choice.starters.map(replace),
+    bench: choice.bench.map(replace),
+    captain: replace(choice.captain),
+    viceCaptain: replace(choice.viceCaptain),
+  };
+}
+
+// The highest-xP starter other than `except`, for handing on an armband.
+function bestStarterExcept(starters: number[], except: number[], players: Record<string, Player>, week: number): number {
+  return [...starters].filter((id) => !except.includes(id)).sort((a, b) => xpFor(players[b], week) - xpFor(players[a], week))[0];
+}
+
+/**
+ * Swaps two players the way FPL's "Pick Team" screen does, or explains why
+ * it can't. A starter and a bench player change places (keepers only with
+ * keepers, and the eleven must stay a legal formation); two outfield bench
+ * players change bench order. The backup keeper always stays first on the
+ * bench. A captain or vice moved to the bench hands the armband on.
+ */
+export function swapInLineup(choice: LineupChoice, first: number, second: number, players: Record<string, Player>, week: number): LineupChoice | string {
+  const isKeeper = (id: number) => players[id].position === "GK";
+  const starting = (id: number) => choice.starters.includes(id);
+  if (first === second) return "Pick two different players.";
+  if (starting(first) && starting(second)) return "Both already start. Pick a bench player to bring one off.";
+  if (!starting(first) && !starting(second)) {
+    if (isKeeper(first) || isKeeper(second)) return "The backup keeper always sits first on the bench.";
+    const bench = choice.bench.map((id) => (id === first ? second : id === second ? first : id));
+    return { ...choice, bench };
+  }
+  const [starter, benched] = starting(first) ? [first, second] : [second, first];
+  if (isKeeper(starter) !== isKeeper(benched)) return "Keepers can only swap with keepers.";
+  const starters = choice.starters.map((id) => (id === starter ? benched : id));
+  if (!isValidFormation(starters.map((id) => players[id].position))) {
+    return `That breaks the formation: you need at least 3 defenders, 2 midfielders and 1 forward.`;
+  }
+  const bench = choice.bench.map((id) => (id === benched ? starter : id));
+  let { captain, viceCaptain } = choice;
+  if (captain === starter) captain = viceCaptain === starter ? bestStarterExcept(starters, [], players, week) : viceCaptain;
+  if (viceCaptain === starter || viceCaptain === captain) viceCaptain = bestStarterExcept(starters, [captain], players, week);
+  return { starters, bench, captain, viceCaptain };
+}
+
+/** Puts the armband (or the vice armband) on a starter. Picking the other armband's holder swaps the two. */
+export function setArmband(choice: LineupChoice, id: number, role: "captain" | "vice"): LineupChoice | string {
+  if (!choice.starters.includes(id)) return "Only a starter can wear an armband.";
+  if (role === "captain") {
+    return { ...choice, captain: id, viceCaptain: choice.viceCaptain === id ? choice.captain : choice.viceCaptain };
+  }
+  return { ...choice, viceCaptain: id, captain: choice.captain === id ? choice.viceCaptain : choice.captain };
+}
+
+// Your chosen lineup for one week, carried through the moves planned up to
+// then, or null when there's none or it no longer fits the squad that plays.
+function weekLineup(choice: LineupChoice | undefined, playing: number[], movesSoFar: PlannedMove[], players: Record<string, Player>): LineupChoice | null {
+  if (!choice) return null;
+  const carried = carryChoiceThroughMoves(choice, movesSoFar);
+  return choiceFitsSquad(carried, playing, players) ? carried : null;
 }
 
 // Swaps players in and out to get the squad for a given week.
@@ -156,6 +261,7 @@ export function simulatePlan(
   chips: PlannedChips = {},
   freeHitSquads: FreeHitSquads = {},
   captains: PlannedCaptains = {},
+  lineups: PlannedLineups = {},
 ): WeekPlan[] {
   const { players } = snapshot;
   const paidInPlan = new Map<number, number>();
@@ -178,10 +284,14 @@ export function simulatePlan(
     const freeHitSquad = chip === "freehit" ? freeHitSquads[week] : undefined;
     const weekHitPoints = hitPoints(transfersMade, freeTransfers, chip);
     // In a Free Hit week the one-week squad plays; your own squad sits it out unchanged.
+    const playing = freeHitSquad ?? squad;
+    const chosenLineup = weekLineup(lineups[week], playing, moves.filter((move) => move.week <= week), players);
+    const baseLineup = chosenLineup ? { ...chosenLineup, expectedPoints: lineupScore(chosenLineup, players, week) } : bestLineup(playing, players, week);
     const chosenCaptain = captains[week];
-    const lineup = withChosenCaptain(bestLineup(freeHitSquad ?? squad, players, week), chosenCaptain, players, week);
+    const lineup = withChosenCaptain(baseLineup, chosenCaptain, players, week);
     const problems = checkRules(squad, players, bank);
     if (freeHitSquad && transfersMade > 0) problems.push("Free Hit week: plan your own transfers for another week");
+    if (lineups[week] && !chosenLineup) problems.push(`Your GW${week} lineup no longer fits this squad, so the best eleven is used`);
 
     plans.push({
       week,
@@ -194,6 +304,7 @@ export function simulatePlan(
       viceCaptain: lineup.viceCaptain,
       captainChosen: chosenCaptain !== undefined && lineup.captain === chosenCaptain,
       captainNotStarting: chosenCaptain !== undefined && lineup.captain !== chosenCaptain,
+      lineupChosen: chosenLineup !== null,
       expectedPoints: lineup.expectedPoints + chipBonus(chip, lineup, players, week),
       transfersMade,
       freeTransfersBefore: freeTransfers,

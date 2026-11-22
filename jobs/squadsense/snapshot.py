@@ -183,6 +183,8 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
         for week in plan_weeks:
             included_ids.update(move["in"] for move in week["moves"])
             included_ids.update(week["freeHitSquad"] or [])
+    for squad in (solver_plan or {}).get("freeHitSquads", {}).values():
+        included_ids.update(squad)
     half = current_half(bootstrap, first_week)
     league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, expected_points, first_week, half)
     included_ids.update(leagues.players_mentioned(league_summaries))

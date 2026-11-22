@@ -68,6 +68,9 @@ export interface SolverPlan {
   // How sure: the plan re-solved `runs` times with random noise on xP, and the
   // first-week moves those runs chose instead of the plan's.
   sensitivity?: { runs: number; firstWeekAlternatives: { out: number; in: number; share: number }[] };
+  // The best one-week squad for each week Free Hit could be played (gameweek -> 15 ids).
+  // Missing in plans made before 22 November 2026.
+  freeHitSquads?: Record<string, number[]>;
 }
 
 export interface Suggestion {

@@ -465,6 +465,13 @@ def test_chip_planner_and_transfer_plan_always_agree(tmp_path, fake_client, samp
     played_on_cards = {chip: card["decision"]["week"] for chip, card in cards.items() if card["decision"]["action"] == "play"}
     assert played_on_cards == plan["chips"]
     assert snapshot["chipPlan"]["source"] == "plan"
+    # Every week Free Hit could be played has a legal one-week squad the Planner can try.
+    players = {player["id"]: player for player in sample["bootstrap-static/"]["elements"]}
+    planned_weeks = {str(week["gameweek"]) for week in plan["weeks"]}
+    assert plan["freeHitSquads"] and set(plan["freeHitSquads"]) <= planned_weeks
+    for free_hit in plan["freeHitSquads"].values():
+        assert len(free_hit) == 15 and not rules.check_squad([players[player_id] for player_id in free_hit], bank=0)
+        assert all(str(player_id) in snapshot["players"] for player_id in free_hit)
     assert all("value" in move for week in plan["weeks"] for move in week["moves"])
     assert plan["normalTransfers"]["gain"] <= plan["gain"] + 1e-6
 
@@ -859,6 +866,10 @@ def test_shared_rule_cases_match_the_python_rules():
         assert rules.next_free_transfers(case["freeTransfers"], case["transfersMade"], case["chip"]) == case["expected"], case["why"]
     for case in cases["clubsOverLimit"]:
         assert rules.clubs_over_limit(case["clubs"]) == case["expected"], case["why"]
+    codes = {name: code for code, name in rules.POSITION_NAMES.items()}
+    for case in cases["formations"]:
+        starters = [{"element_type": codes[position]} for position in case["positions"]]
+        assert rules.is_valid_formation(starters) == case["expected"], case["why"]
 
 
 def test_price_predictions_are_saved_per_uk_day():

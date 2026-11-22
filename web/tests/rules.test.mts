@@ -1,10 +1,10 @@
 // Checks the planner's copies of the FPL rules (hits, free transfers, club
-// limit) against shared/rule-cases.json. The Python tests check rules.py
+// limit, formations) against shared/rule-cases.json. The Python tests check rules.py
 // against the same file, so the two copies can't drift apart.
 // Run with: npm test
 
 import { readFileSync } from "node:fs";
-import { clubsOverLimit, hitPoints, nextFreeTransfers } from "../lib/planning.ts";
+import { clubsOverLimit, hitPoints, isValidFormation, nextFreeTransfers } from "../lib/planning.ts";
 
 const cases = JSON.parse(readFileSync(new URL("../../shared/rule-cases.json", import.meta.url), "utf8"));
 
@@ -22,4 +22,7 @@ for (const item of cases.nextFreeTransfers) {
 }
 for (const item of cases.clubsOverLimit) {
   check(`club limit: ${item.why}`, JSON.stringify(clubsOverLimit(item.clubs)) === JSON.stringify(item.expected));
+}
+for (const item of cases.formations) {
+  check(`formation: ${item.why}`, isValidFormation(item.positions) === item.expected);
 }

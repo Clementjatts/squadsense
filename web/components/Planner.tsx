@@ -11,12 +11,16 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { ApplyToFpl } from "./ApplyToFpl";
 import { BroadcastPitch } from "./BroadcastPitch";
 import { PageHero } from "./PageHero";
+import { LineupEditor } from "./LineupEditor";
+import { ScenariosCard, usePlannerDrafts } from "./PlannerDrafts";
+import { SegmentedControl } from "./SegmentedControl";
 import { SellList } from "./SellList";
 import { formatFreeTransfers, formatGain, formatPrice, formatXp } from "@/lib/format";
 import {
-  MAX_PER_CLUB, planScore, plannerRequest, replacementOptions, simulatePlan,
-  type FreeHitSquads, type PlannedCaptains, type PlannedChips, type PlannedMove, type PlannerChip,
+  MAX_PER_CLUB, planScore, plannerRequest, replacementOptions, setArmband, simulatePlan, swapInLineup,
+  type FreeHitSquads, type LineupChoice, type PlannedCaptains, type PlannedChips, type PlannedLineups, type PlannedMove, type PlannerChip, type WeekPlan,
 } from "@/lib/planning";
+import type { PlannerDraft } from "@/lib/drafts";
 import type { Player, SolverPlan, Snapshot, Suggestion } from "@/lib/types";
 
 // The same width the phone CSS uses, so the scrolling below only happens on phones.
@@ -30,15 +34,17 @@ function scrollIntoViewOnPhone(element: HTMLElement | null) {
 
 const PLANNER_CHIP_LABELS: Record<PlannerChip, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
 
-// The one-week squads the five-week plan built, by gameweek (only for its Free Hit week).
+// The best one-week squad for every week Free Hit could be played, by gameweek.
+// Plans saved before these were stored only have the one in the plan's own Free Hit week.
 function freeHitSquadsFrom(snapshot: Snapshot): FreeHitSquads {
   const squads: FreeHitSquads = {};
+  for (const [week, squad] of Object.entries(snapshot.solverPlan?.freeHitSquads ?? {})) squads[Number(week)] = squad;
   for (const week of snapshot.solverPlan?.weeks ?? []) if (week.freeHitSquad) squads[week.gameweek] = week.freeHitSquad;
   return squads;
 }
 
 // Chips you can still try in the sandbox: available this half, in weeks up to the half's last one.
-// Free Hit needs a one-week squad, so it's only offered in the week the plan built one for.
+// Free Hit needs a one-week squad, so it's only offered in weeks the plan built one for.
 function plannerChipsFor(snapshot: Snapshot, week: number, freeHitSquads: FreeHitSquads): PlannerChip[] {
   if (week > snapshot.chipPlan.halfStop) return [];
   return snapshot.chipPlan.cards
@@ -70,6 +76,10 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   const [swapOutId, setSwapOutId] = useState<number | null>(null);
   const [bringInId, setBringInId] = useState<number | null>(null); // a player to buy, waiting for you to pick who he replaces
   const [captains, setCaptains] = useState<PlannedCaptains>({});
+  const [lineups, setLineups] = useState<PlannedLineups>({});
+  const [pitchMode, setPitchMode] = useState<"transfers" | "lineup">("transfers");
+  const [lineupPick, setLineupPick] = useState<number | null>(null); // player waiting for a swap or armband
+  const [lineupMessage, setLineupMessage] = useState<string | null>(null);
   const replaceCardRef = useRef<HTMLElement>(null);
   const sellListRef = useRef<HTMLElement>(null);
 
@@ -85,13 +95,40 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
     window.history.replaceState(null, "", "/planner");
   }, [snapshot]);
 
-  // Recalculate the whole plan whenever a move, chip or captain changes.
+  // Recalculate the whole plan whenever a move, chip, captain or lineup changes.
   const freeHitSquads = useMemo(() => freeHitSquadsFrom(snapshot), [snapshot]);
   const plans = useMemo(
-    () => simulatePlan(snapshot, moves, chips, freeHitSquads, captains),
-    [snapshot, moves, chips, freeHitSquads, captains],
+    () => simulatePlan(snapshot, moves, chips, freeHitSquads, captains, lineups),
+    [snapshot, moves, chips, freeHitSquads, captains, lineups],
   );
   const baselineScore = useMemo(() => planScore(simulatePlan(snapshot, [])), [snapshot]);
+
+  // Saved drafts: your last plan comes back when the Planner opens, and every
+  // change is saved. A player-panel link (?captain=...) wins over the saved
+  // captain for that week, and moves already made here aren't replaced.
+  const currentDraft = useMemo<PlannerDraft>(() => ({ moves, chips, captains, lineups }), [moves, chips, captains, lineups]);
+  const drafts = usePlannerDrafts({
+    snapshot,
+    current: currentDraft,
+    onRestore: (draft) => {
+      setMoves((planned) => (planned.length > 0 ? planned : draft.moves));
+      setChips((planned) => ({ ...draft.chips, ...planned }));
+      setCaptains((planned) => ({ ...draft.captains, ...planned }));
+      setLineups((planned) => ({ ...draft.lineups, ...planned }));
+    },
+  });
+
+  // Swaps the whole plan for a saved scenario.
+  function loadScenario(draft: PlannerDraft) {
+    setMoves(draft.moves);
+    setChips(draft.chips);
+    setCaptains(draft.captains);
+    setLineups(draft.lineups);
+    setSwapOutId(null);
+    setBringInId(null);
+    setLineupPick(null);
+    setLineupMessage(null);
+  }
   const totalScore = planScore(plans);
   const weekPlan = plans.find((plan) => plan.week === selectedWeek) ?? plans[0];
   const weekMoves = moves.filter((move) => move.week === selectedWeek);
@@ -103,6 +140,47 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   function chooseWeek(week: number) {
     setSelectedWeek(week);
     setSwapOutId(null);
+    setLineupPick(null);
+    setLineupMessage(null);
+  }
+
+  // Lineup editing. The first player picked waits; the second is swapped
+  // with him (or, if it's the same player, the pick is dropped). A refused
+  // swap explains why instead of changing anything.
+  function pickForLineup(id: number) {
+    setLineupMessage(null);
+    if (lineupPick === null || lineupPick === id) {
+      setLineupPick(lineupPick === id ? null : id);
+      return;
+    }
+    saveLineup(swapInLineup(lineupOf(weekPlan), lineupPick, id, players, selectedWeek));
+  }
+
+  // Gives the picked player the captain's or vice-captain's armband.
+  function giveArmband(role: "captain" | "vice") {
+    if (lineupPick !== null) saveLineup(setArmband(lineupOf(weekPlan), lineupPick, role));
+  }
+
+  // Keeps a lineup for the selected week, or shows why it was refused (and
+  // drops the pick, so the next click starts fresh). The lineup now decides
+  // the captain, so an earlier "Make captain" choice for this week is dropped.
+  function saveLineup(result: LineupChoice | string) {
+    if (typeof result === "string") {
+      setLineupMessage(result);
+      setLineupPick(null);
+      return;
+    }
+    setLineups({ ...lineups, [selectedWeek]: result });
+    setCaptains({ ...captains, [selectedWeek]: undefined });
+    setLineupPick(null);
+  }
+
+  // Goes back to the model's best eleven and captain for the selected week.
+  function resetLineup() {
+    setLineups({ ...lineups, [selectedWeek]: undefined });
+    setCaptains({ ...captains, [selectedWeek]: undefined });
+    setLineupPick(null);
+    setLineupMessage(null);
   }
 
   // Adds a move this week and closes whichever picker led to it.
@@ -195,18 +273,29 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
       <div className="row">
         {/* Hidden on phones, where the "Pick who to sell" list replaces the pitch. */}
         <div className="col-wide planner-pitch-col" style={{ flex: "1.25 1 660px" }}>
+          <SegmentedControl
+            label="What a click on the pitch does"
+            layoutGroup="planner-pitch-mode"
+            options={[{ value: "transfers", label: "Transfers" }, { value: "lineup", label: "Lineup" }]}
+            value={pitchMode}
+            onChange={(mode) => {
+              setPitchMode(mode);
+              setLineupPick(null);
+              setLineupMessage(null);
+            }}
+          />
           <BroadcastPitch
             title={`GW${selectedWeek} SQUAD`}
-            hint="Click a player to replace him"
+            hint={pitchMode === "transfers" ? "Click a player to replace him" : "Click two players to swap them"}
             starters={weekPlan.starters}
             bench={weekPlan.bench}
             captain={weekPlan.captain}
             viceCaptain={weekPlan.viceCaptain}
             players={players}
             week={selectedWeek}
-            selectedId={swapOutId}
+            selectedId={pitchMode === "transfers" ? swapOutId : lineupPick}
             incomingIds={incomingIds}
-            onPlayerClick={pickPlayerToReplace}
+            onPlayerClick={pitchMode === "transfers" ? pickPlayerToReplace : pickForLineup}
           />
 
         </div>
@@ -445,11 +534,13 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               onApply={() => {
                 setMoves(solverMoves(snapshot.solverPlan!));
                 setChips(solverChips(snapshot.solverPlan!));
+                setLineups({}); // lineups picked for the old squad wouldn't fit the plan's
                 setSwapOutId(null);
                 setBringInId(null);
               }}
             />
           )}
+          <ScenariosCard drafts={drafts} snapshot={snapshot} freeHitSquads={freeHitSquads} currentScore={totalScore} onLoad={loadScenario} />
           <SellList
             ref={sellListRef}
             squad={weekPlan.squad}
@@ -459,10 +550,27 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
             selectedId={swapOutId}
             onSell={pickPlayerToReplace}
           />
+          {/* On a Mac it shows in Lineup mode, next to the pitch; on phones it's always there and lists all 15. */}
+          <LineupEditor
+            weekPlan={weekPlan}
+            players={players}
+            picked={lineupPick}
+            message={lineupMessage}
+            showList={pitchMode === "transfers"}
+            className={pitchMode === "lineup" ? "lineup-editor-pitch" : "phone-only"}
+            onPick={pickForLineup}
+            onArmband={giveArmband}
+            onReset={resetLineup}
+          />
         </div>
       </div>
     </>
   );
+}
+
+// The lineup on show for a week (yours or the model's), in the shape the editing rules take.
+function lineupOf(weekPlan: WeekPlan): LineupChoice {
+  return { starters: weekPlan.starters, bench: weekPlan.bench, captain: weekPlan.captain, viceCaptain: weekPlan.viceCaptain };
 }
 
 // The sync's single-move suggestion that matches this week's plan, if any.

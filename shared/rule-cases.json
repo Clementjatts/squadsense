@@ -1,31 +1,318 @@
 {
-  "about": "FPL rules that exist in both jobs/squadsense/rules.py and web/lib/planning.ts. Both test suites check every case here, so the two copies can't drift apart.",
+  "about": "FPL rules that exist in both jobs/squadsense/rules.py and web/lib/planning.ts. Both test suites check every case here, so the two copies can't drift apart. Positions are GK, DEF, MID and FWD.",
   "hitPoints": [
-    { "transfersMade": 0, "freeTransfers": 1, "chip": null, "expected": 0, "why": "rolling costs nothing" },
-    { "transfersMade": 1, "freeTransfers": 1, "chip": null, "expected": 0, "why": "one free transfer used" },
-    { "transfersMade": 2, "freeTransfers": 1, "chip": null, "expected": 4, "why": "one extra transfer" },
-    { "transfersMade": 5, "freeTransfers": 2, "chip": null, "expected": 12, "why": "three extra transfers" },
-    { "transfersMade": 1, "freeTransfers": 0, "chip": null, "expected": 4, "why": "no free transfers banked" },
-    { "transfersMade": 6, "freeTransfers": null, "chip": null, "expected": 0, "why": "a team's first week is unlimited" },
-    { "transfersMade": 9, "freeTransfers": 1, "chip": "wildcard", "expected": 0, "why": "Wildcard weeks are unlimited" },
-    { "transfersMade": 9, "freeTransfers": 1, "chip": "freehit", "expected": 0, "why": "Free Hit weeks are unlimited" },
-    { "transfersMade": 2, "freeTransfers": 1, "chip": "bboost", "expected": 4, "why": "Bench Boost doesn't make transfers free" }
+    {
+      "transfersMade": 0,
+      "freeTransfers": 1,
+      "chip": null,
+      "expected": 0,
+      "why": "rolling costs nothing"
+    },
+    {
+      "transfersMade": 1,
+      "freeTransfers": 1,
+      "chip": null,
+      "expected": 0,
+      "why": "one free transfer used"
+    },
+    {
+      "transfersMade": 2,
+      "freeTransfers": 1,
+      "chip": null,
+      "expected": 4,
+      "why": "one extra transfer"
+    },
+    {
+      "transfersMade": 5,
+      "freeTransfers": 2,
+      "chip": null,
+      "expected": 12,
+      "why": "three extra transfers"
+    },
+    {
+      "transfersMade": 1,
+      "freeTransfers": 0,
+      "chip": null,
+      "expected": 4,
+      "why": "no free transfers banked"
+    },
+    {
+      "transfersMade": 6,
+      "freeTransfers": null,
+      "chip": null,
+      "expected": 0,
+      "why": "a team's first week is unlimited"
+    },
+    {
+      "transfersMade": 9,
+      "freeTransfers": 1,
+      "chip": "wildcard",
+      "expected": 0,
+      "why": "Wildcard weeks are unlimited"
+    },
+    {
+      "transfersMade": 9,
+      "freeTransfers": 1,
+      "chip": "freehit",
+      "expected": 0,
+      "why": "Free Hit weeks are unlimited"
+    },
+    {
+      "transfersMade": 2,
+      "freeTransfers": 1,
+      "chip": "bboost",
+      "expected": 4,
+      "why": "Bench Boost doesn't make transfers free"
+    }
   ],
   "nextFreeTransfers": [
-    { "freeTransfers": 1, "transfersMade": 0, "chip": null, "expected": 2, "why": "rolling banks one" },
-    { "freeTransfers": 1, "transfersMade": 1, "chip": null, "expected": 1, "why": "using it leaves the weekly one" },
-    { "freeTransfers": 1, "transfersMade": 3, "chip": null, "expected": 1, "why": "hits can't take the bank below zero" },
-    { "freeTransfers": 5, "transfersMade": 0, "chip": null, "expected": 5, "why": "capped at five" },
-    { "freeTransfers": 4, "transfersMade": 0, "chip": null, "expected": 5, "why": "reaching the cap" },
-    { "freeTransfers": 3, "transfersMade": 2, "chip": null, "expected": 2, "why": "one left over plus one" },
-    { "freeTransfers": null, "transfersMade": 12, "chip": null, "expected": 1, "why": "after an unlimited first week you have one" },
-    { "freeTransfers": 2, "transfersMade": 8, "chip": "wildcard", "expected": 3, "why": "a Wildcard keeps banked transfers and adds one" },
-    { "freeTransfers": 5, "transfersMade": 15, "chip": "freehit", "expected": 5, "why": "Free Hit keeps banked transfers, still capped" }
+    {
+      "freeTransfers": 1,
+      "transfersMade": 0,
+      "chip": null,
+      "expected": 2,
+      "why": "rolling banks one"
+    },
+    {
+      "freeTransfers": 1,
+      "transfersMade": 1,
+      "chip": null,
+      "expected": 1,
+      "why": "using it leaves the weekly one"
+    },
+    {
+      "freeTransfers": 1,
+      "transfersMade": 3,
+      "chip": null,
+      "expected": 1,
+      "why": "hits can't take the bank below zero"
+    },
+    {
+      "freeTransfers": 5,
+      "transfersMade": 0,
+      "chip": null,
+      "expected": 5,
+      "why": "capped at five"
+    },
+    {
+      "freeTransfers": 4,
+      "transfersMade": 0,
+      "chip": null,
+      "expected": 5,
+      "why": "reaching the cap"
+    },
+    {
+      "freeTransfers": 3,
+      "transfersMade": 2,
+      "chip": null,
+      "expected": 2,
+      "why": "one left over plus one"
+    },
+    {
+      "freeTransfers": null,
+      "transfersMade": 12,
+      "chip": null,
+      "expected": 1,
+      "why": "after an unlimited first week you have one"
+    },
+    {
+      "freeTransfers": 2,
+      "transfersMade": 8,
+      "chip": "wildcard",
+      "expected": 3,
+      "why": "a Wildcard keeps banked transfers and adds one"
+    },
+    {
+      "freeTransfers": 5,
+      "transfersMade": 15,
+      "chip": "freehit",
+      "expected": 5,
+      "why": "Free Hit keeps banked transfers, still capped"
+    }
   ],
   "clubsOverLimit": [
-    { "clubs": ["ARS", "ARS", "ARS", "MCI"], "expected": {}, "why": "three from a club is allowed" },
-    { "clubs": ["ARS", "ARS", "ARS", "ARS", "MCI"], "expected": { "ARS": 4 }, "why": "four is one too many" },
-    { "clubs": ["LIV", "LIV", "LIV", "LIV", "CHE", "CHE", "CHE", "CHE", "CHE"], "expected": { "LIV": 4, "CHE": 5 }, "why": "every club over is listed" },
-    { "clubs": [], "expected": {}, "why": "an empty squad breaks nothing" }
+    {
+      "clubs": [
+        "ARS",
+        "ARS",
+        "ARS",
+        "MCI"
+      ],
+      "expected": {},
+      "why": "three from a club is allowed"
+    },
+    {
+      "clubs": [
+        "ARS",
+        "ARS",
+        "ARS",
+        "ARS",
+        "MCI"
+      ],
+      "expected": {
+        "ARS": 4
+      },
+      "why": "four is one too many"
+    },
+    {
+      "clubs": [
+        "LIV",
+        "LIV",
+        "LIV",
+        "LIV",
+        "CHE",
+        "CHE",
+        "CHE",
+        "CHE",
+        "CHE"
+      ],
+      "expected": {
+        "LIV": 4,
+        "CHE": 5
+      },
+      "why": "every club over is listed"
+    },
+    {
+      "clubs": [],
+      "expected": {},
+      "why": "an empty squad breaks nothing"
+    }
+  ],
+  "formations": [
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "FWD",
+        "FWD"
+      ],
+      "expected": true,
+      "why": "4-4-2 is legal"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "FWD",
+        "FWD"
+      ],
+      "expected": true,
+      "why": "3-5-2 is legal"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "FWD",
+        "FWD",
+        "FWD"
+      ],
+      "expected": true,
+      "why": "5-2-3 is legal"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "FWD",
+        "FWD",
+        "FWD"
+      ],
+      "expected": false,
+      "why": "two defenders is too few"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "MID"
+      ],
+      "expected": false,
+      "why": "no forward"
+    },
+    {
+      "positions": [
+        "GK",
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "FWD",
+        "FWD"
+      ],
+      "expected": false,
+      "why": "two keepers can't both start"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "FWD",
+        "FWD",
+        "FWD",
+        "DEF",
+        "DEF"
+      ],
+      "expected": false,
+      "why": "six defenders and one midfielder"
+    },
+    {
+      "positions": [
+        "GK",
+        "DEF",
+        "DEF",
+        "DEF",
+        "DEF",
+        "MID",
+        "MID",
+        "MID",
+        "MID",
+        "FWD"
+      ],
+      "expected": false,
+      "why": "ten players isn't a team"
+    }
   ]
 }

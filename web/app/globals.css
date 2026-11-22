@@ -742,6 +742,23 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .league-picker .bc-select { width: 100%; max-width: 560px; height: 42px; font-size: 14px; }
 .league-gap td { height: 28px; text-align: center; letter-spacing: 0.2em; }
 
+/* Planner lineup editing. In Lineup mode on a Mac the card moves to the
+   top of the right-hand column, next to the pitch. */
+.planner-pitch-col > .segmented { align-self: flex-start; }
+.lineup-editor-pitch { order: -1; }
+.lineup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.lineup-row { min-height: 48px; }
+.lineup-slot { width: 52px; flex: none; font-family: var(--condensed); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.lineup-bench .lineup-slot { color: var(--warn); }
+.lineup-row .grow { flex-direction: row; align-items: center; gap: 8px; }
+.lineup-armband { flex: none; height: 18px; font-size: 11px; }
+
+/* Planner scenarios: a name box with Save, then one row per saved plan. */
+.scenario-save { display: flex; gap: 8px; }
+.scenario-save .bc-select { flex: 1; max-width: none; height: 40px; }
+.scenario-row { flex-wrap: wrap; }
+.scenario-meta { display: block; margin-top: 2px; }
+
 /* Review: season totals and the points-per-week chart. Bars over the FPL
    average are lime; the white tick marks the average. */
 .summary-grid.season-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }

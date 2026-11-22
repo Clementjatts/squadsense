@@ -71,6 +71,17 @@ create table if not exists alerts_sent (
   sent_at timestamptz not null default now()
 );
 
+-- Transfer Planner drafts (moves, chips, captains and lineups), shared
+-- between your devices. "current" is saved as you plan; up to three more
+-- are named scenarios to compare. Added 22 November 2026.
+create table if not exists planner_drafts (
+  team_id integer not null,
+  name text not null,
+  draft jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (team_id, name)
+);
+
 -- Lock every table down. Only the jobs (using the database password) and
 -- the website's server code (using the service role key) can read or write.
 -- Nothing is readable straight from a browser.
@@ -82,6 +93,7 @@ alter table price_snapshots enable row level security;
 alter table snapshots enable row level security;
 alter table push_subscriptions enable row level security;
 alter table alerts_sent enable row level security;
+alter table planner_drafts enable row level security;
 
 -- The project was created with "grant API access to new tables" turned off,
 -- so give the website's server key (service_role) what it needs, and make
