@@ -187,8 +187,10 @@ function CalendarLink() {
   return (
     <>
       <span className="muted">Every FPL deadline, with reminders 2 hours and 30 minutes before. A backup in case an alert is late.</span>
-      <a className="btn primary" href={link.url}>Add deadlines to your calendar</a>
-      <button type="button" className="btn" onClick={() => copy(link.url!)}>{copied ? "Link copied" : "Copy link"}</button>
+      <div className="calendar-actions">
+        <a className="btn primary" href={link.url}>Add to calendar</a>
+        <button type="button" className="btn" onClick={() => copy(link.url!)}>{copied ? "Copied" : "Copy link"}</button>
+      </div>
       {link.error && <span className="bc-warn">{link.error}</span>}
     </>
   );
