@@ -8,11 +8,14 @@ import { SESSION_COOKIE, sessionIsValid } from "@/lib/session";
 
 // The sign-in page, plus the files a phone fetches without the login
 // cookie: the service worker, the app manifest and the icons.
+// The deadline calendar is open too, because calendar apps can't sign in;
+// its route checks the secret token in the address itself.
+const OPEN_PREFIXES = ["/api/calendar/"];
 const OPEN_PATHS = ["/login", "/api/login", "/sw.js", "/manifest.webmanifest", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (OPEN_PATHS.includes(pathname)) return NextResponse.next();
+  if (OPEN_PATHS.includes(pathname) || OPEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return NextResponse.next();
   if (await sessionIsValid(request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {

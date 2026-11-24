@@ -97,6 +97,7 @@ Alerts arrive by email and as phone or browser notifications. Each gameweek has 
 3. **Links.** Add `SITE_URL` to GitHub with the site's address, so tapping a notification opens the right page.
 4. **Your phone.** Open the site, tap the bell in the header and choose "Turn on alerts". On an iPhone, first add the site to your Home Screen (Share, then Add to Home Screen) and open it from there; iPhones only allow notifications for sites added that way.
 5. **Test.** On GitHub, open Actions, then Sync FPL data, then Run workflow, tick "Only send a test email and phone alert" and run it. You should get one email and one notification on each device with alerts on. If one doesn't arrive, the run's log says why.
+6. **Deadline calendar (backup).** Tap the bell, then "Add deadlines to your calendar", and confirm the subscription. Every FPL deadline left this season appears in your calendar, with reminders 2 hours and 30 minutes before. The website reads deadlines straight from FPL, so this works even if the GitHub sync is late or stops. If the link doesn't open your calendar, tap "Copy link" and add it on your iPhone under Settings, Apps, Calendar, Calendar Accounts, Add Account, Other, Add Subscribed Calendar. The link carries a code made from `SITE_SECRET`, so changing that secret means subscribing again. Google Calendar ignores the reminders in subscribed calendars; iPhone Calendar keeps them.
 
 ## Applying a plan to your FPL team
 

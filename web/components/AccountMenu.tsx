@@ -4,7 +4,8 @@
 // sign out. Alerts use web push: the browser makes a subscription for
 // this device, the site saves it in Supabase (/api/push), and the sync
 // job sends alerts to it. On an iPhone this only works once the site has
-// been added to the Home Screen, so the menu says so.
+// been added to the Home Screen, so the menu says so. The menu also links
+// the deadline calendar, a backup for the alerts (see lib/calendar.ts).
 
 import { useEffect, useRef, useState } from "react";
 
@@ -114,6 +115,9 @@ export function AccountMenu() {
           <b>Alerts on this device</b>
           <AlertControls state={state} onTurnOn={turnOn} onTurnOff={turnOff} />
           <hr />
+          <b>Deadline calendar</b>
+          <CalendarLink />
+          <hr />
           <form method="post" action="/api/logout">
             <button type="submit" className="btn">Sign out</button>
           </form>
@@ -138,16 +142,54 @@ function AlertControls({ state, onTurnOn, onTurnOff }: { state: AlertState; onTu
     case "on":
       return (
         <>
-          <span className="muted">On: deadline reminders, price drops, injury news, ban risk and plan changes.</span>
+          <span className="muted">On: plan briefs, price drops, injury news and ban risk.</span>
           <button type="button" className="btn" onClick={() => onTurnOff(state.endpoint)}>Turn off</button>
         </>
       );
     default:
       return (
         <>
-          <span className="muted">Get deadline reminders, price drops, injury news, ban risk and plan changes here.</span>
+          <span className="muted">Get plan briefs, price drops, injury news and ban risk here.</span>
           <button type="button" className="btn primary" onClick={onTurnOn}>Turn on alerts</button>
         </>
       );
   }
+}
+
+// The deadline calendar's subscribe link, fetched when the menu opens.
+// The link opens your calendar app; Copy link is for adding it by hand
+// (iPhone: Settings, Apps, Calendar, Calendar Accounts, Add Account, Other,
+// Add Subscribed Calendar).
+function CalendarLink() {
+  const [link, setLink] = useState<{ url?: string; error?: string }>({});
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/calendar-link")
+      .then(async (response) => {
+        const result = await response.json();
+        setLink(response.ok ? { url: result.url } : { error: result.error ?? `Request failed with status ${response.status}` });
+      })
+      .catch((error: Error) => setLink({ error: error.message }));
+  }, []);
+
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url.replace(/^webcal:/, "https:"));
+      setCopied(true);
+    } catch (error) {
+      setLink({ url, error: `Couldn't copy: ${(error as Error).message}` });
+    }
+  }
+
+  if (link.error && !link.url) return <span className="bc-warn">{link.error}</span>;
+  if (!link.url) return <span className="muted">One moment...</span>;
+  return (
+    <>
+      <span className="muted">Every FPL deadline, with reminders 2 hours and 30 minutes before. A backup in case an alert is late.</span>
+      <a className="btn primary" href={link.url}>Add deadlines to your calendar</a>
+      <button type="button" className="btn" onClick={() => copy(link.url!)}>{copied ? "Link copied" : "Copy link"}</button>
+      {link.error && <span className="bc-warn">{link.error}</span>}
+    </>
+  );
 }
