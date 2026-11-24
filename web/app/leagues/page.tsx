@@ -1,15 +1,20 @@
 // Mini-leagues: the league table, plus who your rivals own and captain.
-// The interactive part (switching league) lives in LeaguesView.
+// The interactive part lives in LeaguesView. Only the chosen league
+// (?league=id, the smallest by default) is sent to the browser in full;
+// the others carry just their name and size for the picker.
 
 import { LeaguesView } from "@/components/LeaguesView";
 import { PageHero } from "@/components/PageHero";
+import { forOnePage, withOneLeague } from "@/lib/slim";
 import { getSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaguesPage() {
+export default async function LeaguesPage({ searchParams }: { searchParams: Promise<{ league?: string }> }) {
   const { snapshot } = await getSnapshot();
+  const { league: chosenParam } = await searchParams;
   const leagues = snapshot.leagues ?? [];
+  const picked = withOneLeague(leagues, Number(chosenParam));
   const rivalsRead = leagues.reduce((sum, league) => sum + league.rivalsWithPicks, 0);
   return (
     <div className="bc-page">
@@ -30,7 +35,7 @@ export default async function LeaguesPage() {
           </p>
         </section>
       ) : (
-        <LeaguesView snapshot={snapshot} />
+        <LeaguesView snapshot={{ ...forOnePage(snapshot), leagues: picked.leagues }} chosenId={picked.chosen?.id ?? leagues[0].id} />
       )}
     </div>
   );

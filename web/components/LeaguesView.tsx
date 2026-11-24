@@ -5,7 +5,8 @@
 // over 100 teams show their table only (the top 50 and the 50 around you),
 // since rivals' picks are only read for the smaller ones.
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { PlayerLink } from "./PlayerPanel";
 import { formatXp } from "@/lib/format";
 import type { League, LeaguePlayerLine, LeagueRow, Snapshot } from "@/lib/types";
@@ -18,12 +19,17 @@ function isFull(league: League): boolean {
 
 const CHIP_NAMES: Record<string, string> = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
 
-export function LeaguesView({ snapshot }: { snapshot: Snapshot }) {
-  const [leagueId, setLeagueId] = useState(snapshot.leagues[0].id);
-  const league = snapshot.leagues.find((candidate) => candidate.id === leagueId) ?? snapshot.leagues[0];
+// `chosenId` is the league sent in full; the others have only their name
+// and size, so picking one loads its page (?league=id) from the server.
+export function LeaguesView({ snapshot, chosenId }: { snapshot: Snapshot; chosenId: number }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const league = snapshot.leagues.find((candidate) => candidate.id === chosenId) ?? snapshot.leagues[0];
+  const choose = (id: number) => startTransition(() => router.replace(`/leagues?league=${id}`, { scroll: false }));
   return (
     <>
-      {snapshot.leagues.length > 1 && <LeaguePicker leagues={snapshot.leagues} value={league.id} onChange={setLeagueId} />}
+      {snapshot.leagues.length > 1 && <LeaguePicker leagues={snapshot.leagues} value={league.id} onChange={choose} />}
+      {pending && <span className="muted">Loading the league...</span>}
       <div className="row">
         <div className="col-wide" style={{ flex: "1.4 1 640px" }}>
           <LeagueTable league={league} snapshot={snapshot} />
