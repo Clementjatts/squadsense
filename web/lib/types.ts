@@ -262,6 +262,10 @@ export interface Snapshot {
   review: GameweekReview | null;
   changes?: { at: string; changes: string[] }[]; // the "What changed" feed, newest first
   ruleChanges?: string[]; // FPL rules that differ from the typed-in ones in jobs/squadsense/rules.py
+  // Moves marked "Done on FPL" that this snapshot's squad already includes, and
+  // marks from the last deadline that FPL's real squad didn't have.
+  madeMoves?: { gameweek: number; out: number; in: number; priceIn: number }[];
+  madeMoveMismatches?: { gameweek: number; out: number; in: number; priceIn: number }[];
 
   flags: { playerId: number; kind: "injury" | "suspension" | "rotation"; message: string }[];
   doubles: Record<string, string[]>;

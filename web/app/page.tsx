@@ -10,6 +10,7 @@ import { SquadCard } from "@/components/dashboard/SquadCard";
 import { SquadTable } from "@/components/dashboard/SquadTable";
 import { ThisWeekCard } from "@/components/dashboard/ThisWeekCard";
 import { WhatChanged } from "@/components/dashboard/WhatChanged";
+import { madeMovesForPage } from "@/lib/madeMoves";
 import { getSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic"; // always read the latest snapshot
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
 
       <div className="bc-grid-main">
         <LineupBoard lineup={lineup} players={snapshot.players} week={snapshot.gameweek} />
-        <ThisWeekCard snapshot={snapshot} />
+        <ThisWeekCard snapshot={snapshot} marks={await madeMovesForPage(snapshot.gameweek)} />
       </div>
 
       <div className="bc-section-head">

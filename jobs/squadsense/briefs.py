@@ -7,6 +7,7 @@ chips. Each row carries a tag so you know what to act on:
 - FIRM: the plan is sure of it.
 - CLOSE CALL: another choice is worth about the same, so either is fine.
 - MAKE NOW: a price change tonight makes this move worth doing early.
+- DONE: a move already made and marked "Done on FPL" in the app.
 
 The plan brief is saved, so the final call can say what changed since.
 """
@@ -51,12 +52,19 @@ def move_tag(move):
     return "FIRM" if share >= FIRM_SHARE else "CLOSE CALL"
 
 
+def done_rows(snapshot):
+    """One row per move already marked "Done on FPL", tagged DONE."""
+    return [Row("Transfer", f"{name_of(snapshot, move['out'])} → {name_of(snapshot, move['in'])}", "DONE")
+            for move in snapshot.get("madeMoves") or []]
+
+
 def transfer_rows(snapshot, week):
-    """One row per transfer this week, or one row saying to roll."""
+    """Moves already made, then one row per transfer still to make, or one row saying to roll."""
+    done = done_rows(snapshot)
     if not week["moves"]:
-        return [Row("Transfer", "None. Roll the free transfer.")]
-    return [Row("Transfer", f"{name_of(snapshot, move['out'])} → {name_of(snapshot, move['in'])}", move_tag(move))
-            for move in week["moves"]]
+        return done + [Row("Transfer", "No more this week." if done else "None. Roll the free transfer.")]
+    return done + [Row("Transfer", f"{name_of(snapshot, move['out'])} → {name_of(snapshot, move['in'])}", move_tag(move))
+                   for move in week["moves"]]
 
 
 def plan_captain(snapshot):

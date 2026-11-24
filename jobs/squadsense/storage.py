@@ -67,6 +67,12 @@ class FileStorage:
         """Devices that turned alerts on. Only the hosted site saves these, so locally there are none."""
         return []
 
+    def load_made_moves(self, team_id, gameweek):
+        """Moves marked "Done on FPL" for one gameweek. Locally they're read from made_moves.json, if you add one."""
+        path = self.folder / "made_moves.json"
+        rows = json.loads(path.read_text()) if path.exists() else []
+        return [row for row in rows if row["teamId"] == team_id and row["gameweek"] == gameweek]
+
     def delete_push_subscription(self, endpoint):
         """Nothing to delete locally: subscriptions only live in Supabase."""
 
@@ -204,6 +210,15 @@ class PostgresStorage:
 
     def delete_push_subscription(self, endpoint):
         self._execute("delete from push_subscriptions where endpoint = %s", (endpoint,))
+
+    def load_made_moves(self, team_id, gameweek):
+        """Moves marked "Done on FPL" on the website for one gameweek, oldest first."""
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "select gameweek, player_out, player_in, price_in from made_moves where team_id = %s and gameweek = %s order by made_at",
+                (team_id, gameweek),
+            )
+            return [{"gameweek": row[0], "out": row[1], "in": row[2], "priceIn": row[3]} for row in cursor.fetchall()]
 
     def save_snapshot(self, team_id, gameweek, snapshot):
         """Saves the new snapshot and deletes all but the newest SNAPSHOTS_KEPT for this team."""

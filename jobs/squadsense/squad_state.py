@@ -153,3 +153,43 @@ def model_squad_state(team_id, next_gameweek, player_ids, lineup, players_by_id)
         purchase_prices=dict(prices),
         squad_source="model",
     )
+
+
+def mark_fits(state, move):
+    """True when the marked player out is in the squad and the player in isn't."""
+    return move["out"] in state.player_ids and move["in"] not in state.player_ids
+
+
+def apply_made_moves(state, moves, players_by_id):
+    """The squad after the transfers Clement marked "Done on FPL", which FPL keeps hidden until the deadline.
+
+    `moves` are {"gameweek", "out", "in", "priceIn"} rows from the
+    made_moves table, for the gameweek being planned. Each one swaps the
+    players, pays `priceIn` from the bank, gets the old player's selling
+    price back and uses a free transfer (never below 0; an unlimited week
+    stays unlimited). A mark that doesn't fit the squad, for example
+    because the public squad has changed since, is skipped.
+    Returns (new state, applied marks, skipped marks).
+    """
+    applied, skipped = [], []
+    for move in moves:
+        if not mark_fits(state, move):
+            skipped.append(move)
+            continue
+        out, into, price = move["out"], move["in"], move["priceIn"]
+        state.player_ids = [into if player_id == out else player_id for player_id in state.player_ids]
+        state.bank += state.selling_prices.pop(out) - price
+        state.purchase_prices.pop(out, None)
+        state.purchase_prices[into] = price
+        state.selling_prices[into] = rules.selling_price(price, players_by_id[into]["now_cost"])
+        if state.free_transfers is not None:
+            state.free_transfers = max(0, state.free_transfers - 1)
+        state.captain_id = into if state.captain_id == out else state.captain_id
+        state.vice_captain_id = into if state.vice_captain_id == out else state.vice_captain_id
+        applied.append(move)
+    return state, applied, skipped
+
+
+def marked_move_mismatches(moves, real_player_ids):
+    """Marked moves whose new player isn't in the real squad FPL showed after the deadline."""
+    return [move for move in moves if move["in"] not in real_player_ids]

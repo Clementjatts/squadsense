@@ -22,7 +22,7 @@ TEXT = "#E8EDF7"
 MUTED = "#9AA6BF"
 LIME = "#B7F34A"
 ORANGE = "#FFA24C"
-TAG_COLORS = {"FIRM": LIME, "MAKE NOW": ORANGE, "CLOSE CALL": MUTED}
+TAG_COLORS = {"FIRM": LIME, "MAKE NOW": ORANGE, "CLOSE CALL": MUTED, "DONE": TEXT}
 FONT = "Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 PAGE_NAMES = {"/plan": "Open your plan", "/prices": "Open Price Watch", "/": "Open SquadSense"}
 

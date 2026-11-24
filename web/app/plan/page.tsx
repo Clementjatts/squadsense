@@ -7,8 +7,10 @@
 
 import Link from "next/link";
 import { PageHero } from "@/components/PageHero";
+import { MadeMoveButton } from "@/components/MadeMoveButton";
 import { PlayerLink } from "@/components/PlayerPanel";
 import { formatGain, formatPrice, formatXp } from "@/lib/format";
+import { alreadyMadeLine, madeMovesForPage } from "@/lib/madeMoves";
 import { getSnapshot } from "@/lib/snapshot";
 import type { ChipCard, ChipCode, Player, SolverPlan, SolverWeek, Snapshot } from "@/lib/types";
 
@@ -29,6 +31,7 @@ export default async function PlanPage() {
   }
   const weeks = plan.weeks.map((week) => week.gameweek);
   const hits = plan.totalHits * 4;
+  const marks = await madeMovesForPage(weeks[0]);
   return (
     <div className="bc-page">
       <PageHero
@@ -44,7 +47,13 @@ export default async function PlanPage() {
       <DecisionSummary plan={plan} snapshot={snapshot} />
       <ChipReasons snapshot={snapshot} plan={plan} />
       {plan.weeks.map((week, index) => (
-        <WeekDetail key={week.gameweek} week={week} before={index === 0 ? snapshot.squad : plan.weeks[index - 1].squad} snapshot={snapshot} />
+        <WeekDetail
+          key={week.gameweek}
+          week={week}
+          before={index === 0 ? snapshot.squad : plan.weeks[index - 1].squad}
+          snapshot={snapshot}
+          marks={index === 0 ? marks : null}
+        />
       ))}
       <Alternative plan={plan} snapshot={snapshot} />
       <HowSure plan={plan} snapshot={snapshot} />
@@ -197,8 +206,11 @@ function PlayerCell({ snapshot, id, fromWeek, price }: { snapshot: Snapshot; id:
 }
 
 // One gameweek: its moves side by side, or the Free Hit squad, plus the before and after squad for chip weeks.
-function WeekDetail({ week, before, snapshot }: { week: SolverWeek; before: number[]; snapshot: Snapshot }) {
+// `marks` is only given for the coming week, whose moves get a "Done on FPL" button.
+type Marks = { marked: Set<number>; error: string | null } | null;
+function WeekDetail({ week, before, snapshot, marks }: { week: SolverWeek; before: number[]; snapshot: Snapshot; marks: Marks }) {
   const totalValue = week.moves.reduce((sum, move) => sum + move.value, 0);
+  const made = marks ? alreadyMadeLine(snapshot.madeMoves, (id) => nameOf(snapshot, id)) : null;
   return (
     <section className="card plan-week">
       <div className="card-head">
@@ -208,10 +220,12 @@ function WeekDetail({ week, before, snapshot }: { week: SolverWeek; before: numb
           {week.hits > 0 && <b className="bc-warn"> · -{week.hits * 4} hit</b>}
         </span>
       </div>
+      {made && <p className="plan-text made-move-line">{made}</p>}
+      {marks?.error && <p className="bc-warn plan-text">{marks.error}</p>}
       {week.chip === "freehit" && week.freeHitSquad ? (
         <FreeHitSquad week={week} snapshot={snapshot} />
       ) : week.moves.length === 0 ? (
-        <p className="muted plan-text">No transfers: the free transfer rolls over to next week.</p>
+        <p className="muted plan-text">{made ? "No more transfers this week." : "No transfers: the free transfer rolls over to next week."}</p>
       ) : (
         <>
           <div className="plan-moves">
@@ -225,6 +239,7 @@ function WeekDetail({ week, before, snapshot }: { week: SolverWeek; before: numb
                   <span className="muted">xP from this move</span>
                   {move.priceNote && <span className="bc-accent plan-price-note">{move.priceNote}</span>}
                   {move.sameWeekShare !== undefined && <SureBadge move={move} />}
+                  {marks && <MadeMoveButton gameweek={week.gameweek} out={move.out} into={move.in} marked={marks.marked.has(move.out)} />}
                 </span>
               </div>
             ))}

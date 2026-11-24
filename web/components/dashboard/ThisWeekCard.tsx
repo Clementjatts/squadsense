@@ -3,12 +3,16 @@
 // (jobs/squadsense/strategy.py), the same one the Planner and Chip
 // Planner show, so the pages always agree.
 
+import { MadeMoveButton } from "@/components/MadeMoveButton";
 import { formatGain, formatXp } from "@/lib/format";
 import { nextFixtures } from "@/lib/dashboard";
+import { alreadyMadeLine } from "@/lib/madeMoves";
 import Link from "next/link";
 import type { ChipCard, Snapshot, SolverWeek } from "@/lib/types";
 
-export function ThisWeekCard({ snapshot }: { snapshot: Snapshot }) {
+type Marks = { marked: Set<number>; error: string | null };
+
+export function ThisWeekCard({ snapshot, marks }: { snapshot: Snapshot; marks: Marks }) {
   const chip = snapshot.chipPlan.cards.find((card) => card.decision?.action === "play" && card.decision.playNow);
   return (
     <section className="bc-card bc-thisweek">
@@ -16,7 +20,7 @@ export function ThisWeekCard({ snapshot }: { snapshot: Snapshot }) {
         <span className="bc-title">THIS WEEK</span>
         <span className="bc-eyebrow">3 DECISIONS</span>
       </div>
-      <TransferBlock snapshot={snapshot} />
+      <TransferBlock snapshot={snapshot} marks={marks} />
       <CaptainBlock snapshot={snapshot} />
       <ChipBlock snapshot={snapshot} chip={chip} />
     </section>
@@ -27,16 +31,19 @@ export function ThisWeekCard({ snapshot }: { snapshot: Snapshot }) {
 function planHeadline(week: SolverWeek, snapshot: Snapshot): string {
   const name = (id: number) => snapshot.players[String(id)]?.name ?? `#${id}`;
   if (week.chip === "freehit") return "Free Hit squad";
-  if (week.moves.length === 0) return "Roll the transfer";
+  if (week.moves.length === 0) return snapshot.madeMoves?.length ? "No more transfers" : "Roll the transfer";
   if (week.moves.length === 1) return `${name(week.moves[0].out)} → ${name(week.moves[0].in)}`;
   return `${week.moves.length} transfers`;
 }
 
 // This week's transfers from the plan, or the best single move when there's no plan.
-function TransferBlock({ snapshot }: { snapshot: Snapshot }) {
+// A single planned move gets its "Done on FPL" button here; several are marked on the Plan page.
+function TransferBlock({ snapshot, marks }: { snapshot: Snapshot; marks: Marks }) {
   const week = snapshot.solverPlan?.weeks[0];
   if (week) {
     const value = week.moves.reduce((sum, move) => sum + move.value, 0);
+    const made = alreadyMadeLine(snapshot.madeMoves, (id) => snapshot.players[String(id)]?.name ?? `#${id}`);
+    const only = week.chip !== "freehit" && week.moves.length === 1 ? week.moves[0] : null;
     return (
       <div className="bc-decision">
         <span className="bc-eyebrow bc-accent">TRANSFERS</span>
@@ -49,6 +56,9 @@ function TransferBlock({ snapshot }: { snapshot: Snapshot }) {
           </div>
           {week.moves.length > 0 && <span className="bc-decision-number bc-decision-number-small">{formatGain(value)}</span>}
         </div>
+        {made && <span className="bc-note made-move-line">{made}</span>}
+        {only && <MadeMoveButton gameweek={week.gameweek} out={only.out} into={only.in} marked={marks.marked.has(only.out)} />}
+        {marks.error && <span className="bc-warn">{marks.error}</span>}
       </div>
     );
   }

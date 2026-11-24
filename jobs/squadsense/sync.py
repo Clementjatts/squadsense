@@ -22,7 +22,7 @@ from .planner import best_lineup
 from .price_watch import predictions_record
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
 from .squad_builder import SquadBuilderError, pick_best_squad
-from .squad_state import build_squad_state, model_squad_state
+from .squad_state import apply_made_moves, build_squad_state, marked_move_mismatches, model_squad_state
 from .storage import FileStorage, PostgresStorage
 
 log = logging.getLogger("squadsense.sync")
@@ -112,6 +112,19 @@ def read_real_squad(client, team_id, next_week, picks, team_entry, entry_history
         players_by_id,
         starting_price_lookup_from(histories, started_event),
     )
+
+
+def apply_marked_moves(storage, squad_state, players_by_id):
+    """The squad after the moves Clement marked "Done on FPL" for the coming week, and the marks used.
+
+    FPL hides transfers until the deadline, so the public squad is the one
+    from before them. A mark that no longer fits is logged and left out.
+    """
+    marks = storage.load_made_moves(squad_state.team_id, squad_state.gameweek)
+    squad_state, applied, skipped = apply_made_moves(squad_state, marks, players_by_id)
+    for move in skipped:
+        log.warning("Skipped a move marked done (player %s out, %s in): it doesn't fit the squad", move["out"], move["in"])
+    return squad_state, applied
 
 
 def pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_id):
@@ -267,8 +280,11 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     expected_points = model_results.expected_points
     players_by_id = {player["id"]: player for player in bootstrap["elements"]}
     entry_history = client.entry_history(team_id) if is_public else None
+    made_moves, mismatches = [], []
     if is_public:
         squad_state = read_real_squad(client, team_id, next_week, picks, team_entry, entry_history, players_by_id, histories)
+        squad_state, made_moves = apply_marked_moves(storage, squad_state, players_by_id)
+        mismatches = marked_move_mismatches(storage.load_made_moves(team_id, current_week), squad_ids)
     else:
         squad_state = pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_id)
 
@@ -290,6 +306,8 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     )
 
     snapshot["ruleChanges"] = rule_changes
+    snapshot["madeMoves"] = made_moves
+    snapshot["madeMoveMismatches"] = mismatches
     snapshot["changes"] = changes.update_feed(storage, team_id, snapshot)
     lineup = snapshot["lineups"][str(next_week)]
     review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)

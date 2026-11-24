@@ -8,6 +8,7 @@ Five kinds, all about your own squad and plan:
 - new injury news on your players
 - your players one yellow card from a ban
 - FPL changing a scoring or squad rule (from rules.apply_fpl_settings)
+- a move marked "Done on FPL" that isn't in the real squad after the deadline
 
 The plan is re-solved every sync and close calls flip often, so plan
 changes are only reported in the two briefs, never on their own.
@@ -127,7 +128,8 @@ def plan_brief_alert(snapshot, now, storage):
     return [Alert(
         [f"brief-{snapshot['gameweek']}"], f"Plan for GW{snapshot['gameweek']}", push_line(rows), "/plan",
         rows=rows, intro=f"Deadline {briefs.uk_time(snapshot['deadline'])}. Nothing here needs doing yet, "
-                         "unless it's marked MAKE NOW. The final call comes about 2.5 hours before the deadline.",
+                         "unless it's marked MAKE NOW. The final call comes about 2.5 hours before the deadline. "
+                         "Already made a move? Mark it done in the app.",
         after_send=lambda: storage.save_raw(brief_name(snapshot), summary),
     )]
 
@@ -204,12 +206,21 @@ def rule_change_alert(snapshot):
     )]
 
 
+def made_move_mismatch_alert(snapshot):
+    """One alert per marked move that FPL's real squad doesn't have, once the deadline has passed."""
+    return [Alert(
+        [f"made-mismatch-{move['gameweek']}-{move['out']}"], "A move you marked isn't in your FPL team",
+        f"You marked {name_of(snapshot, move['out'])} → {name_of(snapshot, move['in'])} as done for GW{move['gameweek']}, "
+        "but FPL's squad doesn't have it. SquadSense now plans from your real FPL squad.", "/",
+    ) for move in snapshot.get("madeMoveMismatches") or []]
+
+
 def collect(snapshot, now, storage):
     """Every alert the snapshot calls for right now (before checking what was already sent)."""
     return (
         plan_brief_alert(snapshot, now, storage) + final_call_alert(snapshot, now, storage)
         + price_drop_alert(snapshot, now) + injury_alerts(snapshot) + ban_alerts(snapshot)
-        + rule_change_alert(snapshot)
+        + rule_change_alert(snapshot) + made_move_mismatch_alert(snapshot)
     )
 
 

@@ -670,6 +670,13 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .account-panel { position: absolute; right: 0; top: 50px; z-index: 50; width: 290px; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--panel); border: 1px solid var(--panel-line); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.5; }
 .account-panel hr { width: 100%; border: 0; border-top: 1px solid var(--panel-line); margin: 2px 0; }
 .account-panel form .btn { width: 100%; }
+/* "Done on FPL": a quiet button under a planned move, and its confirmed state. */
+.made-move { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+.made-move-button { min-height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+.made-move-done b { color: var(--accent); font-family: var(--condensed); font-size: 14px; letter-spacing: 0.04em; }
+.made-move-undo { border: 0; background: none; padding: 0; color: var(--ink); text-decoration: underline; font-size: 12px; cursor: pointer; }
+.made-move-line { color: var(--accent); }
+
 /* The calendar's two buttons share one row, each label on a single line. */
 .calendar-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .calendar-actions .btn { white-space: nowrap; justify-content: center; text-align: center; }

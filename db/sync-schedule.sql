@@ -46,9 +46,11 @@ begin
 end;
 $$;
 
--- Only the database's own admin role (which pg_cron uses) may start a sync;
--- the website's API keys can't.
+-- Only the database's own admin role (which pg_cron uses) and the website's
+-- server key (for "Done on FPL", which starts a sync straight away) may
+-- start a sync; the browser keys can't.
 revoke all on function public.start_sync(boolean) from public, anon, authenticated;
+grant execute on function public.start_sync(boolean) to service_role;
 
 -- The three timers. cron.schedule replaces a job with the same name, so
 -- running this file again is safe.

@@ -82,6 +82,19 @@ create table if not exists planner_drafts (
   primary key (team_id, name)
 );
 
+-- Transfers Clement marked "Done on FPL" on the website. FPL hides them
+-- until the deadline, so the sync applies these to the public squad.
+-- price_in is in tenths of a million, as shown when the move was marked.
+create table if not exists made_moves (
+  team_id integer not null,
+  gameweek integer not null,
+  player_out integer not null,
+  player_in integer not null,
+  price_in integer not null,
+  made_at timestamptz not null default now(),
+  primary key (team_id, gameweek, player_out)
+);
+
 -- Lock every table down. Only the jobs (using the database password) and
 -- the website's server code (using the service role key) can read or write.
 -- Nothing is readable straight from a browser.
@@ -94,6 +107,7 @@ alter table snapshots enable row level security;
 alter table push_subscriptions enable row level security;
 alter table alerts_sent enable row level security;
 alter table planner_drafts enable row level security;
+alter table made_moves enable row level security;
 
 -- The project was created with "grant API access to new tables" turned off,
 -- so give the website's server key (service_role) what it needs, and make
