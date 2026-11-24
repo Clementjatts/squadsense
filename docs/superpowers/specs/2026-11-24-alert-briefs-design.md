@@ -74,7 +74,7 @@ line.
 
 Clement verifies clementadegbenro.com in Resend, adds its DNS records in
 Cloudflare himself, and sets the `ALERT_EMAIL_FROM` secret to
-`SquadSense <squadsense@clementadegbenro.com>`. Until then the test sender
+`SquadSense <alerts@clementadegbenro.com>`. Until then the test sender
 keeps working.
 
 ## Left to the builder
