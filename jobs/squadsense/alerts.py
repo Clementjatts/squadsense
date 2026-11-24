@@ -7,6 +7,7 @@ Five kinds, all about your own squad and plan:
 - players the plan sells this week that FPL expects to drop in price tonight
 - new injury news on your players
 - your players one yellow card from a ban
+- FPL changing a scoring or squad rule (from rules.apply_fpl_settings)
 
 The plan is re-solved every sync and close calls flip often, so plan
 changes are only reported in the two briefs, never on their own.
@@ -191,11 +192,24 @@ def ban_alerts(snapshot):
     return alerts
 
 
+def rule_change_alert(snapshot):
+    """One alert when FPL's published rules differ from the typed-in ones, once per set of differences."""
+    differences = snapshot.get("ruleChanges") or []
+    if not differences:
+        return []
+    return [Alert(
+        [f"rules-{short_hash('; '.join(differences))}"], "FPL changed its rules",
+        f"{'; '.join(differences)}. SquadSense now uses FPL's values. The website's Planner keeps its own "
+        "copy of the squad rules in web/lib/planning.ts, so check those still match.", "/",
+    )]
+
+
 def collect(snapshot, now, storage):
     """Every alert the snapshot calls for right now (before checking what was already sent)."""
     return (
         plan_brief_alert(snapshot, now, storage) + final_call_alert(snapshot, now, storage)
         + price_drop_alert(snapshot, now) + injury_alerts(snapshot) + ban_alerts(snapshot)
+        + rule_change_alert(snapshot)
     )
 
 

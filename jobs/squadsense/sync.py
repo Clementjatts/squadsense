@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import alerts, changes, leagues, odds, review
+from . import alerts, changes, leagues, odds, review, rules
 from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
 from .price_watch import predictions_record
@@ -239,6 +239,9 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     storage = choose_storage(local_folder)
 
     bootstrap = client.bootstrap()
+    rule_changes = rules.apply_fpl_settings(bootstrap)
+    for difference in rule_changes:
+        log.warning("FPL changed a rule: %s", difference)
     fixtures = client.fixtures()
     storage.save_raw("bootstrap-static", bootstrap)
     storage.save_raw("fixtures", fixtures)
@@ -286,6 +289,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
         ),
     )
 
+    snapshot["ruleChanges"] = rule_changes
     snapshot["changes"] = changes.update_feed(storage, team_id, snapshot)
     lineup = snapshot["lineups"][str(next_week)]
     review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)

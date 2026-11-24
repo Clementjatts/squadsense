@@ -228,7 +228,7 @@ def expected_points_for_match(position, team_id, rates, match, fixture_model):
         conceded_penalty = rates.chance_60_minutes * expected_goals_conceded_penalty(goals_against)
     save_points = expected_minutes_share * rates.saves_per_90 / 3
     defensive_points = (
-        rates.chance_60_minutes * rates.defensive_contribution_rate * rules.POINTS_FOR_DEFENSIVE_CONTRIBUTION
+        rates.chance_60_minutes * rates.defensive_contribution_rate * rules.POINTS_FOR_DEFENSIVE_CONTRIBUTION[position]
     )
     bonus_points = expected_minutes_share * rates.bonus_per_90
 

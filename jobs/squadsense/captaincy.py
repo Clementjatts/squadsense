@@ -80,7 +80,7 @@ def simulate_match(rng, position, team_id, rates, match, fixture_model):
         if position in (rules.GOALKEEPER, rules.DEFENDER):
             points -= conceded // 2
         if rng.random() < rates.defensive_contribution_rate:
-            points += rules.POINTS_FOR_DEFENSIVE_CONTRIBUTION
+            points += rules.POINTS_FOR_DEFENSIVE_CONTRIBUTION[position]
     points += poisson(rng, rates.saves_per_90 * minutes_share) // 3
     return points + bonus_for(goals, assists)
 

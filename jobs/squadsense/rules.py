@@ -1,10 +1,17 @@
 """FPL game rules for 2026/27, kept in one place.
 
+The values below are the 2026/27 rules typed in. Each sync replaces the
+ones FPL publishes (scoring, club limit, budget, banked transfers, squad
+and lineup shape) with FPL's own, through apply_fpl_settings, so a rule
+FPL changes mid-season is picked up straight away. Past seasons and test
+data don't carry these settings, so they use the typed-in values.
+
 Prices are stored the way FPL stores them: in tenths of a million,
 so 145 means £14.5m. Doing the maths in whole numbers avoids rounding
 surprises like 0.1 + 0.2 = 0.30000000000000004.
 """
 
+import copy
 from collections import Counter
 
 GOALKEEPER, DEFENDER, MIDFIELDER, FORWARD = 1, 2, 3, 4
@@ -20,16 +27,90 @@ POINTS_PER_EXTRA_TRANSFER = 4
 MIN_STARTERS = {GOALKEEPER: 1, DEFENDER: 3, MIDFIELDER: 2, FORWARD: 1}
 MAX_STARTERS = {GOALKEEPER: 1, DEFENDER: 5, MIDFIELDER: 5, FORWARD: 3}
 
-# FPL scoring. These have been stable for years, but if FPL changes them
-# mid-season this is the one table to update.
+# FPL scoring.
 POINTS_FOR_GOAL = {GOALKEEPER: 10, DEFENDER: 6, MIDFIELDER: 5, FORWARD: 4}
 POINTS_FOR_CLEAN_SHEET = {GOALKEEPER: 4, DEFENDER: 4, MIDFIELDER: 1, FORWARD: 0}
 POINTS_FOR_ASSIST = 3
 POINTS_FOR_60_MINUTES = 2
 POINTS_FOR_UNDER_60_MINUTES = 1
-POINTS_FOR_DEFENSIVE_CONTRIBUTION = 2
+POINTS_FOR_DEFENSIVE_CONTRIBUTION = {GOALKEEPER: 0, DEFENDER: 2, MIDFIELDER: 2, FORWARD: 2}
 # Defensive actions needed in one match to earn the 2 points.
 DEFENSIVE_CONTRIBUTION_THRESHOLD = {GOALKEEPER: None, DEFENDER: 10, MIDFIELDER: 12, FORWARD: 12}
+
+
+# How FPL names positions in its scoring table.
+FPL_POSITION_KEYS = {GOALKEEPER: "GKP", DEFENDER: "DEF", MIDFIELDER: "MID", FORWARD: "FWD"}
+# The values apply_fpl_settings may replace, and their typed-in defaults.
+FPL_SETTING_NAMES = (
+    "STARTING_BUDGET", "SQUAD_SHAPE", "MAX_PER_CLUB", "MAX_BANKED_FREE_TRANSFERS", "MIN_STARTERS", "MAX_STARTERS",
+    "POINTS_FOR_GOAL", "POINTS_FOR_CLEAN_SHEET", "POINTS_FOR_ASSIST", "POINTS_FOR_60_MINUTES",
+    "POINTS_FOR_UNDER_60_MINUTES", "POINTS_FOR_DEFENSIVE_CONTRIBUTION",
+)
+DEFAULTS = {name: copy.deepcopy(globals()[name]) for name in FPL_SETTING_NAMES}
+
+
+def use_defaults():
+    """Puts every value apply_fpl_settings can change back to the typed-in default."""
+    for name, value in DEFAULTS.items():
+        globals()[name] = copy.deepcopy(value)
+
+
+def scoring_values(scoring):
+    """(label, setting, position or None, value) for each point value in FPL's scoring table."""
+    found = [
+        ("Points for 60+ minutes", "POINTS_FOR_60_MINUTES", None, scoring.get("long_play")),
+        ("Points for under 60 minutes", "POINTS_FOR_UNDER_60_MINUTES", None, scoring.get("short_play")),
+        ("Points for an assist", "POINTS_FOR_ASSIST", None, scoring.get("assists")),
+    ]
+    by_position = (
+        ("goal", "POINTS_FOR_GOAL", "goals_scored"),
+        ("clean sheet", "POINTS_FOR_CLEAN_SHEET", "clean_sheets"),
+        ("defensive contribution", "POINTS_FOR_DEFENSIVE_CONTRIBUTION", "defensive_contribution"),
+    )
+    for position, key in FPL_POSITION_KEYS.items():
+        for what, setting, field in by_position:
+            found.append((f"Points for a {key} {what}", setting, position, (scoring.get(field) or {}).get(key)))
+    return found
+
+
+def squad_values(settings, element_types):
+    """(label, setting, position or None, value) for the club limit, budget, banking and squad shape."""
+    extra = settings.get("max_extra_free_transfers")
+    found = [
+        ("Players allowed from one club", "MAX_PER_CLUB", None, settings.get("squad_team_limit")),
+        ("Starting budget", "STARTING_BUDGET", None, settings.get("squad_total_spend")),
+        ("Free transfers you can bank", "MAX_BANKED_FREE_TRANSFERS", None, None if extra is None else 1 + extra),
+    ]
+    for kind in element_types:
+        name = POSITION_NAMES.get(kind.get("id"), kind.get("id"))
+        found += [
+            (f"{name} in a squad", "SQUAD_SHAPE", kind.get("id"), kind.get("squad_select")),
+            (f"Fewest {name} in a lineup", "MIN_STARTERS", kind.get("id"), kind.get("squad_min_play")),
+            (f"Most {name} in a lineup", "MAX_STARTERS", kind.get("id"), kind.get("squad_max_play")),
+        ]
+    return found
+
+
+def apply_fpl_settings(bootstrap):
+    """Uses FPL's published scoring and squad rules for this sync. Returns how they differ from the defaults.
+
+    Each difference reads like "Points for a MID goal: 5 now 6". A value
+    FPL leaves out (or sets to None) keeps its default.
+    """
+    scoring = (bootstrap.get("game_config") or {}).get("scoring") or {}
+    found = scoring_values(scoring) + squad_values(bootstrap.get("game_settings") or {}, bootstrap.get("element_types") or [])
+    differences = []
+    for label, setting, position, value in found:
+        if value is None:
+            continue
+        default = DEFAULTS[setting] if position is None else DEFAULTS[setting].get(position)
+        if position is None:
+            globals()[setting] = value
+        else:
+            globals()[setting][position] = value
+        if value != default:
+            differences.append(f"{label}: {default} now {value}")
+    return differences
 
 
 def selling_price(purchase_price, current_price):

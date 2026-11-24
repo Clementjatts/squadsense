@@ -57,7 +57,7 @@ FPL endpoints, rate limits, login situation, free data sources, 2026/27 rules, t
 
 Python data job (`jobs/`):
 - `fpl_client.py`: FPL API client. One request a second, retries with backoff on 429 and 5xx, adds trailing slashes, raises `FplApiError` on bad responses.
-- `rules.py`: squad shape, budget, club limit, formation rules, scoring points, selling price formula.
+- `rules.py`: squad shape, budget, club limit, formation rules, scoring points, selling price formula. Since 24 November 2026 each sync replaces the values FPL publishes (`game_config.scoring`, `game_settings`, `element_types`) with FPL's own through `apply_fpl_settings`, logs any difference and puts it in the snapshot as `ruleChanges`, which sends one "FPL changed its rules" alert. Past seasons and test data keep the typed-in defaults (`use_defaults`, reset before every test in `tests/conftest.py`). `POINTS_FOR_DEFENSIVE_CONTRIBUTION` is per position.
 - `squad_state.py`: rebuilds bank, selling prices and banked free transfers from public endpoints.
 - `fixtures.py`: club attack and concede ratings built from this season's match xG, blended with FPL's 1-5 overall rating while the sample is small (FPL's attack and defence strengths are all 0 in 2026/27); expected goals per fixture; clean-sheet chance; window scores for attackers and defenders. Where bookmaker odds exist, expected goals are a 50/50 blend with the odds' (`MARKET_WEIGHT`). Elo starting guesses (`elo.py`, `ELO_SCALE`) exist but are backtest-only, since they didn't beat the 1-5 rating.
 - `odds.py`: football-data.co.uk results and odds since 2019-20 (past seasons downloaded once, this season and `fixtures.csv` every 6 hours, cached through `storage.save_raw`), margin removal, and a grid search for the Poisson expected goals that match the 1X2 and over/under 2.5 odds. `fixtures.csv` only lists the next round once football-data.co.uk switches to it midweek, so most runs before then find no odds for the planning week. If the site is down, the sync logs a warning and carries on.
@@ -138,7 +138,7 @@ On 21 November 2026 hosting went live: Supabase, the private GitHub repo with it
 - Transfers made for a gameweek whose deadline hasn't passed aren't visible in public data.
 - The single-transfer suggestions only test one move; the five-week plan covers pairs and rolls. Neither considers chips.
 - Rival names from mini-league standings are stored in the snapshot, so anyone who can open the hosted site can read them.
-- FPL scoring values are hardcoded in `rules.py`. The research doc suggests reading them from `game_settings` instead.
+- FPL doesn't publish every rule: the 4-point hit, the defensive contribution thresholds and the 1 point per 2 goals conceded and per 3 saves stay typed in `rules.py`. The website's Planner keeps its own copy of the squad rules in `web/lib/planning.ts`; the "FPL changed its rules" alert says when to check it.
 - The repo is private (Clement's choice, 21 November 2026), so the schedule was trimmed to about 900 to 1,000 of the 2,000 free Actions minutes. A fresh plan takes 2 to 3 minutes, so many squad changes in one day cost more.
 
 ## Next steps, in order

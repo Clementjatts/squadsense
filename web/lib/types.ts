@@ -261,6 +261,7 @@ export interface Snapshot {
   leagues: League[];
   review: GameweekReview | null;
   changes?: { at: string; changes: string[] }[]; // the "What changed" feed, newest first
+  ruleChanges?: string[]; // FPL rules that differ from the typed-in ones in jobs/squadsense/rules.py
 
   flags: { playerId: number; kind: "injury" | "suspension" | "rotation"; message: string }[];
   doubles: Record<string, string[]>;
