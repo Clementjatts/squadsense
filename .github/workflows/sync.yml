@@ -1,22 +1,19 @@
-# Runs the SquadSense data job on a schedule.
+# Runs the SquadSense data job. Supabase starts it on a timer (see
+# db/sync-schedule.sql): GitHub's own schedule skipped most runs, but it
+# starts a run straight away when asked through its API.
 # Needs two repository secrets: DATABASE_URL (Supabase connection string)
 # and FPL_TEAM_ID. SQUADSENSE_LEAGUES and the alert secrets are optional
 # (see the README).
-# Times are UTC, which matches UK time in winter.
 #
 # The repository is private, so GitHub gives 2,000 free minutes a month and
-# bills each run as at least one minute. This schedule uses roughly 900 to
+# bills each run as at least one minute. The schedule uses roughly 900 to
 # 1,000: 12 runs a day plus a nightly refresh that only downloads players
 # whose club played in the last 36 hours.
 
 name: Sync FPL data
 
 on:
-  schedule:
-    - cron: "17 7-21/2 * * *"    # every 2 hours from 07:17 to 21:17
-    - cron: "15,45 22-23 * * *"  # 22:15, 22:45, 23:15 and 23:45, before the midnight price change
-    - cron: "37 1 * * *"         # once a night: refresh players whose club just played
-  workflow_dispatch:              # lets you run it by hand from the Actions tab
+  workflow_dispatch:              # Supabase's timer, or you by hand from the Actions tab
     inputs:
       full:
         description: "Also refresh players whose club played in the last 36 hours (up to 13 minutes after a full matchday)"
@@ -30,6 +27,12 @@ on:
         description: "Only send a test email and phone alert (skips the sync)"
         type: boolean
         default: false
+
+# A run that starts while another is going waits for it, so two syncs
+# never write at once.
+concurrency:
+  group: sync
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -63,7 +66,7 @@ jobs:
         run: |
           if [ "${{ inputs.test_alert }}" = "true" ]; then
             python -m squadsense.alerts --test
-          elif [ "${{ github.event.schedule }}" = "37 1 * * *" ] || [ "${{ inputs.full }}" = "true" ]; then
+          elif [ "${{ inputs.full }}" = "true" ]; then
             python -m squadsense.sync --full
           else
             python -m squadsense.sync

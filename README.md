@@ -74,15 +74,18 @@ If your squad isn't public yet (FPL hides a new team's picks until its first dea
 
 The service role key can read the whole database. Keep it in `.env.local` and in Vercel's settings, nowhere else. `.gitignore` already keeps `.env` files out of git.
 
-## 4. Schedule the job with GitHub Actions
+## 4. Schedule the job
 
 1. Push this folder to a new GitHub repository. It's already a git repository with the workflow in `.github/workflows/`.
 2. In the repository settings, add two secrets under Secrets and variables > Actions: `DATABASE_URL` and `FPL_TEAM_ID`.
 3. Open the Actions tab, pick "Sync FPL data" and press "Run workflow" once to check it works.
 
-After that it runs every hour, every 15 minutes from 21:00 to midnight (before the price change), and does a full refresh at 01:37 each night.
+4. Start it on a timer from Supabase. GitHub's own schedule skipped most runs (4 or 5 of 13 a day), but GitHub starts a run straight away when asked through its API, so Supabase keeps time instead:
+   - On GitHub, create a fine-grained personal access token (Settings, Developer settings, Personal access tokens, Fine-grained tokens) for the squadsense repository only, with the Actions permission set to Read and write. It lasts up to a year, so make a new one before it runs out.
+   - In Supabase, open Integrations, then Vault, and add it as a secret named `github_sync_token`.
+   - Run `db/sync-schedule.sql` in the Supabase SQL editor.
 
-A private repository gets 2,000 free Actions minutes a month, and this schedule uses roughly that much. Either make the repository public (unlimited minutes, and there are no secrets in the code) or delete the 15-minute line in `sync.yml`.
+It then runs every 2 hours from 07:17 to 21:17 UTC, at 22:15, 22:45, 23:15 and 23:45 before the midnight price change, and does a full refresh at 01:37 each night. To check it, run `select * from cron.job_run_details order by start_time desc limit 10;` and `select status_code from net._http_response order by id desc limit 10;` in the SQL editor: GitHub answers 204 when it accepted a run. A private repository gets 2,000 free Actions minutes a month, and this schedule uses about 900 to 1,000.
 
 ## 5. Put the website on Vercel
 
