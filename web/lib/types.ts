@@ -313,6 +313,17 @@ export interface League {
   threats: LeaguePlayerLine[];
   differentials: LeaguePlayerLine[];
   topCaptains: LeaguePlayerLine[];
+  // Whose picks the three lists come from: every rival, or a big league's
+  // top 10 and the 10 either side of you. Missing in older snapshots.
+  picksFrom?: "all" | "sample";
+  standing?: LeagueStanding | null; // null when you aren't in the table
+}
+
+// Where you stand in a league: points behind the leader and the gaps to your neighbours.
+export interface LeagueStanding {
+  leaderGap: number;
+  above: { teamName: string; gap: number } | null;
+  below: { teamName: string; gap: number } | null;
 }
 
 // The review of the last finished gameweek. `team` is null if your team hadn't started yet.

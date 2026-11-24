@@ -1,14 +1,16 @@
 "use client";
 
 // The Leagues page body: pick a league from the dropdown, then see its
-// table and three short lists (threats, differentials, captains). Leagues
-// over 100 teams show their table only (the top 50 and the 50 around you),
-// since rivals' picks are only read for the smaller ones.
+// table 20 teams a page, where you stand, and three short lists (threats,
+// differentials, captains). Leagues over 100 teams show their top 50 and
+// the 50 around you, and their lists come from a sample of rivals: the top
+// 10 and the 10 either side of you.
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { PlayerLink } from "./PlayerPanel";
 import { formatXp } from "@/lib/format";
+import { pageCount, pageRows, pageWithEntry } from "@/lib/leagueTable";
 import type { League, LeaguePlayerLine, LeagueRow, Snapshot } from "@/lib/types";
 
 // True when every rival's picks were read. Snapshots saved before big
@@ -32,10 +34,11 @@ export function LeaguesView({ snapshot, chosenId }: { snapshot: Snapshot; chosen
       {pending && <span className="muted">Loading the league...</span>}
       <div className="row">
         <div className="col-wide" style={{ flex: "1.4 1 640px" }}>
-          <LeagueTable league={league} snapshot={snapshot} />
+          <LeagueTable key={league.id} league={league} snapshot={snapshot} />
         </div>
         <div className="col-narrow" style={{ flex: "1 1 400px" }}>
-          {isFull(league) ? <RivalCards league={league} snapshot={snapshot} /> : <TableOnlyNote league={league} />}
+          <WhereYouStand league={league} />
+          <RivalCards league={league} snapshot={snapshot} />
         </div>
       </div>
     </>
@@ -45,8 +48,8 @@ export function LeaguesView({ snapshot, chosenId }: { snapshot: Snapshot; chosen
 // A dropdown of every league, smaller leagues (full analysis) listed first.
 function LeaguePicker({ leagues, value, onChange }: { leagues: League[]; value: number; onChange: (id: number) => void }) {
   const groups: [string, League[]][] = [
-    ["Rivals' picks read (up to 100 teams)", leagues.filter(isFull)],
-    ["Table only (over 100 teams)", leagues.filter((league) => !isFull(league))],
+    ["Every rival read (up to 100 teams)", leagues.filter(isFull)],
+    ["A sample of rivals read (over 100 teams)", leagues.filter((league) => !isFull(league))],
   ];
   return (
     <label className="league-picker">
@@ -68,31 +71,45 @@ function LeaguePicker({ leagues, value, onChange }: { leagues: League[]; value: 
   );
 }
 
-// For a big league: where you stand, and why the rival lists are missing.
-function TableOnlyNote({ league }: { league: League }) {
+// Your rank, and how far you are from the leader and the teams either side of you.
+function WhereYouStand({ league }: { league: League }) {
+  const standing = league.standing;
   return (
     <section className="card">
       <div className="card-head">
         <h2>Where you stand</h2>
+        {league.myRank !== null && (
+          <span className="muted">
+            <b className="num">{league.myRank.toLocaleString("en-GB")}</b> of {league.size.toLocaleString("en-GB")}
+            {league.myLastRank ? ` · ${league.myLastRank.toLocaleString("en-GB")} last week` : ""}
+          </span>
+        )}
       </div>
-      {league.myRank !== null && (
-        <p style={{ margin: 0 }}>
-          <b className="num">{league.myRank.toLocaleString("en-GB")}</b> of {league.size.toLocaleString("en-GB")}
-          {league.myLastRank ? <span className="muted"> · {league.myLastRank.toLocaleString("en-GB")} last week</span> : null}
-        </p>
+      {standing ? (
+        <ul className="stand-list">
+          <li><span className="muted">Behind the leader</span><b className="num">{standing.leaderGap === 0 ? "You lead" : `${standing.leaderGap} pts`}</b></li>
+          <li><span className="muted">To catch {standing.above?.teamName ?? "the team above"}</span><b className="num">{standing.above ? `${standing.above.gap} pts` : "-"}</b></li>
+          <li><span className="muted">Ahead of {standing.below?.teamName ?? "the team below"}</span><b className="num">{standing.below ? `${standing.below.gap} pts` : "-"}</b></li>
+        </ul>
+      ) : (
+        <p className="muted" style={{ margin: 0 }}>Your row isn&apos;t in this table yet. It shows after the next sync.</p>
       )}
-      <p className="muted" style={{ margin: 0 }}>
-        This league has over 100 teams, so only its top 50 and the 50 around you are shown, refreshed once a day.
-        Threats, differentials and captains need every rival&apos;s picks, which are only read for leagues of up to 100 teams.
-      </p>
     </section>
   );
 }
 
-// Threats, differentials and captains for a league whose rivals' picks were read.
+// Whose picks the lists come from, for the cards' notes.
+function picksSource(league: League): string {
+  return league.picksFrom === "sample"
+    ? `Among the top 10 and the ${league.rivalsWithPicks - Math.min(10, league.rivalsWithPicks)} teams around you`
+    : `Among all ${league.rivalsWithPicks} rivals`;
+}
+
+// Threats, differentials and captains, from every rival or a big league's sample.
 function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }) {
   return (
     <>
+      <p className="muted league-source">Lists below: {picksSource(league).toLowerCase()}, last gameweek.</p>
       <PlayerShareCard
         title="Threats"
         note="Most rivals own him, you don't"
@@ -112,23 +129,26 @@ function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }
   );
 }
 
-// The standings, with your own row highlighted. Big leagues have no
-// captain or chip columns (their picks aren't read), and a "..." row marks
-// the jump from the top 50 to the teams around you.
+// The standings, 20 teams a page, opening on the page with your row. In a
+// big league a "..." row marks the jump from the top 50 to the teams around
+// you, and only the sampled rivals have a captain and chip.
 function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot }) {
   const full = isFull(league);
+  const myPage = pageWithEntry(league.table, snapshot.team.id);
+  const [page, setPage] = useState(myPage);
+  const pages = pageCount(league.table.length);
   return (
     <section className="bc-card bc-table-card">
       <div className="table-wrap">
-        <table className={full ? "bc-table league-table" : "bc-table league-table league-table-short"}>
+        <table className={full ? "bc-table league-table" : "bc-table league-table league-table-wide-rank"}>
           <colgroup>
             {/* Big leagues have five-figure ranks, so their rank column is wider. */}
             <col style={{ width: full ? 76 : 104 }} />
             <col />
             <col style={{ width: 84 }} />
             <col style={{ width: 90 }} />
-            {full && <col style={{ width: 150 }} />}
-            {full && <col style={{ width: 130 }} />}
+            <col style={{ width: 150 }} />
+            <col style={{ width: 130 }} />
           </colgroup>
           <thead>
             <tr>
@@ -136,17 +156,18 @@ function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot 
               <th scope="col">TEAM</th>
               <th scope="col" className="right">GW</th>
               <th scope="col" className="right">TOTAL</th>
-              {full && <th scope="col">CAPTAIN</th>}
-              {full && <th scope="col">CHIP</th>}
+              <th scope="col">CAPTAIN</th>
+              <th scope="col">CHIP</th>
             </tr>
           </thead>
           <tbody>
-            {league.table.map((row, index) => (
+            {pageRows(league.table, page).map(({ row, index }) => (
               <TableRows key={row.entry} row={row} previous={league.table[index - 1]} full={full} snapshot={snapshot} />
             ))}
           </tbody>
         </table>
       </div>
+      {pages > 1 && <Pager page={page} pages={pages} myPage={myPage} onChange={setPage} />}
     </section>
   );
 }
@@ -168,7 +189,7 @@ function TableRows({ row, previous, full, snapshot }: TableRowsProps) {
     <>
       {skipped && (
         <tr className="league-gap" aria-hidden="true">
-          <td colSpan={full ? 6 : 4} className="muted">...</td>
+          <td colSpan={6} className="muted">...</td>
         </tr>
       )}
       <tr className={isMine ? "bc-mine-row" : undefined}>
@@ -180,10 +201,22 @@ function TableRows({ row, previous, full, snapshot }: TableRowsProps) {
         </td>
         <td className="right bc-cell-num">{row.eventPoints}</td>
         <td className="right bc-cell-num bc-cell-strong">{row.total.toLocaleString("en-GB")}</td>
-        {full && <td>{captain ? <PlayerLink id={captain.id} name={captain.name} /> : <span className="muted">-</span>}</td>}
-        {full && <td className={row.chip ? "bc-accent" : "muted"}>{row.chip ? CHIP_NAMES[row.chip] ?? row.chip : "-"}</td>}
+        <td>{captain ? <PlayerLink id={captain.id} name={captain.name} /> : <span className="muted">-</span>}</td>
+        <td className={row.chip ? "bc-accent" : "muted"}>{row.chip ? CHIP_NAMES[row.chip] ?? row.chip : "-"}</td>
       </tr>
     </>
+  );
+}
+
+// Previous and Next under the table, the page number, and a way back to your own row.
+function Pager({ page, pages, myPage, onChange }: { page: number; pages: number; myPage: number; onChange: (page: number) => void }) {
+  return (
+    <nav className="league-pager" aria-label="League table pages">
+      <button type="button" className="btn" onClick={() => onChange(page - 1)} disabled={page === 0}>Previous</button>
+      <span className="muted num">Page {page + 1} of {pages}</span>
+      <button type="button" className="btn" onClick={() => onChange(page + 1)} disabled={page === pages - 1}>Next</button>
+      <button type="button" className="btn league-pager-me" onClick={() => onChange(myPage)} disabled={page === myPage}>Jump to me</button>
+    </nav>
   );
 }
 

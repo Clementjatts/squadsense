@@ -801,7 +801,7 @@ def test_every_private_league_is_listed_and_big_ones_are_table_only(tmp_path):
     assert [league["kind"] for league in fetched] == ["full", "full", "table"]
     assert len(fetched[1]["standings"]) == 80  # both 50-team pages of a full league
     big = fetched[2]
-    assert big["picks"] == {} and [row["rank"] for row in big["standings"]][:1] == [1]
+    assert len(big["picks"]) == 30 and [row["rank"] for row in big["standings"]][:1] == [1]  # a sample of picks
     assert 230 in [row["rank"] for row in big["standings"]]  # the page around you
     assert (3, 1) in client.pages_asked and (3, 5) in client.pages_asked
 
@@ -818,14 +818,14 @@ def test_big_league_tables_are_reused_for_the_rest_of_the_day(tmp_path):
     assert same_day.pages_asked == [] and len(next_day.pages_asked) == 2
 
 
-def test_table_only_leagues_have_no_rival_lists_or_chip_rows(tmp_path):
+def test_big_leagues_get_sampled_lists_but_no_chip_rows(tmp_path):
     from squadsense import leagues
     from squadsense.storage import FileStorage
     fetched = leagues.fetch_leagues(FakeLeagueClient({1: 10, 3: 500}), FileStorage(tmp_path), league_entry((1, 10, 4), (3, 500, 230)), 12, today="2026-11-22")
     summaries = leagues.build_leagues(fetched, TEAM_ID, [], {}, 13, (1, 19))
     big = summaries[1]
     assert big["kind"] == "table" and big["size"] == 500 and big["myRank"] == 230
-    assert big["threats"] == [] and big["rivalsWithPicks"] == 0
+    assert big["picksFrom"] == "sample" and big["rivalsWithPicks"] == 30
     assert [summary["id"] for summary in leagues.rival_chip_summary(summaries)] == [1]
 
 

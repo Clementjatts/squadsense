@@ -85,7 +85,7 @@ The service role key can read the whole database. Keep it in `.env.local` and in
    - In Supabase, open Integrations, then Vault, and add it as a secret named `github_sync_token`.
    - Run `db/sync-schedule.sql` in the Supabase SQL editor.
 
-It then runs every 2 hours from 07:17 to 21:17 UTC, at 22:15, 22:45, 23:15 and 23:45 before the midnight price change, and does a full refresh at 01:37 each night. To check it, run `select * from cron.job_run_details order by start_time desc limit 10;` and `select status_code from net._http_response order by id desc limit 10;` in the SQL editor: GitHub answers 204 when it accepted a run. A private repository gets 2,000 free Actions minutes a month, and this schedule uses about 900 to 1,000.
+It then runs every 2 hours from 07:17 to 21:17 UTC, at 22:15, 22:45, 23:15 and 23:45 before the midnight price change, and does a full refresh at 01:37 each night. To check it, run `select * from cron.job_run_details order by start_time desc limit 10;` and `select status_code from net._http_response order by id desc limit 10;` in the SQL editor: GitHub answers 204 when it accepted a run. The repository is public, so Actions minutes are free and unlimited. (A private one gets 2,000 a month, and this schedule uses about 1,600.)
 
 ## 5. Put the website on Vercel
 
@@ -148,13 +148,13 @@ mkdir -p .data/odds; for s in 1920 2021 2122 2223 2324 2425 2526 2627; do curl -
 - The five-week plan and its chip rules (the 90% keep share, the 5-point Wildcard margin) haven't been backtested yet; only the xP model and simple chip timing have.
 - Working out the plan with every chip takes one to two minutes, so it's saved and reused until your squad, bank, free transfers, chips, injury news or the gameweek change, or it's 12 hours old.
 - Chip timing was backtested on six past half-seasons with a stand-in squad (see `docs/backtest-results.md`). The "play now" rule beat a random week but not "play Bench Boost in the first double gameweek".
-- Captain "chance of 10+" comes from a simulation with a rough bonus guess. It hasn't been backtested.
+- Captain "chance of 10+" comes from a simulation, corrected against 560 past captain options (see `docs/backtest-results.md`). It's a weak signal: read it as steady against boom-or-bust.
 - The live page's automatic subs follow FPL's main rules (keeper for keeper, formation stays legal, bench order). Rare cases may differ until FPL settles the week.
 - Mini-league totals before the current week are worked out as the league total minus this week's points. That matches FPL's standings once a week is over.
 
 ## Mini-leagues
 
-The sync picks your four smallest private leagues with 50 teams or fewer. To choose your own, set `SQUADSENSE_LEAGUES` to their ids, for example `SQUADSENSE_LEAGUES=1242405,1586906`. Each rival's picks are fetched once per gameweek and then cached, so a new gameweek costs about one second per rival.
+The sync lists every private league you're in. To choose your own, set `SQUADSENSE_LEAGUES` to their ids, for example `SQUADSENSE_LEAGUES=1242405,1586906`. For leagues of up to 100 teams it reads every rival's picks; for bigger ones, the top 10 and the 10 teams either side of you. Each rival's picks are fetched once per gameweek and then cached, so a new gameweek costs about one second per rival. Tables show 20 teams a page, and every league has a "Where you stand" card with the gaps to the leader and the teams either side of you.
 
 Rival team and manager names come from FPL's public standings. They're saved in the snapshot, so anyone who can open your website can see them. Keep that in mind before putting the site on a public address.
 

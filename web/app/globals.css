@@ -683,6 +683,15 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 @keyframes page-loading-sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 @media (prefers-reduced-motion: reduce) { .page-loading-sweep { animation: none; width: 100%; opacity: 0.5; } }
 
+/* Leagues: the pager under the table, the "Where you stand" rows, and the lists' source line. */
+.league-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--panel-line); }
+.league-pager-me { margin-left: auto; }
+.stand-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.stand-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--panel-line); }
+.stand-list li:first-child { border-top: 0; }
+.stand-list b { font-family: var(--condensed); font-size: 18px; white-space: nowrap; }
+.league-source { margin: 0; font-size: 12px; }
+
 /* "Done on FPL": a quiet button under a planned move, and its confirmed state. */
 .made-move { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
 .made-move-button { min-height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
@@ -971,8 +980,6 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .share-track { display: none; }
   .share-row { grid-template-columns: minmax(0, 1fr) 40px 44px 58px; gap: 8px; }
   .league-table { min-width: 720px; }
-  /* Big leagues have no captain or chip columns, so their table fits the screen. */
-  .league-table.league-table-short { min-width: 0; }
   .league-picker { flex-direction: column; align-items: stretch; gap: 6px; }
   .league-picker .bc-select { max-width: none; font-size: 16px; }
   .league-table th:nth-child(-n + 2), .league-table td:nth-child(-n + 2) { position: sticky; z-index: 1; background: var(--panel); }
@@ -980,7 +987,8 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .league-table tr.bc-mine-row td:nth-child(-n + 2) { background: #111d26; }
   .league-table th:first-child, .league-table td:first-child { left: 0; }
   .league-table th:nth-child(2), .league-table td:nth-child(2) { left: 76px; box-shadow: 1px 0 0 var(--panel-line); }
-  .league-table-short th:nth-child(2), .league-table-short td:nth-child(2) { left: 104px; }
+  /* Big leagues have five-figure ranks, so their rank column (and the sticky team column's offset) is wider. */
+  .league-table-wide-rank th:nth-child(2), .league-table-wide-rank td:nth-child(2) { left: 104px; }
   .league-table td.bc-cell-name { line-height: 18px; }
   .bc-manager { display: block; margin-left: 0; }
 

@@ -5,10 +5,9 @@
 # and FPL_TEAM_ID. SQUADSENSE_LEAGUES and the alert secrets are optional
 # (see the README).
 #
-# The repository is private, so GitHub gives 2,000 free minutes a month and
-# bills each run as at least one minute. The schedule uses roughly 900 to
-# 1,000: 12 runs a day plus a nightly refresh that only downloads players
-# whose club played in the last 36 hours.
+# The repository is public (since 24 November 2026), so Actions minutes are
+# free and unlimited. The schedule is 12 runs a day plus a nightly refresh
+# that only downloads players whose club played in the last 36 hours.
 
 name: Sync FPL data
 

@@ -15,8 +15,11 @@ so the Chip Planner can show what your rivals still have.
 
 Every private league you're in is listed. Reading rivals' picks costs two
 requests per rival, so that full analysis is only done for leagues of up
-to FULL_ANALYSIS_MAX teams. Bigger leagues get their table only: the top
-50 and the 50 around you, fetched once a day.
+to FULL_ANALYSIS_MAX teams. Bigger leagues get the top 50 and the 50
+around you, fetched once a day, plus the picks of a sample: the top
+SAMPLE_TOP teams and the SAMPLE_AROUND teams either side of you. So every
+league gets the same threats, differentials and captains, and the page
+says whether they come from every rival or the sample.
 
 Rival picks for a past deadline never change, so each one is cached and
 only fetched once per gameweek. Histories are cached the same way.
@@ -40,6 +43,8 @@ THREATS_SHOWN = 6
 DIFFERENTIALS_SHOWN = 6
 THREAT_MIN_SHARE = 0.3  # at least this share of rivals own him
 DIFFERENTIAL_MAX_SHARE = 0.25
+SAMPLE_TOP = 10  # a big league's leaders whose picks are read
+SAMPLE_AROUND = 10  # teams read just above and just below you in a big league
 
 
 def league_ids_from_env():
@@ -146,10 +151,25 @@ def fetch_leagues(client, storage, team_entry, gameweek, chosen_ids=None, today=
         if is_fully_analysed(info):
             leagues.append(fetch_full_league(client, storage, info, team_entry["id"], gameweek))
         else:
-            standings = top_and_nearby_standings(client, storage, info, today)
-            log.info("League %s: %d teams, table only", info["name"], info.get("rank_count") or 0)
-            leagues.append({"info": info, "kind": "table", "standings": standings, "picks": {}, "histories": {}})
+            leagues.append(fetch_big_league(client, storage, info, team_entry["id"], gameweek, today))
     return leagues
+
+
+def sample_entries(standings, my_rank, my_team_id):
+    """The teams whose picks stand in for a big league: its leaders and the teams either side of you."""
+    by_rank = sorted(standings, key=lambda row: row["rank"])
+    leaders = [row["entry"] for row in by_rank[:SAMPLE_TOP]]
+    nearby = [row["entry"] for row in by_rank if my_rank and abs(row["rank"] - my_rank) <= SAMPLE_AROUND and row["rank"] != my_rank]
+    return [entry for entry in dict.fromkeys(leaders + nearby) if entry != my_team_id]
+
+
+def fetch_big_league(client, storage, info, my_team_id, gameweek, today):
+    """A big league's top 50 and the 50 around you, with the picks of the sample (no chip histories)."""
+    standings = top_and_nearby_standings(client, storage, info, today)
+    entries = sample_entries(standings, info.get("entry_rank"), my_team_id)
+    picks = {entry: cached_picks(client, storage, entry, gameweek) for entry in entries}
+    log.info("League %s: %d teams, %d rivals' picks read as a sample", info["name"], info.get("rank_count") or 0, len(picks))
+    return {"info": info, "kind": "table", "standings": standings, "picks": picks, "histories": {}}
 
 
 def fetch_full_league(client, storage, info, my_team_id, gameweek):
@@ -207,6 +227,26 @@ def rival_counts(picks, my_team_id):
     return owned, captained, len(rivals)
 
 
+def standing(table, my_team_id):
+    """Where you stand: points behind the leader, and the gaps to the teams just above and below you.
+
+    None when you aren't in the table. In a big league the teams above and
+    below come from the 50 rows around you, which are always next to you.
+    """
+    rows = sorted(table, key=lambda row: row["rank"])
+    mine = next((index for index, row in enumerate(rows) if row["entry"] == my_team_id), None)
+    if mine is None:
+        return None
+    me = rows[mine]
+    above = rows[mine - 1] if mine > 0 else None
+    below = rows[mine + 1] if mine + 1 < len(rows) else None
+    return {
+        "leaderGap": rows[0]["total"] - me["total"],
+        "above": {"teamName": above["teamName"], "gap": above["total"] - me["total"]} if above else None,
+        "below": {"teamName": below["teamName"], "gap": me["total"] - below["total"]} if below else None,
+    }
+
+
 def summarise_league(league, my_team_id, my_squad, expected_points, next_week, half):
     """Everything the Leagues page shows for one league."""
     owned, captained, rival_total = rival_counts(league["picks"], my_team_id)
@@ -233,6 +273,8 @@ def summarise_league(league, my_team_id, my_squad, expected_points, next_week, h
         "id": info["id"],
         "name": info["name"],
         "kind": league.get("kind", "full"),
+        "picksFrom": "all" if league.get("kind", "full") == "full" else "sample",
+        "standing": standing(rows, my_team_id),
         "size": info.get("rank_count") or len(rows),
         "rivalsWithPicks": rival_total,
         "myRank": my_row["rank"] if my_row else info.get("entry_rank"),
