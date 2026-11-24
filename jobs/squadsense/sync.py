@@ -291,7 +291,7 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)
     storage.save_predictions(expected_points, MODEL_VERSION)
     storage.save_snapshot(team_id, next_week, snapshot)
-    alerts.run_alerts(storage, snapshot, run_started)
+    alerts.run_alerts(storage, snapshot)
     if web_snapshot_path:
         Path(web_snapshot_path).write_text(json.dumps(snapshot, indent=1))
         log.info("Wrote website snapshot to %s", web_snapshot_path)

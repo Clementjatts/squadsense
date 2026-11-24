@@ -2,11 +2,14 @@
 
 Five kinds, all about your own squad and plan:
 
-- the deadline is within DEADLINE_WINDOW_HOURS, with this week's plan
-- your players FPL expects to drop in price tonight
+- the plan brief, once, within BRIEF_WINDOW_HOURS of the deadline
+- the final call, once, within DEADLINE_WINDOW_HOURS, with what changed since the brief
+- players the plan sells this week that FPL expects to drop in price tonight
 - new injury news on your players
 - your players one yellow card from a ban
-- this week's plan or a chip decision changing (from the "What changed" feed)
+
+The plan is re-solved every sync and close calls flip often, so plan
+changes are only reported in the two briefs, never on their own.
 
 Each alert has a key, and keys already in `alerts_sent` are skipped, so
 nothing is sent twice however often the sync runs. The very first time
@@ -24,14 +27,19 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import httpx
 
+from . import briefs
+from .email_template import render_email
+
 log = logging.getLogger("squadsense.alerts")
 
-DEADLINE_WINDOW_HOURS = 2.5  # runs are 2 hours apart, so this catches every deadline once
+DEADLINE_WINDOW_HOURS = 2.5  # final call; runs are 2 hours apart, so this catches every deadline once
+BRIEF_WINDOW_HOURS = 26  # plan brief: the first run within about a day of the deadline
 RESEND_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "SquadSense <onboarding@resend.dev>"  # Resend's test sender, until your domain is verified
 PRIMED_KEY = "alerts-primed"
@@ -46,6 +54,10 @@ class Alert:
     body: str
     path: str = "/"  # the page a notification opens
     silent_on_first_run: bool = False  # old news to record, not send, the first time alerts run
+    rows: list = field(default_factory=list)  # briefs.Row lines, shown as a table in the email
+    intro: str | None = None  # the email's opening sentence; `body` is used when there is none
+    note: str | None = None  # a highlighted line under the rows, like what changed since the brief
+    after_send: Callable[[], None] | None = None  # runs once the alert has gone out
 
 
 @dataclass
@@ -83,45 +95,73 @@ def name_of(snapshot, player_id):
     return snapshot["players"].get(str(player_id), {}).get("name", f"player {player_id}")
 
 
-def plan_summary(snapshot):
-    """This week's plan in one line: moves, chip and captain."""
-    plan = snapshot.get("solverPlan")
-    captain = snapshot["captainOptions"][0]["playerId"] if snapshot["captainOptions"] else None
-    parts = []
-    if plan:
-        week = plan["weeks"][0]
-        moves = ", ".join(f"{name_of(snapshot, m['out'])} → {name_of(snapshot, m['in'])}" for m in week["moves"])
-        parts.append(f"Transfers: {moves or 'none, roll the free transfer'}")
-        if week["chip"]:
-            parts.append(f"Chip: {week['chip']}")
-    if captain:
-        parts.append(f"Captain: {name_of(snapshot, captain)}")
-    return ". ".join(parts) + "."
+def team_id(snapshot):
+    """The snapshot's team id, or 0 when it has none (test data)."""
+    return (snapshot.get("team") or {}).get("id", 0)
 
 
-def deadline_alert(snapshot, now):
-    """A reminder when the deadline is less than DEADLINE_WINDOW_HOURS away."""
+def brief_name(snapshot):
+    """Where the plan brief is saved, so the final call can compare against it."""
+    return f"brief/{team_id(snapshot)}/{snapshot['gameweek']}"
+
+
+def hours_to_deadline(snapshot, now):
+    """Hours until this gameweek's deadline (negative once it has passed)."""
     deadline = datetime.fromisoformat(snapshot["deadline"].replace("Z", "+00:00"))
-    hours = (deadline - now).total_seconds() / 3600
+    return (deadline - now).total_seconds() / 3600
+
+
+def push_line(rows):
+    """The brief squeezed into one line for a phone notification."""
+    return " ".join(f"{row.label}: {row.value.rstrip('.')}." for row in rows)
+
+
+def plan_brief_alert(snapshot, now, storage):
+    """The plan about a day before the deadline. Saves what it said once sent."""
+    hours = hours_to_deadline(snapshot, now)
+    if not DEADLINE_WINDOW_HOURS < hours <= BRIEF_WINDOW_HOURS:
+        return []
+    rows = briefs.plan_rows(snapshot)
+    summary = briefs.brief_summary(snapshot)
+    return [Alert(
+        [f"brief-{snapshot['gameweek']}"], f"Plan for GW{snapshot['gameweek']}", push_line(rows), "/plan",
+        rows=rows, intro=f"Deadline {briefs.uk_time(snapshot['deadline'])}. Nothing here needs doing yet, "
+                         "unless it's marked MAKE NOW. The final call comes about 2.5 hours before the deadline.",
+        after_send=lambda: storage.save_raw(brief_name(snapshot), summary),
+    )]
+
+
+def final_call_alert(snapshot, now, storage):
+    """The plan to act on, about 2.5 hours before the deadline, with what changed since the brief."""
+    hours = hours_to_deadline(snapshot, now)
     if not 0 < hours <= DEADLINE_WINDOW_HOURS:
         return []
-    when = deadline.strftime("%H:%M UTC")
+    rows = briefs.plan_rows(snapshot)
+    changes = briefs.changes_since(storage.load_raw(brief_name(snapshot)), snapshot)
     return [Alert(
-        [f"deadline-{snapshot['gameweek']}"], f"GW{snapshot['gameweek']} deadline at {when}",
-        f"About {hours:.1f} hours to go. {plan_summary(snapshot)} Make any changes on the FPL site.", "/plan",
+        [f"final-{snapshot['gameweek']}"], f"GW{snapshot['gameweek']} final call: deadline {briefs.uk_time(snapshot['deadline'])}",
+        push_line(rows), "/plan", rows=rows,
+        intro=f"About {hours:.1f} hours to go. This is the plan to act on. Make the changes on the FPL site.",
+        note=f"Changed since the plan brief: {'; '.join(changes)}." if changes else None,
     )]
 
 
 def price_drop_alert(snapshot, now):
-    """Your players FPL expects to fall tonight, once per player per night."""
-    at_risk = [player_id for player_id in snapshot["priceWatch"]["atRisk"] if player_id in snapshot["squad"]]
+    """Players the plan sells this week that FPL expects to fall tonight, once per player per night.
+
+    Players you're keeping aren't included: their fall only matters if
+    you sell them later, and the brief already covers this week's plan.
+    """
+    week = briefs.first_week(snapshot)
+    selling = {move["out"] for move in week["moves"]} if week else set()
+    at_risk = [player_id for player_id in snapshot["priceWatch"]["atRisk"] if player_id in selling]
     if not at_risk:
         return []
     night = now.strftime("%Y-%m-%d")
     names = ", ".join(name_of(snapshot, player_id) for player_id in at_risk)
     return [Alert(
         [f"price-{night}-{player_id}" for player_id in at_risk], "Price drop likely tonight",
-        f"FPL expects these players of yours to fall £0.1m at 00:00 UK: {names}. Selling before then keeps the money.", "/prices",
+        f"The plan sells {names} this week, and FPL expects a £0.1m fall at 00:00 UK. Selling before then keeps the money.", "/prices",
     )]
 
 
@@ -151,36 +191,27 @@ def ban_alerts(snapshot):
     return alerts
 
 
-def plan_change_alert(snapshot, run_started):
-    """The plan or a chip decision changed in this run, from the "What changed" feed."""
-    feed = snapshot.get("changes") or []
-    if not feed or datetime.fromisoformat(feed[0]["at"]) < run_started:
-        return []
-    chip_words = ("Bench Boost", "Triple Captain", "Free Hit", "Wildcard")
-    lines = [line for line in feed[0]["changes"] if line.startswith("This week's plan") or line.startswith(chip_words)]
-    if not lines:
-        return []
-    return [Alert([f"plan-{short_hash(feed[0]['at'] + ''.join(lines))}"], "Your plan changed", " ".join(lines), "/plan")]
-
-
-def collect(snapshot, now, run_started):
+def collect(snapshot, now, storage):
     """Every alert the snapshot calls for right now (before checking what was already sent)."""
     return (
-        deadline_alert(snapshot, now) + price_drop_alert(snapshot, now) + injury_alerts(snapshot)
-        + ban_alerts(snapshot) + plan_change_alert(snapshot, run_started)
+        plan_brief_alert(snapshot, now, storage) + final_call_alert(snapshot, now, storage)
+        + price_drop_alert(snapshot, now) + injury_alerts(snapshot) + ban_alerts(snapshot)
     )
 
 
-def send_email(channels, alert, client):
-    """Sends one alert by email through Resend. Returns True if Resend accepted it.
+def send_email(channels, alert, client, site_url, sent_at):
+    """Sends one alert by email through Resend, as HTML with a plain-text copy.
 
-    A failure is logged, not raised, so a mail problem never stops the sync.
+    Replies go to your own address. Returns True if Resend accepted it. A
+    failure is logged, not raised, so a mail problem never stops the sync.
     """
+    html, text = render_email(alert, site_url, sent_at)
     try:
         response = client.post(
             RESEND_URL,
             headers={"Authorization": f"Bearer {channels.resend_key}"},
-            json={"from": channels.email_from, "to": [channels.email_to], "subject": f"SquadSense: {alert.title}", "text": alert.body},
+            json={"from": channels.email_from, "to": [channels.email_to], "reply_to": channels.email_to,
+                  "subject": f"SquadSense: {alert.title}", "html": html, "text": text},
         )
     except httpx.HTTPError as error:
         log.error("Couldn't reach Resend: %s", error)
@@ -212,7 +243,7 @@ def send_push(channels, alert, storage, site_url):
     return delivered
 
 
-def run_alerts(storage, snapshot, run_started, channels=None, client=None, now=None):
+def run_alerts(storage, snapshot, channels=None, client=None, now=None):
     """Checks every alert, sends the new ones and records them. Returns the titles sent."""
     channels = channels or Channels.from_environment()
     if not channels.email_ready() and not channels.push_ready():
@@ -223,18 +254,20 @@ def run_alerts(storage, snapshot, run_started, channels=None, client=None, now=N
     client = client or httpx.Client(timeout=20)
     site_url = os.environ.get("SITE_URL", "").rstrip("/")
     sent = []
-    for alert in collect(snapshot, now, run_started):
+    for alert in collect(snapshot, now, storage):
         new_keys = [key for key in alert.keys if not storage.alert_was_sent(key)]
         if not new_keys:
             continue
         if first_run and alert.silent_on_first_run:
             storage.mark_alerts_sent(new_keys)  # existing news when alerts were first switched on
             continue
-        delivered = (channels.email_ready() and send_email(channels, alert, client)) | (
+        delivered = (channels.email_ready() and send_email(channels, alert, client, site_url, now)) | (
             channels.push_ready() and send_push(channels, alert, storage, site_url)
         )
         if delivered:
             storage.mark_alerts_sent(new_keys)
+            if alert.after_send:
+                alert.after_send()
             sent.append(alert.title)
     if first_run:
         storage.mark_alerts_sent([PRIMED_KEY])
@@ -254,7 +287,7 @@ def send_test_alert(storage, channels=None, client=None):
     site_url = os.environ.get("SITE_URL", "").rstrip("/")
     alert = Alert([], "Test alert", "Alerts are working. Real ones arrive like this one.", "/")
     results = {
-        "email": send_email(channels, alert, client) if channels.email_ready() else None,
+        "email": send_email(channels, alert, client, site_url, datetime.now(timezone.utc)) if channels.email_ready() else None,
         "push": send_push(channels, alert, storage, site_url) if channels.push_ready() else None,
     }
     if channels.push_ready() and not results["push"] and not storage.load_push_subscriptions():

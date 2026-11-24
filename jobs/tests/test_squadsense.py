@@ -676,15 +676,50 @@ class FakeResend:
         return type("Response", (), {"status_code": 200, "text": "ok"})()
 
 
-def test_deadline_alert_only_inside_the_window():
+def test_plan_brief_once_inside_26_hours(tmp_path):
     from datetime import datetime, timezone
-    from squadsense.alerts import deadline_alert
-    snapshot = alert_snapshot()
+    from squadsense.alerts import plan_brief_alert
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    snapshot = brief_snapshot()
+    assert plan_brief_alert(snapshot, datetime(2026, 11, 26, 12, 0, tzinfo=timezone.utc), storage) == []  # 30 hours out
+    alert = plan_brief_alert(snapshot, datetime(2026, 11, 26, 22, 30, tzinfo=timezone.utc), storage)[0]  # 20 hours out
+    assert alert.title == "Plan for GW12" and alert.keys == ["brief-12"]
+    assert any(row.value == "Saka → Palmer" for row in alert.rows)
+    alert.after_send()
+    assert storage.load_raw("brief/0/12")["captain"] == 1
+
+
+def test_final_call_lists_changes_since_the_brief(tmp_path):
+    from datetime import datetime, timezone
+    from squadsense.alerts import final_call_alert, plan_brief_alert
+    from squadsense.storage import FileStorage
+    storage = FileStorage(tmp_path)
+    plan_brief_alert(brief_snapshot(), datetime(2026, 11, 26, 22, 30, tzinfo=timezone.utc), storage)[0].after_send()
+    later = brief_snapshot(captainOptions=[{"playerId": 3, "xp": 7.5}, {"playerId": 1, "xp": 7.0}])
+    later["solverPlan"]["weeks"][0]["captain"] = 3
     two_hours_before = datetime(2026, 11, 27, 16, 30, tzinfo=timezone.utc)
-    alert = deadline_alert(snapshot, two_hours_before)[0]
-    assert "Saka → Palmer" in alert.body and "Captain: Haaland" in alert.body
-    assert deadline_alert(snapshot, datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc)) == []
-    assert deadline_alert(snapshot, datetime(2026, 11, 27, 19, 0, tzinfo=timezone.utc)) == []
+    alert = final_call_alert(later, two_hours_before, storage)[0]
+    assert alert.keys == ["final-12"] and "Fri 27 Nov, 18:30 UK" in alert.title
+    assert alert.note == "Changed since the plan brief: Captain was Haaland."
+    assert final_call_alert(later, datetime(2026, 11, 27, 12, 0, tzinfo=timezone.utc), storage) == []
+
+
+def test_final_call_without_a_saved_brief_has_no_note(tmp_path):
+    from datetime import datetime, timezone
+    from squadsense.alerts import final_call_alert
+    from squadsense.storage import FileStorage
+    alert = final_call_alert(brief_snapshot(solverPlan=None), datetime(2026, 11, 27, 16, 30, tzinfo=timezone.utc), FileStorage(tmp_path))[0]
+    assert alert.note is None
+
+
+def test_price_alert_only_for_players_the_plan_sells():
+    from datetime import datetime, timezone
+    from squadsense.alerts import price_drop_alert
+    night = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
+    assert price_drop_alert(alert_snapshot(), night)[0].title == "Price drop likely tonight"  # Saka is sold
+    kept = alert_snapshot(solverPlan={"weeks": [{"moves": [], "chip": None, "captain": 1}]})
+    assert price_drop_alert(kept, night) == []
 
 
 def test_alerts_send_once_and_skip_old_news_on_the_first_run(tmp_path):
@@ -695,23 +730,13 @@ def test_alerts_send_once_and_skip_old_news_on_the_first_run(tmp_path):
     channels = Channels(resend_key="test", email_to="me@example.com")
     resend = FakeResend()
     now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
-    first = run_alerts(storage, alert_snapshot(), now, channels, resend, now)
+    first = run_alerts(storage, alert_snapshot(), channels, resend, now)
     # First run: the price drop goes out, but existing injury and ban news is only recorded.
     assert first == ["Price drop likely tonight"]
-    assert run_alerts(storage, alert_snapshot(), now, channels, resend, now) == []  # nothing twice
+    assert run_alerts(storage, alert_snapshot(), channels, resend, now) == []  # nothing twice
     newer = alert_snapshot(players={**alert_snapshot()["players"], "1": {"name": "Haaland", "news": "Hamstring - 50% chance of playing", "yellowCards": 4}})
-    assert run_alerts(storage, newer, now, channels, resend, now) == ["Haaland: injury news"]
+    assert run_alerts(storage, newer, channels, resend, now) == ["Haaland: injury news"]
     assert len(resend.sent) == 2 and resend.sent[0]["to"] == ["me@example.com"]
-
-
-def test_plan_changes_alert_only_for_this_run():
-    from datetime import datetime, timezone
-    from squadsense.alerts import plan_change_alert
-    started = datetime(2026, 11, 27, 9, 0, tzinfo=timezone.utc)
-    feed = [{"at": "2026-11-27T09:01:00+00:00", "changes": ["Haaland's price £15.0m → £15.1m", "Triple Captain: now play in GW13 (was save for GW19)"]}]
-    alert = plan_change_alert(alert_snapshot(changes=feed), started)[0]
-    assert "Triple Captain" in alert.body and "price" not in alert.body
-    assert plan_change_alert(alert_snapshot(changes=feed), datetime(2026, 11, 27, 10, 0, tzinfo=timezone.utc)) == []
 
 
 def test_test_alert_sends_email_and_records_nothing(tmp_path):
@@ -730,7 +755,7 @@ def test_no_alert_settings_means_nothing_is_sent(tmp_path):
     from squadsense.alerts import Channels, run_alerts
     from squadsense.storage import FileStorage
     now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
-    assert run_alerts(FileStorage(tmp_path), alert_snapshot(), now, Channels(), FakeResend(), now) == []
+    assert run_alerts(FileStorage(tmp_path), alert_snapshot(), Channels(), FakeResend(), now) == []
 
 
 class FakeLeagueClient:
@@ -912,3 +937,84 @@ def test_tied_teams_keep_a_gap_free_position():
     rows = table_rows(standings, {}, {}, (1, 19))
     assert [row["rank"] for row in rows] == [11, 11, 13]
     assert [row["position"] for row in rows] == [11, 12, 13]  # no gap, so no "..." row on the page
+
+
+def brief_snapshot(**overrides):
+    """A snapshot with a full first-week plan and chip decisions, for the brief tests."""
+    week = {"moves": [{"out": 2, "in": 3, "sameWeekShare": 1.0}, {"out": 4, "in": 5, "sameWeekShare": 0.4},
+                      {"out": 6, "in": 7, "sameWeekShare": 1.0, "priceNote": "buy now: likely to rise £0.1m tonight"}],
+            "captain": 1, "chip": None, "hits": 0}
+    snapshot = alert_snapshot(
+        players={str(i): {"name": name, "news": ""} for i, name in enumerate(["", "Haaland", "Saka", "Palmer", "Raya", "Pickford", "Isak", "Wood"]) if i},
+        captainOptions=[{"playerId": 1, "xp": 7.0}, {"playerId": 3, "xp": 6.8}],
+        solverPlan={"weeks": [week]},
+        chipPlan={"cards": [
+            {"chip": "wildcard", "label": "Wildcard", "status": "available", "decision": {"action": "play", "week": 12, "closeCall": False}},
+            {"chip": "3xc", "label": "Triple Captain", "status": "available", "decision": {"action": "save", "week": 17, "closeCall": True}},
+            {"chip": "bboost", "label": "Bench Boost", "status": "used", "decision": None},
+        ]},
+    )
+    snapshot.update(overrides)
+    return snapshot
+
+
+def test_plan_rows_mark_firm_and_close_calls():
+    from squadsense.briefs import plan_rows
+    rows = {(row.label, row.value): row.tag for row in plan_rows(brief_snapshot())}
+    assert rows[("Transfer", "Saka → Palmer")] == "FIRM"
+    assert rows[("Transfer", "Raya → Pickford")] == "CLOSE CALL"
+    assert rows[("Transfer", "Isak → Wood")] == "MAKE NOW"
+    assert rows[("Captain", "Haaland (vice Palmer)")] == "CLOSE CALL"  # Palmer is only 0.2 xP behind
+    assert rows[("Chip", "Play Wildcard this week. It can't be undone.")] == "FIRM"
+    assert rows[("Later", "Triple Captain in GW17")] == "CLOSE CALL"
+
+
+def test_plan_rows_without_a_solver_plan():
+    from squadsense.briefs import plan_rows
+    labels = [row.label for row in plan_rows(brief_snapshot(solverPlan=None))]
+    assert "Transfer" not in labels and "Captain" in labels and "Chip" in labels
+
+
+def test_changes_since_names_the_old_captain():
+    from squadsense.briefs import brief_summary, changes_since
+    saved = brief_summary(brief_snapshot())
+    saved["captain"] = 3
+    assert changes_since(saved, brief_snapshot()) == ["Captain was Palmer"]
+    assert changes_since(None, brief_snapshot()) == []
+
+
+def test_uk_time_reads_like_a_fixture_list():
+    from squadsense.briefs import uk_time
+    assert uk_time("2026-11-27T18:30:00Z") == "Fri 27 Nov, 18:30 UK"
+    assert uk_time("2027-04-02T17:30:00Z") == "Fri 2 Apr, 18:30 UK"  # British Summer Time
+
+
+def test_email_escapes_names_and_links_the_page():
+    from datetime import datetime, timezone
+    from squadsense.alerts import Alert
+    from squadsense.briefs import Row
+    from squadsense.email_template import render_email
+    alert = Alert(["k"], "Plan for GW12", "One line.", "/plan", rows=[Row("Transfer", "Smith & <Rowe> → Saka", "FIRM")], intro="Deadline soon.")
+    html, text = render_email(alert, "https://x.test", datetime(2026, 11, 26, 22, 17, tzinfo=timezone.utc))
+    assert "Smith &amp; &lt;Rowe&gt;" in html and "<Rowe>" not in html
+    assert 'href="https://x.test/plan"' in html
+    assert "Transfer: Smith & <Rowe> → Saka [FIRM]" in text and "Deadline soon." in text
+    assert "after the 22:17 UK sync" in html and "after the 22:17 UK sync" in text
+
+
+def test_email_without_site_url_links_the_path():
+    from datetime import datetime, timezone
+    from squadsense.alerts import Alert
+    from squadsense.email_template import render_email
+    html, text = render_email(Alert(["k"], "Saka: injury news", "Knock - 75% chance of playing", "/"), "", datetime(2026, 11, 26, 9, 0, tzinfo=timezone.utc))
+    assert 'href="/"' in html and "Knock - 75% chance of playing" in html and "Knock" in text
+
+
+def test_alert_email_sends_html_text_and_reply_to(tmp_path):
+    from squadsense.alerts import Channels, send_test_alert
+    from squadsense.storage import FileStorage
+    resend = FakeResend()
+    send_test_alert(FileStorage(tmp_path), Channels(resend_key="test", email_to="me@example.com"), resend)
+    email = resend.sent[0]
+    assert email["html"].startswith("<!doctype html>") and "Alerts are working" in email["text"]
+    assert email["reply_to"] == "me@example.com"

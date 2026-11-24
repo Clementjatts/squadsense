@@ -3,15 +3,12 @@
 .env.local
 jobs/.env
 
-# Generated files. On this Mac, node_modules, web/.next and jobs/.venv are
-# links to folders ending in .nosync, which iCloud Drive doesn't sync. The
-# rules have no trailing slash so they cover the links as well as folders.
+# Generated files
 node_modules
 web/.next
 web/next-env.d.ts
 __pycache__/
 jobs/.venv
-*.nosync
 web/tsconfig.tsbuildinfo
 # Personal Claude Code settings
 .claude/settings.local.json
