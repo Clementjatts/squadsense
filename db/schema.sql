@@ -116,3 +116,28 @@ grant usage on schema public to service_role;
 grant select, insert, update, delete on all tables in schema public to service_role;
 grant usage, select on all sequences in schema public to service_role;
 revoke all on all tables in schema public from anon, authenticated;
+
+-- What the website's pages read: the latest snapshot without the player
+-- details and live picks, which are most of its size (24 November 2026).
+create or replace view page_snapshots with (security_invoker = true) as
+  select team_id, gameweek, created_at, body - 'playerDetails' - 'livePicks' as body
+  from snapshots;
+revoke all on page_snapshots from anon, authenticated;
+grant select on page_snapshots to service_role;
+
+-- One player's detail entry, for the player panel. A function because the
+-- web API reads a number in a JSON path as a list position, not a key.
+create or replace function public.player_detail(team integer, player integer)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select body->'playerDetails'->(player::text)
+  from public.snapshots
+  where team_id = team
+  order by created_at desc
+  limit 1;
+$$;
+revoke all on function public.player_detail(integer, integer) from public, anon, authenticated;
+grant execute on function public.player_detail(integer, integer) to service_role;

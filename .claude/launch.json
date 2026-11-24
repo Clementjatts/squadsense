@@ -4,14 +4,43 @@
     {
       "name": "squadsense-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "squadsense-web-local-data",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["SUPABASE_URL=", "npm", "--prefix", "web", "run", "dev", "--", "--port", "3001"],
+      "runtimeArgs": [
+        "SUPABASE_URL=",
+        "npm",
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3001"
+      ],
       "port": 3001
+    },
+    {
+      "name": "squadsense-web-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "start",
+        "--",
+        "--port",
+        "3005"
+      ],
+      "port": 3005
     }
   ]
 }

@@ -4,7 +4,9 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LivePicks, PlayerDetail, Snapshot } from "./types";
 
 export interface LoadedSnapshot {
@@ -48,63 +50,95 @@ async function loadLocalFile(): Promise<LoadedFile> {
   return { file: sample, isDemo: true };
 }
 
-// Finds the latest snapshot: Supabase when it's set up, local files otherwise.
-async function loadFile(): Promise<LoadedFile> {
+// How long a page snapshot from Supabase is reused before asking again.
+// The sync writes a new one every 2 hours (or about 5 minutes after "Done
+// on FPL"), so a minute's delay is never noticed, while moving between
+// pages no longer waits for the database each time.
+const PAGE_CACHE_SECONDS = 60;
+
+interface SupabaseSetup {
+  supabase: SupabaseClient;
+  teamId: number;
+}
+
+// The Supabase client and team id, or null when Supabase isn't set up (local files are used then).
+function supabaseSetup(): SupabaseSetup | null {
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
   const teamId = Number(process.env.FPL_TEAM_ID);
+  if (!teamId) throw new Error("FPL_TEAM_ID is missing or not a number. Check .env.local.");
+  return { supabase: createClient(url, serviceKey, { auth: { persistSession: false } }), teamId };
+}
 
-  if (!url || !serviceKey) {
-    return loadLocalFile();
-  }
-  if (!teamId) {
-    throw new Error("FPL_TEAM_ID is missing or not a number. Check .env.local.");
-  }
-
-  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
-  const { data, error } = await supabase
-    .from("snapshots")
-    .select("body")
-    .eq("team_id", teamId)
+// The latest row's chosen column from a table or view, for the team. Throws with a plain message on failure.
+async function latest<T>(setup: SupabaseSetup, table: string, column: string): Promise<T> {
+  const { data, error } = await setup.supabase
+    .from(table)
+    .select(column)
+    .eq("team_id", setup.teamId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-
-  if (error) {
-    throw new Error(`Couldn't load the snapshot from Supabase: ${error.message}`);
-  }
-  if (!data) {
-    throw new Error(`No snapshot yet for team ${teamId}. Run the sync job first.`);
-  }
-  return { file: data.body as SnapshotFile, isDemo: false };
+  if (error) throw new Error(`Couldn't load the snapshot from Supabase: ${error.message}`);
+  if (!data) throw new Error(`No snapshot yet for team ${setup.teamId}. Run the sync job first.`);
+  return Object.values(data as unknown as Record<string, T>)[0];
 }
 
-// The snapshot for a page, with the per-player details left out so pages
-// stay small.
-export async function getSnapshot(): Promise<LoadedSnapshot> {
-  const { file, isDemo } = await loadFile();
+// The page snapshot from Supabase: the page_snapshots view leaves out the
+// player details and live picks, which are most of the 2.5 MB. Kept in
+// Next's data cache for PAGE_CACHE_SECONDS, shared by every page.
+const cachedPageSnapshot = unstable_cache(
+  async (teamId: number) => {
+    const setup = supabaseSetup();
+    if (!setup || setup.teamId !== teamId) throw new Error("Supabase settings changed while loading the snapshot.");
+    return latest<Snapshot>(setup, "page_snapshots", "body");
+  },
+  ["page-snapshot"],
+  { revalidate: PAGE_CACHE_SECONDS },
+);
+
+// The snapshot for a page, without the per-player details and live picks.
+// cache() makes the header and the page share one load per request.
+export const getSnapshot = cache(async (): Promise<LoadedSnapshot> => {
+  const setup = supabaseSetup();
+  if (setup) return { snapshot: await cachedPageSnapshot(setup.teamId), isDemo: false };
+  const { file, isDemo } = await loadLocalFile();
   const { playerDetails, livePicks, ...snapshot } = file;
   void playerDetails; // deliberately dropped
   void livePicks; // only the Live page's API route needs these
   return { snapshot, isDemo };
+});
+
+// One part of the latest full snapshot (Supabase reads only that part), or of the local file.
+async function snapshotPart<T>(key: "playerDetails" | "livePicks", path: string): Promise<T | null> {
+  const setup = supabaseSetup();
+  if (setup) return (await latest<T | null>(setup, "snapshots", `part:${path}`)) ?? null;
+  const { file } = await loadLocalFile();
+  const part = path.split("->").slice(2).reduce<unknown>((value, step) => (value as Record<string, unknown> | undefined)?.[step], file[key]);
+  return (part as T | undefined) ?? null;
 }
 
 // Every team's picks for the week being played, or null if the sync hasn't saved any.
 export async function getLivePicks(): Promise<LivePicks | null> {
-  const { file } = await loadFile();
-  return file.livePicks ?? null;
+  return snapshotPart<LivePicks>("livePicks", "body->livePicks");
 }
 
 // All players' detail entries, for the comparison page. Large, so only
 // that page's server code calls it.
 export async function getAllPlayerDetails(): Promise<Record<string, PlayerDetail>> {
-  const { file } = await loadFile();
-  return file.playerDetails ?? {};
+  return (await snapshotPart<Record<string, PlayerDetail>>("playerDetails", "body->playerDetails")) ?? {};
 }
 
 // One player's detail entry for the panel, or null if the snapshot has no
 // entry for him (for example, one written before the panel existed).
+// Supabase's player_detail function reads just that entry: the web API
+// would take a number in a path as a list position, not a player id.
 export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | null> {
-  const { file } = await loadFile();
-  return file.playerDetails?.[String(playerId)] ?? null;
+  if (!Number.isInteger(playerId)) return null;
+  const setup = supabaseSetup();
+  if (!setup) return snapshotPart<PlayerDetail>("playerDetails", `body->playerDetails->${playerId}`);
+  const { data, error } = await setup.supabase.rpc("player_detail", { team: setup.teamId, player: playerId });
+  if (error) throw new Error(`Couldn't load player ${playerId} from Supabase: ${error.message}`);
+  return (data as PlayerDetail | null) ?? null;
 }
