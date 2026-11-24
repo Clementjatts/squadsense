@@ -273,4 +273,20 @@ What it shows:
 - The blank chance is useful (0.2130 against 0.2316) but a little low: options given 20-30% blanked 35% of the time, and 0-10% blanked 7.6%.
 - Likely causes, not yet tested: the rough bonus guess in `bonus_for`, and treating goals and assists as independent of each other and of minutes.
 
-Nothing in the live advice was changed. The Dashboard and Chip Planner still show these chances; treat a haul chance above about 40% as roughly 25-30%. Fixing the spread is a model change, so it belongs with the other experiments that need their own backtest.
+### Correcting the chances from history (24 November 2026)
+
+The simulation's chances are now corrected with Platt scaling: shown chance = 1 / (1 + e^-(a + b x logit(raw chance))), with (a, b) fitted on the same 560 options by `python -m squadsense.captain_calibration`. To check it isn't fitted to luck, each season was scored on numbers fitted on the other seasons only (Brier, lower is better):
+
+```
+Haul (10+)     calls    raw   corrected   flat      Blank (2 or fewer)   raw   corrected   flat
+2022-23          170  0.1851    0.1863   0.1947                        0.1948    0.1936   0.2246
+2023-24          175  0.1773    0.1605   0.1553                        0.2121    0.2091   0.2304
+2024-25          175  0.1875    0.1844   0.1901                        0.2178    0.2146   0.2336
+2026-27           40  0.0926    0.0928   0.0942                        0.2735    0.2573   0.2636
+All (weighted)   560  0.1768    0.1710   0.1738                        0.2130    0.2089   0.2316
+```
+
+- The corrected haul chance beats the flat guess in 3 of 4 seasons and overall, by a small margin. Its lowest chances are now about 5% and its highest about 45%. Each band matches what happened to within a few points (30-40% is the exception: 52 options, 46% hauled).
+- The corrected blank chance beats both the raw chance and the flat guess in every season.
+- Live numbers: `HAUL_CALIBRATION = (-0.808, 0.358)` and `BLANK_CALIBRATION = (-0.014, 0.576)` in `captaincy.py`. b below 1 means the raw chances were too spread out. Refit after more of this season is played (`--reuse` rescores the saved calls without simulating).
+- The haul chance is a weak signal: read it as "steadier" or "more boom-or-bust", not a promise. The causes in the simulation (bonus guess, linked goals and minutes) are still untested.

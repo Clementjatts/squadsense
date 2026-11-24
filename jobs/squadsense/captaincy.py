@@ -8,6 +8,11 @@ drawn from the model's own rates, and counts how often he hauls.
 
 The draws use a fixed seed per player, so the same data gives the same
 numbers on every run.
+
+The simulation on its own was too sure of hauls: on past seasons, options
+it gave over 60% hauled about 30% of the time. So the chances it returns
+are corrected with Platt scaling, using two numbers per measure fitted on
+past results by captain_calibration.py (see docs/backtest-results.md).
 """
 
 import math
@@ -20,6 +25,19 @@ from .model import ASSIST_FACTOR, MINUTES_WHEN_STARTING, MINUTES_WHEN_SUBBED_ON
 SIMULATIONS = 4000
 HAUL_POINTS = 10  # his own points, before the captain doubles them
 BLANK_POINTS = 2  # an appearance and nothing else
+# Platt scaling numbers (a, b) from `python -m squadsense.captain_calibration`.
+# Fitted 24 November 2026 on 560 past captain options. (0.0, 1.0) would leave a chance unchanged.
+HAUL_CALIBRATION = (-0.808, 0.358)
+BLANK_CALIBRATION = (-0.014, 0.576)
+CLAMP = 0.005  # raw chances are kept between 0.5% and 99.5% so the logit stays finite
+
+
+def calibrate(chance, numbers):
+    """A simulated chance corrected with Platt scaling: 1 / (1 + e^-(a + b * logit(chance)))."""
+    a, b = numbers
+    clamped = min(max(chance, CLAMP), 1 - CLAMP)
+    logit = math.log(clamped / (1 - clamped))
+    return 1 / (1 + math.exp(-(a + b * logit)))
 
 
 def poisson(rng, mean):
@@ -67,8 +85,8 @@ def simulate_match(rng, position, team_id, rates, match, fixture_model):
     return points + bonus_for(goals, assists)
 
 
-def outcome_chances(player, rates, matches, fixture_model, simulations=SIMULATIONS):
-    """Chance he hauls (HAUL_POINTS or more) and chance he blanks, for one gameweek.
+def simulated_chances(player, rates, matches, fixture_model, simulations=SIMULATIONS):
+    """The simulation's own haul and blank chances for one gameweek, before any correction.
 
     A double gameweek adds both matches together. A blank week returns zeros.
     """
@@ -83,4 +101,18 @@ def outcome_chances(player, rates, matches, fixture_model, simulations=SIMULATIO
         )
         hauls += points >= HAUL_POINTS
         blanks += points <= BLANK_POINTS
-    return {"haulChance": round(hauls / simulations, 3), "blankChance": round(blanks / simulations, 3)}
+    return {"haulChance": hauls / simulations, "blankChance": blanks / simulations}
+
+
+def outcome_chances(player, rates, matches, fixture_model, simulations=SIMULATIONS):
+    """Chance he hauls (HAUL_POINTS or more) and chance he blanks, corrected from history.
+
+    A week with no match is certain: 0% haul and 100% blank.
+    """
+    if not matches:
+        return {"haulChance": 0.0, "blankChance": 1.0}
+    raw = simulated_chances(player, rates, matches, fixture_model, simulations)
+    return {
+        "haulChance": round(calibrate(raw["haulChance"], HAUL_CALIBRATION), 3),
+        "blankChance": round(calibrate(raw["blankChance"], BLANK_CALIBRATION), 3),
+    }

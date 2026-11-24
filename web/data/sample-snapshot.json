@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-22T18:02:09.724087+00:00",
+ "generatedAt": "2026-11-24T10:54:44.355336+00:00",
  "modelVersion": "v2",
  "team": {
   "id": 11304359,
@@ -4810,40 +4810,40 @@
    "xp": 6.12,
    "safety": "Very safe",
    "chance60": 1.0,
-   "haulChance": 0.231,
-   "blankChance": 0.286
+   "haulChance": 0.225,
+   "blankChance": 0.368
   },
   {
    "playerId": 28,
    "xp": 5.92,
    "safety": "Very safe",
    "chance60": 1.0,
-   "haulChance": 0.263,
-   "blankChance": 0.365
+   "haulChance": 0.235,
+   "blankChance": 0.418
   },
   {
    "playerId": 3,
    "xp": 5.66,
    "safety": "Very safe",
    "chance60": 1.0,
-   "haulChance": 0.217,
-   "blankChance": 0.276
+   "haulChance": 0.22,
+   "blankChance": 0.361
   },
   {
    "playerId": 18,
    "xp": 5.52,
    "safety": "Very safe",
    "chance60": 1.0,
-   "haulChance": 0.152,
-   "blankChance": 0.223
+   "haulChance": 0.194,
+   "blankChance": 0.325
   },
   {
    "playerId": 8,
    "xp": 4.82,
    "safety": "Safe",
    "chance60": 0.8,
-   "haulChance": 0.229,
-   "blankChance": 0.431
+   "haulChance": 0.224,
+   "blankChance": 0.457
   }
  ],
  "squadSource": "fpl",
@@ -10357,14 +10357,14 @@
      "planReason": "Semenyo is the plan's captain that week, so his 7.2 xP counts a third time.",
      "planRisk": {
       "captainId": 23,
-      "haulChance": 0.355,
-      "blankChance": 0.178
+      "haulChance": 0.265,
+      "blankChance": 0.29
      }
     },
     "risk": {
      "captainId": 23,
-     "haulChance": 0.355,
-     "blankChance": 0.178
+     "haulChance": 0.265,
+     "blankChance": 0.29
     },
     "quality": "near",
     "byWeek": [
