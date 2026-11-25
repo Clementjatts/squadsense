@@ -2,14 +2,7 @@
 // Same artwork as docs/brand/squadsense-icon.svg, drawn inline so it
 // uses the site's own accent and background colors.
 
-// Dot centers on the 64 by 64 grid, goalkeeper at the bottom.
-const PLAYERS: [number, number][] = [
-  [32, 53],
-  [14, 42], [26, 42], [38, 42], [50, 42],
-  [14, 30], [26, 30], [38, 30], [50, 30],
-  [25, 17], [39, 17],
-];
-const PICKED: [number, number] = [39, 17];
+import { FORMATION_DOTS as PLAYERS, PICKED_DOT as PICKED } from "@/lib/formationDots";
 
 export function BrandMark({ size = 32 }: { size?: number }) {
   return (

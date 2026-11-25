@@ -11,6 +11,12 @@
   --blue: #6cb4ff;
   --pitch-a: #13301f;
   --pitch-b: #153622;
+  /* Fixture difficulty, 1 easiest to 5 hardest (the ticker and its 3D terrain). */
+  --level-1: #b7f34a;
+  --level-2: #7fbf3a;
+  --level-3: #3a4a6b;
+  --level-4: #b8622a;
+  --level-5: #7a2e14;
 
   /* Motion timing: a crisp start that settles smoothly. */
   --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
@@ -93,6 +99,13 @@ td { padding: 10px 12px; border-top: 1px solid var(--line); white-space: nowrap;
    matching the design. */
 .ticker-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 .ticker-toolbar-right { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+/* The 3D fixture terrain (FixtureTerrain.tsx): wide screens only. */
+.terrain { display: flex; flex-direction: column; gap: 10px; }
+.terrain-status { margin: 0; min-height: 20px; font-size: 14px; color: var(--muted); }
+.terrain-stage { height: 560px; border-radius: 10px; background: radial-gradient(80% 70% at 50% 40%, rgba(183, 243, 74, 0.05) 0%, transparent 70%); cursor: grab; touch-action: none; }
+.terrain-stage:active { cursor: grabbing; }
+@media (min-width: 1101px) { .behind-terrain { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
+@media (max-width: 1100px) { .ticker-view, .ticker-terrain { display: none; } }
 .segmented { display: inline-flex; padding: 4px; gap: 2px; border-radius: 11px; background: var(--bg); border: 1px solid var(--line); }
 .segmented button { min-height: 36px; padding: 0 14px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font: 600 13px Inter, sans-serif; cursor: pointer; }
 .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
@@ -110,11 +123,11 @@ table.ticker.highlighting tr.mine th[scope="row"] { color: var(--accent); }
 /* Two smaller blocks in a double gameweek. */
 .fixture-stack .fixture:not(:only-child) { border-radius: 6px; font-size: 10px; }
 .fixture.blank { height: 40px; border: 1px dashed var(--line); color: var(--muted); font-size: 11px; font-weight: 400; }
-.level-1 { background: #B7F34A; color: #0B1220; }
-.level-2 { background: #7FBF3A; color: #0B1220; }
-.level-3 { background: #3A4A6B; color: #E8EDF7; }
-.level-4 { background: #B8622A; color: #E8EDF7; }
-.level-5 { background: #7A2E14; color: #E8EDF7; }
+.level-1 { background: var(--level-1); color: #0B1220; }
+.level-2 { background: var(--level-2); color: #0B1220; }
+.level-3 { background: var(--level-3); color: #E8EDF7; }
+.level-4 { background: var(--level-4); color: #E8EDF7; }
+.level-5 { background: var(--level-5); color: #E8EDF7; }
 .ticker-legend { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 .ticker-key { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
 .ticker-key .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; }
@@ -319,19 +332,27 @@ table.ticker tbody tr { transition: opacity 200ms var(--ease-out-quart); }
 /* Lineup: pitch and substitutes. */
 .bc-lineup { display: flex; flex-direction: column; border-color: #1e3a2a; }
 .bc-lineup-head { height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(90deg, #0f2a1c, #0b1220); }
-.bc-pitch { position: relative; height: 540px; padding: 30px 16px; display: grid; grid-auto-rows: minmax(0, 1fr); align-items: center;
-  background: radial-gradient(70% 55% at 50% 50%, rgba(183, 243, 74, 0.08) 0%, transparent 70%), repeating-linear-gradient(180deg, #11301f 0 67.5px, #133622 67.5px 135px); }
+/* The pitch seen from a TV camera behind your goal: the turf tilts back
+   inside a perspective, the dark band above it is the far stand, and the
+   player rows stay upright (BroadcastPitch.tsx scales each by depth). */
+.bc-pitch { --pitch-tilt: 30deg; position: relative; height: 540px; padding: 30px 16px; display: grid; grid-auto-rows: minmax(0, 1fr); align-items: center;
+  overflow: hidden; perspective: 900px; perspective-origin: 50% 0%; background: linear-gradient(180deg, #070b14 0%, #111a2e 30%, #111a2e 100%); }
+.bc-pitch-turf { position: absolute; left: -8%; right: -8%; top: -6%; bottom: 0; pointer-events: none; transform-origin: 50% 100%; transform: rotateX(var(--pitch-tilt));
+  background: radial-gradient(70% 55% at 50% 55%, rgba(183, 243, 74, 0.1) 0%, transparent 70%), repeating-linear-gradient(180deg, #102e1d 0 67.5px, #153a24 67.5px 135px);
+  box-shadow: 0 -30px 60px -20px rgba(183, 243, 74, 0.1); }
 .bc-pitch-line { position: absolute; pointer-events: none; border: 1.5px solid rgba(207, 232, 214, 0.16); }
 .bc-pitch-box { inset: 16px; border-radius: 6px; }
 .bc-pitch-half { left: 16px; right: 16px; top: 50%; height: 0; border-width: 1.5px 0 0; }
 .bc-pitch-circle { left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; }
-.bc-pitch-row { position: relative; display: flex; justify-content: space-evenly; }
+.bc-pitch-row { position: relative; display: flex; justify-content: space-evenly; transform: scale(var(--depth, 1)); transform-origin: 50% 100%; }
+/* A soft spotlight on the grass under the captain's shirt. */
+.bc-token-is-captain .bc-token-shirt::before { content: ""; position: absolute; z-index: -1; left: 50%; bottom: -14px; width: 104px; height: 30px; margin-left: -52px; border-radius: 50%; background: radial-gradient(closest-side, rgba(183, 243, 74, 0.7), rgba(183, 243, 74, 0) 100%); }
 /* Every player gets the same slot: shirt, name plate, xP tag. */
 .bc-token { width: 120px; height: 104px; padding: 0; background: none; border: 0; color: inherit; display: grid; grid-template-rows: 52px 26px 22px; justify-items: center; align-items: center; gap: 2px; transition: transform var(--dur-fast) var(--ease-spring-soft); }
 .bc-token:hover { transform: translateY(-3px); }
 .bc-token-sub { height: 122px; grid-template-rows: 16px 48px 26px 22px; }
 .bc-token-order { font-family: var(--condensed); font-weight: 700; font-size: 13px; line-height: 16px; letter-spacing: 0.1em; color: #9db5a6; }
-.bc-token-shirt { position: relative; display: flex; align-items: center; justify-content: center; }
+.bc-token-shirt { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; }
 .bc-token-captain { position: absolute; top: -6px; right: -14px; width: 24px; height: 24px; border-radius: 12px; background: var(--accent); color: var(--bg); font-family: var(--condensed); font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .bc-token-pen { position: absolute; top: -6px; left: -14px; width: 24px; height: 24px; border-radius: 12px; background: #f3f6fb; color: var(--bg); font-family: var(--condensed); font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; }
 .bc-set-tag { margin-left: 8px; padding: 1px 6px; border: 1px solid var(--panel-line); color: var(--muted); font-family: var(--condensed); font-weight: 700; font-size: 11px; letter-spacing: 0.06em; vertical-align: 2px; }
@@ -570,6 +591,8 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .signin-stage { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; overflow: hidden; background: radial-gradient(120% 90% at 50% 0%, #0d1830 0%, #070b14 60%); }
 .signin-pitch { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: rgba(183, 243, 74, 0.07); stroke-width: 2; }
 .signin-pitch-spot { fill: rgba(183, 243, 74, 0.12); }
+/* The 3D formation fills the stage behind the card and never takes clicks. */
+.signin-scene { position: absolute !important; inset: 0; z-index: 0; pointer-events: none; }
 .signin-glow { position: absolute; width: 560px; height: 560px; border-radius: 50%; filter: blur(110px); pointer-events: none; }
 .signin-glow-lime { top: 50%; left: 50%; transform: translate(-75%, -60%); background: rgba(183, 243, 74, 0.13); }
 .signin-glow-blue { top: 50%; left: 50%; transform: translate(-15%, -25%); background: rgba(108, 180, 255, 0.12); }
@@ -753,7 +776,7 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .card-head > .segmented { width: 100%; }
   .segmented .segmented-btn { flex: 1 0 auto; padding: 0 10px; font-size: 14px; }
   .bc-lineup-head { padding: 0 16px; }
-  .bc-pitch { height: 440px; padding: 20px 2px; }
+  .bc-pitch { --pitch-tilt: 20deg; height: 440px; padding: 20px 2px; }
   .bc-pitch-box { inset: 10px; }
   .bc-pitch-half { left: 10px; right: 10px; }
   .bc-pitch-circle { width: 84px; height: 84px; margin: -42px 0 0 -42px; }

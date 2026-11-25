@@ -1,21 +1,28 @@
 "use client";
 
 // The Fixture Ticker table with its toggles: attackers or defenders, how
-// many gameweeks to rank by, and whether to highlight your clubs. All the
-// numbers come from the snapshot; this only sorts and colors them.
+// many gameweeks to rank by, whether to highlight your clubs, and on wide
+// screens a 3D view of the same fixtures. All the numbers come from the
+// snapshot; this only sorts and colors them.
 
 import { motion } from "motion/react";
 import { useState } from "react";
 import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
+import { TerrainView } from "./three/TerrainView";
+import { DIFFICULTY_LABELS, terrainColumns } from "@/lib/terrain";
 import type { FixtureTicker, TickerMatch, TickerTeam } from "@/lib/types";
 
 type Mode = "attack" | "defence";
+type View = "table" | "terrain";
 
 const MODE_OPTIONS: SegmentedOption<Mode>[] = [
   { value: "attack", label: "For attackers" },
   { value: "defence", label: "For defenders" },
 ];
-const DIFFICULTY_LABELS = ["Easiest", "Easy", "Medium", "Hard", "Hardest"];
+const VIEW_OPTIONS: SegmentedOption<View>[] = [
+  { value: "table", label: "Table" },
+  { value: "terrain", label: "3D" },
+];
 
 interface FixtureTickerTableProps {
   ticker: FixtureTicker;
@@ -26,6 +33,7 @@ export function FixtureTickerTable({ ticker, myTeamIds }: FixtureTickerTableProp
   const [mode, setMode] = useState<Mode>("attack");
   const [windowLength, setWindowLength] = useState(ticker.windows[ticker.windows.length - 1]);
   const [highlightMine, setHighlightMine] = useState(false);
+  const [view, setView] = useState<View>("table");
 
   const score = (team: TickerTeam) => team.scores[mode][String(windowLength)];
   const rankedTeams = [...ticker.teams].sort((a, b) => score(b) - score(a));
@@ -47,10 +55,22 @@ export function FixtureTickerTable({ ticker, myTeamIds }: FixtureTickerTableProp
           <button type="button" className="btn" aria-pressed={highlightMine} onClick={() => setHighlightMine(!highlightMine)}>
             Highlight my teams
           </button>
+          {/* The 3D view is for wide screens only; phones keep the table. */}
+          <div className="ticker-view">
+            <SegmentedControl label="View" options={VIEW_OPTIONS} value={view} onChange={setView} layoutGroup="ticker-view" />
+          </div>
         </div>
       </div>
 
-      <section className="card">
+      {view === "terrain" && (
+        <section className="card ticker-terrain">
+          <TerrainView terrain={terrainColumns(ticker, mode, windowLength, myTeamIds)} highlightMine={highlightMine} />
+          <TickerLegend mode={mode} />
+        </section>
+      )}
+
+      {/* Under the 3D view the table stays on the page for screen readers, hidden from sight. */}
+      <section className={view === "terrain" ? "card ticker-table-card behind-terrain" : "card ticker-table-card"}>
         <div className="table-wrap">
           <table className={highlightMine ? "ticker highlighting" : "ticker"}>
             <thead>

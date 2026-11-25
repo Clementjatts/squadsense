@@ -7,20 +7,23 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings tests/applyPlan.test.mts && node --experimental-strip-types --no-warnings tests/live.test.mts && node --experimental-strip-types --no-warnings tests/rules.test.mts && node --experimental-strip-types --no-warnings tests/lineup.test.mts && node --experimental-strip-types --no-warnings tests/calendar.test.mts && node --experimental-strip-types --no-warnings tests/leagueTable.test.mts && node --experimental-strip-types --no-warnings tests/watchlist.test.mts && node --experimental-strip-types --no-warnings tests/session.test.mts"
+    "test": "node --experimental-strip-types --no-warnings tests/applyPlan.test.mts && node --experimental-strip-types --no-warnings tests/live.test.mts && node --experimental-strip-types --no-warnings tests/rules.test.mts && node --experimental-strip-types --no-warnings tests/lineup.test.mts && node --experimental-strip-types --no-warnings tests/calendar.test.mts && node --experimental-strip-types --no-warnings tests/leagueTable.test.mts && node --experimental-strip-types --no-warnings tests/watchlist.test.mts && node --experimental-strip-types --no-warnings tests/session.test.mts && node --experimental-strip-types --no-warnings tests/pitchDepth.test.mts && node --experimental-strip-types --no-warnings tests/terrain.test.mts"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.1.2",
     "@supabase/supabase-js": "^2.45.0",
     "motion": "^14.14.0",
     "next": "^16.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.170.0",
     "typescript": "^5.6.0"
   }
 }

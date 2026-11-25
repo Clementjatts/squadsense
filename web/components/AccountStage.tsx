@@ -1,8 +1,9 @@
 // The look shared by the account pages (sign in, sign up, forgotten and
-// reset password): a dark "stadium" stage with faint pitch markings, and a
-// card with the logo and a heading. Each page puts its own form inside.
+// reset password): a dark "stadium" stage with faint pitch markings, the 3D
+// formation behind (FormationBackdrop), and a card with the logo and a heading. Each page puts its own form inside.
 
 import { BrandMark } from "./BrandMark";
+import { FormationBackdrop } from "./three/FormationBackdrop";
 
 interface AccountStageProps {
   eyebrow: string;
@@ -18,6 +19,7 @@ export function AccountStage({ eyebrow, title, text, children }: AccountStagePro
       <PitchMarkings />
       <span className="signin-glow signin-glow-lime" aria-hidden="true" />
       <span className="signin-glow signin-glow-blue" aria-hidden="true" />
+      <FormationBackdrop />
       <div className="signin-card">
         <span className="signin-stripe" aria-hidden="true" />
         <div className="signin-brand">

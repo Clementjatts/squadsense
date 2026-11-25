@@ -8,6 +8,7 @@
 
 import { formatXp } from "@/lib/format";
 import { formation, pitchRows } from "@/lib/dashboard";
+import { rowDepthScale } from "@/lib/pitchDepth";
 import type { Player } from "@/lib/types";
 import { ClubKit } from "./ClubKit";
 
@@ -39,6 +40,7 @@ export interface PlayerTag {
 export function BroadcastPitch(props: BroadcastPitchProps) {
   const { title, starters, bench, captain, viceCaptain, players, week, onPlayerClick, selectedId = null, incomingIds = [], hint, tagFor, benchNote } = props;
   const stateOf = (id: number) => (id === selectedId ? "selected" : incomingIds.includes(id) ? "incoming" : undefined);
+  const rows = pitchRows(starters, players);
   return (
     <section className="bc-card bc-lineup">
       <div className="bc-lineup-head">
@@ -49,11 +51,14 @@ export function BroadcastPitch(props: BroadcastPitchProps) {
         </span>
       </div>
       <div className="bc-pitch">
-        <span className="bc-pitch-line bc-pitch-box" aria-hidden="true" />
-        <span className="bc-pitch-line bc-pitch-half" aria-hidden="true" />
-        <span className="bc-pitch-line bc-pitch-circle" aria-hidden="true" />
-        {pitchRows(starters, players).map((row) => (
-          <div key={row.join("-")} className="bc-pitch-row">
+        {/* Only the turf tilts back; the players stand upright on top of it, so they stay easy to read and click. */}
+        <div className="bc-pitch-turf" aria-hidden="true">
+          <span className="bc-pitch-line bc-pitch-box" />
+          <span className="bc-pitch-line bc-pitch-half" />
+          <span className="bc-pitch-line bc-pitch-circle" />
+        </div>
+        {rows.map((row, index) => (
+          <div key={row.join("-")} className="bc-pitch-row" style={{ "--depth": rowDepthScale(index, rows.length) } as React.CSSProperties}>
             {row.map((id) => (
               <PlayerToken
                 key={id}
@@ -101,6 +106,7 @@ function PlayerToken({ player, week, armband, subLabel, state, tag, onClick }: P
   const classes = ["bc-token"];
   if (subLabel) classes.push("bc-token-sub");
   if (state) classes.push(`bc-token-${state}`);
+  if (armband === "captain") classes.push("bc-token-is-captain");
   return (
     <button
       type="button"
