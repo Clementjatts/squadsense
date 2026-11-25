@@ -59,9 +59,11 @@ create table if not exists snapshots (
 create index if not exists snapshots_team_latest on snapshots (team_id, created_at desc);
 
 -- Alerts: each phone or browser that turned on notifications, one row per device.
+-- team_id says whose alerts each device gets.
 create table if not exists push_subscriptions (
   endpoint text primary key,
   subscription jsonb not null,
+  team_id integer not null default 11304359,
   created_at timestamptz not null default now()
 );
 
@@ -105,6 +107,21 @@ create table if not exists watchlist (
   primary key (team_id, player_id)
 );
 
+-- Friends and family who signed up (25 November 2026). Accounts and
+-- passwords live in Supabase Auth; this row says which FPL team is theirs.
+-- role "owner" is Clement; active off removes someone; emails off stops
+-- their alert emails.
+create table if not exists members (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  team_id integer not null unique,
+  name text not null,
+  email text not null,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  active boolean not null default true,
+  emails boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 -- Lock every table down. Only the jobs (using the database password) and
 -- the website's server code (using the service role key) can read or write.
 -- Nothing is readable straight from a browser.
@@ -118,6 +135,7 @@ alter table push_subscriptions enable row level security;
 alter table alerts_sent enable row level security;
 alter table planner_drafts enable row level security;
 alter table made_moves enable row level security;
+alter table members enable row level security;
 alter table watchlist enable row level security;
 
 -- The project was created with "grant API access to new tables" turned off,
