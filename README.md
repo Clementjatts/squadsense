@@ -106,6 +106,17 @@ Alerts arrive by email and as phone or browser notifications. Each gameweek has 
 5. **Test.** On GitHub, open Actions, then Sync FPL data, then Run workflow, tick "Only send a test email and phone alert" and run it. You should get one email and one notification on each device with alerts on. If one doesn't arrive, the run's log says why.
 6. **Deadline calendar (backup).** Tap the bell, then "Add deadlines to your calendar", and confirm the subscription. Every FPL deadline left this season appears in your calendar, with reminders 2 hours and 30 minutes before. The website reads deadlines straight from FPL, so this works even if the GitHub sync is late or stops. If the link doesn't open your calendar, tap "Copy link" and add it on your iPhone under Settings, Apps, Calendar, Calendar Accounts, Add Account, Other, Add Subscribed Calendar. The link carries a code made from `SITE_SECRET`, so changing that secret means subscribing again. Google Calendar ignores the reminders in subscribed calendars; iPhone Calendar keeps them.
 
+## Friends and family (member accounts)
+
+Anyone you give the invite code to can use SquadSense for their own FPL team. They open the site, choose "Create an account", and enter the invite code, their FPL team ID (the form shows their team's name so they can check it), their name, their email and a password of their own. About 5 minutes later their dashboard, plan, leagues and alerts are ready; until then the site says it's setting up their team. Each person sees only their own team.
+
+- The invite code is the Vercel setting `INVITE_CODE`. Change it (then redeploy) to stop new sign-ups; people who already joined aren't affected. Up to 20 people can join.
+- You sign up with team `FPL_TEAM_ID` and become the owner automatically, so sign up before you share the code. Apply to FPL and the "FPL changed its rules" alert stay yours only.
+- To remove someone, open the `members` table in Supabase and switch their `active` off. They're signed out within a day and their team stops syncing.
+- "Forgot password?" on the sign-in page emails a reset link from your alerts address.
+- Each person gets their own plan emails and alerts, and can switch emails off in the bell menu.
+- Resend's free plan sends 100 emails a day, which fits about 20 people. Each member's team syncs in its own GitHub run at the same time as yours, so members don't slow your sync down.
+
 ## Telling SquadSense about a transfer you made
 
 FPL keeps your transfers hidden until the deadline, so after you make one on the FPL site the app still plans from your old squad. Tap "Done on FPL" under the move, on the Plan page or in the Dashboard's This week card. The app saves it, starts a sync, and about 5 minutes later plans from your squad after the move: new player in, bank and free transfers adjusted, and the move no longer suggested. The emails list it tagged DONE. Undo is next to it until then. Only the coming week's planned moves can be marked. After the deadline FPL's real squad is used, and if a move you marked isn't in it you get one alert.
