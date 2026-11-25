@@ -7,7 +7,8 @@
 // created yet (503), the browser keeps the list in its own storage instead.
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { serverDatabase } from "@/lib/accounts";
+import { currentTeam } from "@/lib/currentTeam";
 import { cleanIds } from "@/lib/watchlistIds";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +17,10 @@ const TABLE = "watchlist";
 const NOT_SET_UP = "The watchlist is saved in this browser: Supabase isn't set up on this copy of the site.";
 const NO_TABLE = "The watchlist is saved in this browser until the watchlist table is created in Supabase (see db/schema.sql).";
 
-// The Supabase client with the server key and the team the list belongs to, or null when not set up.
-function database() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const teamId = Number(process.env.FPL_TEAM_ID);
-  return url && key && teamId ? { db: createClient(url, key, { auth: { persistSession: false } }), teamId } : null;
+// The Supabase client with the server key and the signed-in team, whose list this is, or null when not set up.
+async function database() {
+  const db = serverDatabase();
+  return db ? { db, teamId: (await currentTeam()).teamId } : null;
 }
 
 // Turns a Supabase error into a response. A missing table gets its own
@@ -35,7 +34,7 @@ function failure(action: string, error: { message: string; code?: string }) {
 
 // The watched player ids, oldest first.
 export async function GET() {
-  const setup = database();
+  const setup = await database();
   if (!setup) return NextResponse.json({ error: NOT_SET_UP }, { status: 501 });
   const { data, error } = await setup.db.from(TABLE).select("player_id").eq("team_id", setup.teamId).order("added_at");
   if (error) return failure("load", error);
@@ -45,7 +44,7 @@ export async function GET() {
 // Replaces the whole list: removes players no longer on it, then adds the
 // new ones. Players already on it keep their added_at time.
 export async function PUT(request: Request) {
-  const setup = database();
+  const setup = await database();
   if (!setup) return NextResponse.json({ error: NOT_SET_UP }, { status: 501 });
   const ids = cleanIds(((await request.json()) as { ids?: unknown }).ids);
   if (!ids) return NextResponse.json({ error: "Send the watchlist as {ids: [player ids]}." }, { status: 400 });

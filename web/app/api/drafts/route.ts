@@ -8,7 +8,8 @@
 // created yet (503), the Planner saves drafts in the browser instead.
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { serverDatabase } from "@/lib/accounts";
+import { currentTeam } from "@/lib/currentTeam";
 import { CURRENT_DRAFT, MAX_NAMED_DRAFTS, cleanDraftName } from "@/lib/drafts";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +18,10 @@ const TABLE = "planner_drafts";
 const NOT_SET_UP = "Drafts are saved in this browser: Supabase isn't set up on this copy of the site.";
 const NO_TABLE = "Drafts are saved in this browser until the planner_drafts table is created in Supabase (see db/schema.sql).";
 
-// The Supabase client with the server key and the team the drafts belong to, or null when not set up.
-function database() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const teamId = Number(process.env.FPL_TEAM_ID);
-  return url && key && teamId ? { db: createClient(url, key, { auth: { persistSession: false } }), teamId } : null;
+// The Supabase client with the server key and the signed-in team, whose drafts these are, or null when not set up.
+async function database() {
+  const db = serverDatabase();
+  return db ? { db, teamId: (await currentTeam()).teamId } : null;
 }
 
 // Turns a Supabase error into a response. A missing table gets its own
@@ -35,7 +34,7 @@ function failure(action: string, error: { message: string; code?: string }) {
 }
 
 export async function GET() {
-  const setup = database();
+  const setup = await database();
   if (!setup) return NextResponse.json({ error: NOT_SET_UP }, { status: 501 });
   const { data, error } = await setup.db.from(TABLE).select("name, draft, updated_at").eq("team_id", setup.teamId).order("updated_at", { ascending: false });
   if (error) return failure("load", error);
@@ -43,7 +42,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const setup = database();
+  const setup = await database();
   if (!setup) return NextResponse.json({ error: NOT_SET_UP }, { status: 501 });
   const body = (await request.json()) as { name?: string; draft?: unknown };
   const name = cleanDraftName(body.name ?? "");
@@ -64,7 +63,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const setup = database();
+  const setup = await database();
   if (!setup) return NextResponse.json({ error: NOT_SET_UP }, { status: 501 });
   const name = cleanDraftName(((await request.json()) as { name?: string }).name ?? "");
   if (!name) return NextResponse.json({ error: "No draft name sent." }, { status: 400 });

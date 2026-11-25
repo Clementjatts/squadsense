@@ -1,12 +1,14 @@
-// Loads the latest snapshot for the team. Runs on the server only, so the
-// Supabase service key never reaches the browser.
+// Loads the latest snapshot for the signed-in team. Runs on the server
+// only, so the Supabase service key never reaches the browser.
 
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { serverDatabase } from "./accounts";
+import { currentTeam } from "./currentTeam";
 import type { LivePicks, PlayerDetail, Snapshot } from "./types";
 
 export interface LoadedSnapshot {
@@ -61,14 +63,20 @@ interface SupabaseSetup {
   teamId: number;
 }
 
-// The Supabase client and team id, or null when Supabase isn't set up (local files are used then).
-function supabaseSetup(): SupabaseSetup | null {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
-  const teamId = Number(process.env.FPL_TEAM_ID);
-  if (!teamId) throw new Error("FPL_TEAM_ID is missing or not a number. Check .env.local.");
-  return { supabase: createClient(url, serviceKey, { auth: { persistSession: false } }), teamId };
+/** Thrown when the signed-in team has no snapshot yet: a new member whose first sync hasn't finished. */
+export class TeamNotReadyError extends Error {
+  constructor(teamId: number) {
+    super(`No snapshot yet for team ${teamId}. Its first sync is still running.`);
+    this.name = "TeamNotReadyError";
+  }
+}
+
+// The Supabase client and the signed-in team, or null when Supabase isn't
+// set up (the local files are used then). The team always comes from the
+// sign-in cookie (currentTeam), never from the request.
+async function supabaseSetup(): Promise<SupabaseSetup | null> {
+  const supabase = serverDatabase();
+  return supabase ? { supabase, teamId: (await currentTeam()).teamId } : null;
 }
 
 // The latest row's chosen column from a table or view, for the team. Throws with a plain message on failure.
@@ -81,18 +89,19 @@ async function latest<T>(setup: SupabaseSetup, table: string, column: string): P
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`Couldn't load the snapshot from Supabase: ${error.message}`);
-  if (!data) throw new Error(`No snapshot yet for team ${setup.teamId}. Run the sync job first.`);
+  if (!data) throw new TeamNotReadyError(setup.teamId);
   return Object.values(data as unknown as Record<string, T>)[0];
 }
 
 // The page snapshot from Supabase: the page_snapshots view leaves out the
 // player details and live picks, which are most of the 2.5 MB. Kept in
-// Next's data cache for PAGE_CACHE_SECONDS, shared by every page.
+// Next's data cache for PAGE_CACHE_SECONDS. The team id is the function's
+// argument, so each team has its own cache entry.
 const cachedPageSnapshot = unstable_cache(
   async (teamId: number) => {
-    const setup = supabaseSetup();
-    if (!setup || setup.teamId !== teamId) throw new Error("Supabase settings changed while loading the snapshot.");
-    return latest<Snapshot>(setup, "page_snapshots", "body");
+    const supabase = serverDatabase();
+    if (!supabase) throw new Error("Supabase settings changed while loading the snapshot.");
+    return latest<Snapshot>({ supabase, teamId }, "page_snapshots", "body");
   },
   ["page-snapshot"],
   { revalidate: PAGE_CACHE_SECONDS },
@@ -101,7 +110,7 @@ const cachedPageSnapshot = unstable_cache(
 // The snapshot for a page, without the per-player details and live picks.
 // cache() makes the header and the page share one load per request.
 export const getSnapshot = cache(async (): Promise<LoadedSnapshot> => {
-  const setup = supabaseSetup();
+  const setup = await supabaseSetup();
   if (setup) return { snapshot: await cachedPageSnapshot(setup.teamId), isDemo: false };
   const { file, isDemo } = await loadLocalFile();
   const { playerDetails, livePicks, ...snapshot } = file;
@@ -112,14 +121,14 @@ export const getSnapshot = cache(async (): Promise<LoadedSnapshot> => {
 
 // One part of the latest full snapshot (Supabase reads only that part), or of the local file.
 async function snapshotPart<T>(key: "playerDetails" | "livePicks", path: string): Promise<T | null> {
-  const setup = supabaseSetup();
+  const setup = await supabaseSetup();
   if (setup) return (await latest<T | null>(setup, "snapshots", `part:${path}`)) ?? null;
   const { file } = await loadLocalFile();
   const part = path.split("->").slice(2).reduce<unknown>((value, step) => (value as Record<string, unknown> | undefined)?.[step], file[key]);
   return (part as T | undefined) ?? null;
 }
 
-// Every team's picks for the week being played, or null if the sync hasn't saved any.
+// The signed-in team's picks for the week being played, and its leagues', or null if the sync hasn't saved any.
 export async function getLivePicks(): Promise<LivePicks | null> {
   return snapshotPart<LivePicks>("livePicks", "body->livePicks");
 }
@@ -136,7 +145,7 @@ export async function getAllPlayerDetails(): Promise<Record<string, PlayerDetail
 // would take a number in a path as a list position, not a player id.
 export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | null> {
   if (!Number.isInteger(playerId)) return null;
-  const setup = supabaseSetup();
+  const setup = await supabaseSetup();
   if (!setup) return snapshotPart<PlayerDetail>("playerDetails", `body->playerDetails->${playerId}`);
   const { data, error } = await setup.supabase.rpc("player_detail", { team: setup.teamId, player: playerId });
   if (error) throw new Error(`Couldn't load player ${playerId} from Supabase: ${error.message}`);

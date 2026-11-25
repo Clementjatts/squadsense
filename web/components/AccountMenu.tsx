@@ -1,7 +1,7 @@
 "use client";
 
-// The header's account menu: turn alerts on or off for this device, and
-// sign out. Alerts use web push: the browser makes a subscription for
+// The header's account menu: who is signed in, alert emails on or off,
+// alerts on or off for this device, and sign out. Alerts use web push: the browser makes a subscription for
 // this device, the site saves it in Supabase (/api/push), and the sync
 // job sends alerts to it. On an iPhone this only works once the site has
 // been added to the Home Screen, so the menu says so. The menu also links
@@ -112,6 +112,7 @@ export function AccountMenu() {
       </button>
       {open && (
         <div className="account-panel" role="dialog" aria-label="Account and alerts">
+          <AccountDetails />
           <b>Alerts on this device</b>
           <AlertControls state={state} onTurnOn={turnOn} onTurnOff={turnOff} />
           <hr />
@@ -124,6 +125,53 @@ export function AccountMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+type Account = { name: string | null; emails: boolean | null; error?: string };
+
+// The top of the menu: who is signed in and the "Alert emails" switch,
+// from /api/me. Shows nothing on a copy without member accounts.
+function AccountDetails() {
+  const [account, setAccount] = useState<Account | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then(async (response) => {
+        const result = await response.json();
+        setAccount(response.ok ? result : { name: null, emails: null, error: result.error ?? `Request failed with status ${response.status}` });
+      })
+      .catch((error: Error) => setAccount({ name: null, emails: null, error: error.message }));
+  }, []);
+
+  // Saves the new setting, and shows the error if it didn't save.
+  async function setEmails(emails: boolean) {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emails }) });
+      const result = await response.json();
+      setAccount((before) => ({ ...before!, ...(response.ok ? { emails: result.emails, error: undefined } : { error: result.error }) }));
+    } catch (error) {
+      setAccount((before) => ({ ...before!, error: (error as Error).message }));
+    }
+    setSaving(false);
+  }
+
+  if (!account || (account.name === null && account.emails === null && !account.error)) return null;
+  return (
+    <>
+      {account.name && <b className="account-name">{account.name}</b>}
+      {account.emails !== null && (
+        <label className="account-switch">
+          <input type="checkbox" checked={account.emails} disabled={saving} onChange={(event) => setEmails(event.target.checked)} />
+          <span>Alert emails</span>
+          <span className="muted">{account.emails ? "On" : "Off"}</span>
+        </label>
+      )}
+      {account.error && <span className="bc-warn">{account.error}</span>}
+      <hr />
+    </>
   );
 }
 

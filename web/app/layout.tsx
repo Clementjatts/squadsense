@@ -4,9 +4,10 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PlayerPanelProvider } from "@/components/PlayerPanel";
 import { TopNav } from "@/components/TopNav";
+import { SettingUpTeam } from "@/components/SettingUpTeam";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, sessionIsValid } from "@/lib/session";
-import { getSnapshot } from "@/lib/snapshot";
+import { SESSION_COOKIE, readSession } from "@/lib/session";
+import { TeamNotReadyError, getSnapshot, type LoadedSnapshot } from "@/lib/snapshot";
 
 export const metadata: Metadata = {
   title: "SquadSense",
@@ -42,27 +43,56 @@ function formatSyncTime(isoTime: string): string {
   return new Date(isoTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 }
 
+// The page snapshot, or null when the signed-in team's first sync hasn't finished yet.
+async function snapshotOrNotReady(): Promise<LoadedSnapshot | null> {
+  try {
+    return await getSnapshot();
+  } catch (error) {
+    if (error instanceof TeamNotReadyError) return null;
+    throw error;
+  }
+}
+
+// The <head> every page shares: the fonts, and optionally a self-refresh every few seconds.
+function SharedHead({ refreshSeconds }: { refreshSeconds?: number }) {
+  return (
+    <head>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="stylesheet" href={FONT_URL} />
+      {refreshSeconds && <meta httpEquiv="refresh" content={String(refreshSeconds)} />}
+    </head>
+  );
+}
+
+// How often the "Setting up your team" page reloads itself to see if the first sync is done.
+const SETUP_REFRESH_SECONDS = 30;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // Signed-out visitors only ever see the sign-in page, so don't load any team data for them.
-  const signedIn = await sessionIsValid((await cookies()).get(SESSION_COOKIE)?.value);
-  if (!signedIn) {
+  // Signed-out visitors only see the account pages, so don't load any team data for them.
+  const session = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!session) {
     return (
       <html lang="en">
-        <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="stylesheet" href={FONT_URL} />
-        </head>
+        <SharedHead />
         <body>{children}</body>
       </html>
     );
   }
-  const { snapshot, isDemo } = await getSnapshot();
+  const loaded = await snapshotOrNotReady();
+  if (!loaded) {
+    return (
+      <html lang="en">
+        <SharedHead refreshSeconds={SETUP_REFRESH_SECONDS} />
+        <body>
+          <SettingUpTeam />
+        </body>
+      </html>
+    );
+  }
+  const { snapshot, isDemo } = loaded;
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="stylesheet" href={FONT_URL} />
-      </head>
+      <SharedHead />
       <body>
         <PlayerPanelProvider>
           <TopNav gameweek={snapshot.gameweek} deadline={snapshot.deadline} />

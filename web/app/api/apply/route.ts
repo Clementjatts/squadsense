@@ -6,10 +6,13 @@
 // checks again and then makes the changes, but only if there are no
 // problems and `confirm` is the word APPLY. Transfers can't be undone.
 //
-// This only works from this Mac (localhost) and only when FPL_EMAIL and
-// FPL_PASSWORD are in web/.env.local, so the hosted site can never do it.
+// This only works for the owner, from this Mac (localhost), and only when
+// FPL_EMAIL and FPL_PASSWORD are in web/.env.local, so the hosted site and
+// members can never do it.
 
 import { NextResponse } from "next/server";
+import { ownerTeamId } from "@/lib/accounts";
+import { currentTeam, type CurrentTeam } from "@/lib/currentTeam";
 import { previewApply, type ApplyRequest, type PlayerFacts } from "@/lib/applyPlan";
 import { FplAccountError, fplCredentials, getMyTeam, postLineup, postTransfers, signIn } from "@/lib/fplAccount";
 
@@ -23,24 +26,30 @@ interface Bootstrap {
   events: { id: number; is_next: boolean }[];
 }
 
-// Why applying isn't possible here, or null if it is.
-function unavailableReason(request: Request): string | null {
+// Why applying isn't possible here, or null if it is. Only the owner can
+// apply, and only to his own team (the signed-in team, which must also be
+// FPL_TEAM_ID, the team the FPL sign-in in web/.env.local belongs to).
+function unavailableReason(request: Request, team: CurrentTeam): string | null {
+  if (team.role !== "owner") return "Applying to FPL is only for the site's owner.";
   if (!LOCAL_HOSTS.has(new URL(request.url).hostname)) return "Applying to FPL only works on the copy of the site running on your Mac.";
   if (!fplCredentials()) return "Add FPL_EMAIL and FPL_PASSWORD to web/.env.local to apply plans to FPL.";
-  if (!Number(process.env.FPL_TEAM_ID)) return "FPL_TEAM_ID is missing from web/.env.local.";
+  if (ownerTeamId() !== team.teamId) return "FPL_TEAM_ID in web/.env.local must be the signed-in team.";
   return null;
 }
 
+// Whether applying is possible here. Members get no reason, so the Planner shows them nothing at all.
 export async function GET(request: Request) {
-  const reason = unavailableReason(request);
-  return NextResponse.json({ available: reason === null, reason, confirmWord: CONFIRM_WORD });
+  const team = await currentTeam();
+  const reason = unavailableReason(request, team);
+  return NextResponse.json({ available: reason === null, reason: team.role === "owner" ? reason : null, confirmWord: CONFIRM_WORD });
 }
 
 export async function POST(request: Request) {
-  const reason = unavailableReason(request);
+  const team = await currentTeam();
+  const reason = unavailableReason(request, team);
   if (reason) return NextResponse.json({ error: reason }, { status: 403 });
   const body = (await request.json()) as { action: "preview" | "apply"; plan: ApplyRequest; confirm?: string };
-  const teamId = Number(process.env.FPL_TEAM_ID);
+  const teamId = team.teamId;
   const credentials = fplCredentials()!;
 
   try {

@@ -1,11 +1,21 @@
 "use client";
 
-// The sign-in password box: a show/hide button and a Caps Lock warning.
-// Without JavaScript it's still a normal password box, so signing in works either way.
+// A password box for the account pages: a show/hide button and a Caps Lock
+// warning. Without JavaScript it's still a normal password box, so the
+// forms work either way. The sign-in page uses the defaults; sign-up and
+// reset ask for a new password and its confirmation.
 
 import { useState } from "react";
 
-export function PasswordField() {
+interface PasswordFieldProps {
+  name?: string;
+  placeholder?: string;
+  autoComplete?: "current-password" | "new-password";
+  autoFocus?: boolean;
+  minLength?: number;
+}
+
+export function PasswordField({ name = "password", placeholder = "Password", autoComplete = "current-password", autoFocus = false, minLength }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
 
@@ -22,13 +32,14 @@ export function PasswordField() {
           <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
         </svg>
         <input
-          id="password"
-          name="password"
+          id={name}
+          name={name}
           type={visible ? "text" : "password"}
-          autoComplete="current-password"
-          placeholder="Password"
-          aria-label="Password"
-          autoFocus
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoFocus={autoFocus}
+          minLength={minLength}
           required
           onKeyDown={checkCapsLock}
           onKeyUp={checkCapsLock}
