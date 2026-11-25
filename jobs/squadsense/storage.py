@@ -73,6 +73,12 @@ class FileStorage:
         rows = json.loads(path.read_text()) if path.exists() else []
         return [row for row in rows if row["teamId"] == team_id and row["gameweek"] == gameweek]
 
+    def load_watchlist(self, team_id):
+        """Player ids on the website's watchlist. Locally they're read from watchlist.json, if you add one."""
+        path = self.folder / "watchlist.json"
+        rows = json.loads(path.read_text()) if path.exists() else []
+        return [row["playerId"] for row in rows if row["teamId"] == team_id]
+
     def delete_push_subscription(self, endpoint):
         """Nothing to delete locally: subscriptions only live in Supabase."""
 
@@ -219,6 +225,12 @@ class PostgresStorage:
                 (team_id, gameweek),
             )
             return [{"gameweek": row[0], "out": row[1], "in": row[2], "priceIn": row[3]} for row in cursor.fetchall()]
+
+    def load_watchlist(self, team_id):
+        """Player ids on the website's watchlist (any device), oldest first."""
+        with self.connection.cursor() as cursor:
+            cursor.execute("select player_id from watchlist where team_id = %s order by added_at", (team_id,))
+            return [row[0] for row in cursor.fetchall()]
 
     def save_snapshot(self, team_id, gameweek, snapshot):
         """Saves the new snapshot and deletes all but the newest SNAPSHOTS_KEPT for this team."""

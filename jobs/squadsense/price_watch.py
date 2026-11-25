@@ -23,6 +23,9 @@ UK_TIME = ZoneInfo("Europe/London")
 LIKELIHOOD_LABELS = {5: "Changes tonight", 4: "Very likely", 3: "Likely", 2: "Possible", 1: "Unlikely", 0: "No change"}
 # Bands of 3 or more count as a real risk or chance for the summary cards.
 ALERT_LIKELIHOOD = 3
+# Only the end band means the change is expected at the next 00:00. The
+# website's TONIGHT tag uses the same rule (changesTonight in web/lib/prices.ts).
+TONIGHT_LIKELIHOOD = 5
 
 
 def prediction_label(likelihood, locked_until):
@@ -30,6 +33,11 @@ def prediction_label(likelihood, locked_until):
     if locked_until:
         return "Price locked"
     return LIKELIHOOD_LABELS[abs(likelihood)]
+
+
+def rises_tonight(row):
+    """True when a Price Watch row is expected to rise at the next 00:00 UK (and his price isn't locked)."""
+    return not row["lockedUntil"] and row["likelihood"] >= TONIGHT_LIKELIHOOD
 
 
 def next_change(player):
