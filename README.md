@@ -87,6 +87,10 @@ The service role key can read the whole database. Keep it in `.env.local` and in
 
 It then runs every 2 hours from 07:17 to 21:17 UTC, at 22:15, 22:45, 23:15 and 23:45 before the midnight price change, and does a full refresh at 01:37 each night. To check it, run `select * from cron.job_run_details order by start_time desc limit 10;` and `select status_code from net._http_response order by id desc limit 10;` in the SQL editor: GitHub answers 204 when it accepted a run. The repository is public, so Actions minutes are free and unlimited. (A private one gets 2,000 a month, and this schedule uses about 1,600.)
 
+### Sync watchdog
+
+If the syncs stop (a failed GitHub run, an expired token, or the timer itself), no alert would come, since alerts come from the sync. So Supabase checks once an hour by itself and emails you when there's no new data for over 3 hours in the day (8 overnight) or GitHub refused the last request to start a sync. It emails once per problem every 6 hours, and once when things are back. To turn it on, add three secrets in Supabase Vault (Integrations, then Vault): `resend_api_key` (your Resend key), `alert_email_to` (your address) and `alert_email_from` (for example `SquadSense <alerts@your-domain>`), then run `db/sync-watchdog.sql` in the SQL editor (already done on the live project).
+
 ## 5. Put the website on Vercel
 
 Import the repository in Vercel, set the root directory to `web`, and add `FPL_TEAM_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD` and `SITE_SECRET` as environment variables. Don't add `FPL_EMAIL` or `FPL_PASSWORD` there. The free Hobby plan covers personal use.

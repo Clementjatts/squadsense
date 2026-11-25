@@ -17,3 +17,6 @@ jobs/.data/
 # Your real team, written by the sync job on this Mac
 web/data/snapshot.json
 .DS_Store
+
+# Copies of the repository used for parallel work
+.claude/worktrees/
