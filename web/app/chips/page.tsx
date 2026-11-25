@@ -34,14 +34,9 @@ export default async function ChipsPage() {
           <ChipCardView key={card.chip} card={card} snapshot={snapshot} />
         ))}
       </div>
-      <div className="row">
-        <div className="col-wide" style={{ flex: "1 1 520px" }}>
-          <FixtureWarningsCard warnings={plan.fixtureWarnings} />
-        </div>
-        <div className="col-narrow" style={{ flex: "1 1 520px" }}>
-          {plan.rivals.length > 0 && <RivalChipsCard rivals={plan.rivals} />}
-        </div>
-      </div>
+      {/* The rivals' table is much longer than the blanks and doubles, so each gets its own row. */}
+      <FixtureWarningsCard warnings={plan.fixtureWarnings} />
+      {plan.rivals.length > 0 && <RivalChipsCard rivals={plan.rivals} />}
       <p className="bc-note">
         How the strategy decides: chips are planned with your transfers over the next five gameweeks, and every value is measured against
         the free transfers you&apos;d make anyway. A chip is played inside those five weeks only if it beats 90% of its best week later in

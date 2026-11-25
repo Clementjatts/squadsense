@@ -1,6 +1,8 @@
 // "What changed": what moved since earlier syncs (xP, injury news,
 // prices, the plan and chip decisions), newest first. Written by the
-// sync job (jobs/squadsense/changes.py); this card only shows it.
+// sync job (jobs/squadsense/changes.py); this card only shows it. Beside
+// "Keep an eye on" it takes that card's height and scrolls inside, so the
+// two always end on the same line however much has changed.
 
 import type { Snapshot } from "@/lib/types";
 
@@ -16,18 +18,20 @@ function formatWhen(isoTime: string): string {
 export function WhatChanged({ snapshot }: { snapshot: Snapshot }) {
   const feed = (snapshot.changes ?? []).slice(0, ENTRIES_SHOWN);
   return (
-    <section className="bc-card bc-eye">
+    <section className="bc-card bc-eye changes-card">
       <div className="bc-eye-head">
         <span className="bc-title-small">WHAT CHANGED</span>
         <span className="bc-eyebrow">SINCE EARLIER SYNCS</span>
       </div>
       {feed.length === 0 && <p className="bc-eye-empty">Nothing has moved since the last sync.</p>}
-      {feed.map((entry) => (
-        <div key={entry.at} className="changes-entry">
-          <span className="muted changes-when">{formatWhen(entry.at)}</span>
-          <ul>{entry.changes.map((line) => <li key={line}>{line}</li>)}</ul>
-        </div>
-      ))}
+      <div className="changes-feed">
+        {feed.map((entry) => (
+          <div key={entry.at} className="changes-entry">
+            <span className="muted changes-when">{formatWhen(entry.at)}</span>
+            <ul>{entry.changes.map((line) => <li key={line}>{line}</li>)}</ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

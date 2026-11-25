@@ -344,6 +344,9 @@ export interface GameweekReview {
     bestCaptain: { playerId: number; points: number };
     predictedTotal: number | null;
     starters: { playerId: number; points: number; xp: number | null }[];
+    // Missing in snapshots saved before 25 November 2026.
+    viceCaptain?: number | null;
+    bench?: { playerId: number; points: number; xp: number | null }[];
   } | null;
   season?: SeasonReview | null; // missing in snapshots saved before 22 November 2026
 }

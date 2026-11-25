@@ -88,16 +88,20 @@ export function LiveView({ names }: { names: Record<string, { name: string; team
         ]}
       />
       <div className="row">
+        {/* Your players beside the league tables: about the same length, so both end together. */}
         <div className="col-wide" style={{ flex: "1.3 1 600px" }}>
           {data.mine ? <MyLineup mine={data.mine} names={names} /> : (
             <section className="card"><p className="muted" style={{ margin: 0 }}>Your team has no picks for this gameweek yet.</p></section>
           )}
         </div>
-        <div className="col-narrow" style={{ flex: "1 1 400px" }}>
-          {data.leagues.length > 0 && <LiveLeagues leagues={data.leagues} />}
-          <FixtureList fixtures={data.fixtures} />
-        </div>
+        {data.leagues.length > 0 && (
+          <div className="col-narrow" style={{ flex: "1 1 400px" }}>
+            <LiveLeagues leagues={data.leagues} />
+          </div>
+        )}
       </div>
+      {/* The matches get their own full-width row, in two columns. */}
+      <FixtureList fixtures={data.fixtures} />
     </>
   );
 }
@@ -232,7 +236,7 @@ function OwnershipList({ lines }: { lines: (OwnershipLine & { name: string })[] 
 // This week's matches with scores.
 function FixtureList({ fixtures }: { fixtures: LiveResponse["fixtures"] }) {
   return (
-    <section className="card">
+    <section className="card live-matches">
       <div className="card-head"><h2>Matches</h2></div>
       <ul className="share-list">
         {fixtures.map((fixture) => (

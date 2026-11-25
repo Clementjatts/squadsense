@@ -193,6 +193,28 @@ def review_inputs(client, storage, team_id, team_entry, bootstrap, is_public):
             {week: found for week, found in forecasts.items() if found})
 
 
+def reviewed_week_points(client, storage, bootstrap):
+    """FPL's final points for every player in the reviewed week, fetched once and then read from the cache.
+
+    None (with a warning) if no week has finished or FPL can't be reached;
+    the review then falls back to the saved player histories.
+    """
+    event = review.last_finished_week(bootstrap)
+    if event is None:
+        return None
+    name = f"final_points/{event['id']}"
+    saved = storage.load_raw(name)
+    if saved is None:
+        try:
+            saved = review.live_week_points(client.event_live(event["id"]))
+        except FplApiError as error:
+            log.warning("Couldn't read FPL's final points for GW%d, so the review uses saved histories: %s", event["id"], error)
+            return None
+        storage.save_raw(name, saved)
+    # Saved as JSON, so the player ids come back as text.
+    return {int(player_id): points for player_id, points in saved.items()}
+
+
 def live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap):
     """Every team's picks for the gameweek being played, for the Live page.
 
@@ -388,7 +410,7 @@ def run_team(client, storage, shared, member, start=None, web_snapshot_path=None
             league_data=league_data,
             review=review.build_review(
                 shared.bootstrap, shared.histories, entry_history, picks_by_week.get(reviewed_week), forecasts_by_week.get(reviewed_week),
-                picks_by_week, forecasts_by_week,
+                picks_by_week, forecasts_by_week, live_points=reviewed_week_points(client, storage, shared.bootstrap),
             ),
             live_picks=live_picks(storage, client, team_id, shared.current_week, is_public, league_data, shared.bootstrap),
             storage=storage,

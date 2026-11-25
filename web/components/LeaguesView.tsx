@@ -1,10 +1,10 @@
 "use client";
 
 // The Leagues page body: pick a league from the dropdown, then see its
-// table 20 teams a page, where you stand, and three short lists (threats,
-// differentials, captains). Leagues over 100 teams show their top 50 and
-// the 50 around you, and their lists come from a sample of rivals: the top
-// 10 and the 10 either side of you.
+// table 20 teams a page at full width, then where you stand and three short
+// lists (threats, differentials, captains) in rows of equal-height cards.
+// Leagues over 100 teams show their top 50 and the 50 around you, and their
+// lists come from a sample of rivals: the top 10 and the 10 either side of you.
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -32,15 +32,8 @@ export function LeaguesView({ snapshot, chosenId }: { snapshot: Snapshot; chosen
     <>
       {snapshot.leagues.length > 1 && <LeaguePicker leagues={snapshot.leagues} value={league.id} onChange={choose} />}
       {pending && <span className="muted">Loading the league...</span>}
-      <div className="row">
-        <div className="col-wide" style={{ flex: "1.4 1 640px" }}>
-          <LeagueTable key={league.id} league={league} snapshot={snapshot} />
-        </div>
-        <div className="col-narrow" style={{ flex: "1 1 400px" }}>
-          <WhereYouStand league={league} />
-          <RivalCards league={league} snapshot={snapshot} />
-        </div>
-      </div>
+      <LeagueTable key={league.id} league={league} snapshot={snapshot} />
+      <RivalCards league={league} snapshot={snapshot} />
     </>
   );
 }
@@ -105,26 +98,32 @@ function picksSource(league: League): string {
     : `Among all ${league.rivalsWithPicks} rivals`;
 }
 
-// Threats, differentials and captains, from every rival or a big league's sample.
+// Where you stand and the three rival lists, in two rows of cards that
+// share a height: the two short cards together, then the two longer lists.
 function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }) {
   return (
     <>
       <p className="muted league-source">Lists below: {picksSource(league).toLowerCase()}, last gameweek.</p>
-      <PlayerShareCard
-        title="Threats"
-        note="Most rivals own him, you don't"
-        lines={league.threats}
-        snapshot={snapshot}
-        empty="No player owned by most of this league is missing from your squad."
-      />
-      <PlayerShareCard
-        title="Your differentials"
-        note="Few rivals own him"
-        lines={league.differentials}
-        snapshot={snapshot}
-        empty="Every one of your players is common in this league."
-      />
-      <PlayerShareCard title="Rivals' captains" note="Last gameweek" lines={league.topCaptains} snapshot={snapshot} useCaptainShare empty="No captains found." />
+      <div className="bc-row bc-row-2">
+        <WhereYouStand league={league} />
+        <PlayerShareCard title="Rivals' captains" note="Last gameweek" lines={league.topCaptains} snapshot={snapshot} useCaptainShare empty="No captains found." />
+      </div>
+      <div className="bc-row bc-row-2">
+        <PlayerShareCard
+          title="Threats"
+          note="Most rivals own him, you don't"
+          lines={league.threats}
+          snapshot={snapshot}
+          empty="No player owned by most of this league is missing from your squad."
+        />
+        <PlayerShareCard
+          title="Your differentials"
+          note="Few rivals own him"
+          lines={league.differentials}
+          snapshot={snapshot}
+          empty="Every one of your players is common in this league."
+        />
+      </div>
     </>
   );
 }

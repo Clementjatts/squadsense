@@ -848,8 +848,8 @@ def test_season_review_adds_up_points_bench_hits_and_captain_choices():
     rows = {week: {"event": week, "points": points, "event_transfers_cost": cost, "overall_rank": rank, "points_on_bench": bench}
             for week, points, cost, rank, bench in [(1, 60, 4, 900, 3), (2, 45, 0, 950, 7), (3, 0, 0, 950, 0)]}
     captain_on = lambda player_id: {"picks": [
-        {"element": 10, "multiplier": 2 if player_id == 10 else 1, "is_captain": player_id == 10},
-        {"element": 20, "multiplier": 2 if player_id == 20 else 1, "is_captain": player_id == 20},
+        {"element": 10, "position": 1, "multiplier": 2 if player_id == 10 else 1, "is_captain": player_id == 10},
+        {"element": 20, "position": 2, "multiplier": 2 if player_id == 20 else 1, "is_captain": player_id == 20},
     ]}
     season = season_review(bootstrap, histories, rows, {1: captain_on(10), 2: captain_on(10)}, {1: {"expectedPoints": 52.5}})
     assert [week["gameweek"] for week in season["weeks"]] == [1, 2]  # week 3 isn't finished

@@ -17,7 +17,7 @@ against the average, overall rank, bench points, the captain points lost
 to a worse pick, and the forecast total where one was saved.
 """
 
-TOP_PLAYERS_SHOWN = 5
+TOP_PLAYERS_SHOWN = 8  # fills the Across FPL card beside "Expected vs scored"
 
 
 def forecast_name(team_id, gameweek):
@@ -51,6 +51,16 @@ def week_points(histories, gameweek):
     return points
 
 
+def live_week_points(live):
+    """{player_id: points} for every player, from FPL's event/{gw}/live/ answer.
+
+    Once a week is final these are FPL's own totals, doubles included, for
+    all players. Saved histories only cover players refreshed since the
+    week, so they can miss the week's real top scorers.
+    """
+    return {element["id"]: element["stats"]["total_points"] for element in live["elements"]}
+
+
 def league_wide(event, points):
     """Average, highest, most captained and the week's best players."""
     top = sorted(points.items(), key=lambda item: item[1], reverse=True)[:TOP_PLAYERS_SHOWN]
@@ -63,19 +73,38 @@ def league_wide(event, points):
     }
 
 
+STARTING_POSITIONS = 11  # FPL lists the starting eleven in positions 1 to 11, the bench in 12 to 15
+
+
+def lineup_split(picks):
+    """(starting eleven, bench in order) by FPL's positions.
+
+    Multipliers can't be used for this: in a Bench Boost week the bench has
+    a multiplier too.
+    """
+    ordered = sorted(picks["picks"], key=lambda pick: pick["position"])
+    return ([pick["element"] for pick in ordered if pick["position"] <= STARTING_POSITIONS],
+            [pick["element"] for pick in ordered if pick["position"] > STARTING_POSITIONS])
+
+
 def captain_choice(picks, points):
     """Your captain, the best captain your eleven offered, and the captain's multiplier (2, or 3 with Triple Captain)."""
-    starters = [pick["element"] for pick in picks["picks"] if pick["multiplier"] > 0]
+    starters, _ = lineup_split(picks)
     captain_pick = next(pick for pick in picks["picks"] if pick["is_captain"])
     best_captain = max(starters, key=lambda player_id: points.get(player_id, 0))
     return captain_pick["element"], best_captain, captain_pick["multiplier"]
 
 
 def team_week(picks, history_row, previous_row, points, forecast):
-    """Your own week: score, rank movement, captain choice and xP against points."""
-    starters = [pick["element"] for pick in picks["picks"] if pick["multiplier"] > 0]
+    """Your own week: score, rank movement, captain choice and xP against points, starters and bench apart."""
+    starters, bench = lineup_split(picks)
     captain, best_captain, _ = captain_choice(picks, points)
     predicted = (forecast or {}).get("xp", {})
+    vice = next((pick["element"] for pick in picks["picks"] if pick["is_vice_captain"]), None)
+
+    def line(player_id):
+        return {"playerId": player_id, "points": points.get(player_id, 0), "xp": predicted.get(str(player_id))}
+
     return {
         "points": history_row["points"],
         "transferCost": history_row["event_transfers_cost"],
@@ -86,27 +115,28 @@ def team_week(picks, history_row, previous_row, points, forecast):
         "captain": {"playerId": captain, "points": points.get(captain, 0)},
         "bestCaptain": {"playerId": best_captain, "points": points.get(best_captain, 0)},
         "predictedTotal": forecast["expectedPoints"] if forecast else None,
-        "starters": [
-            {"playerId": player_id, "points": points.get(player_id, 0), "xp": predicted.get(str(player_id))}
-            for player_id in starters
-        ],
+        "viceCaptain": vice,
+        "starters": [line(player_id) for player_id in starters],
+        "bench": [line(player_id) for player_id in bench],
     }
 
 
-def build_review(bootstrap, histories, entry_history, picks, forecast, picks_by_week=None, forecasts_by_week=None):
+def build_review(bootstrap, histories, entry_history, picks, forecast, picks_by_week=None, forecasts_by_week=None, live_points=None):
     """The review for the last finished gameweek, or None before any has finished.
 
     `picks` is your team's picks for that week (None if the team hadn't
     started), `entry_history` is entry/{id}/history/ (None for the same
     reason) and `forecast` is what save_forecast stored before it.
     `picks_by_week` and `forecasts_by_week` cover every finished week since
-    your team started, for the season view.
+    your team started, for the season view. `live_points` is FPL's final
+    points for the reviewed week (live_week_points); without it the saved
+    histories are used.
     """
     event = last_finished_week(bootstrap)
     if event is None:
         return None
     gameweek = event["id"]
-    points = week_points(histories, gameweek)
+    points = live_points if live_points is not None else week_points(histories, gameweek)
     review = {"gameweek": gameweek, **league_wide(event, points), "team": None, "season": None}
 
     rows = {row["event"]: row for row in (entry_history or {}).get("current", [])}
@@ -178,5 +208,5 @@ def players_mentioned(review):
     if review["mostCaptained"]:
         ids.add(review["mostCaptained"]["playerId"])
     if review["team"]:
-        ids.update(line["playerId"] for line in review["team"]["starters"])
+        ids.update(line["playerId"] for line in review["team"]["starters"] + review["team"].get("bench", []))
     return ids

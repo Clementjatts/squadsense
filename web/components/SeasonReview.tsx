@@ -1,6 +1,6 @@
 // "Season so far" on the Review page: totals for every finished week since
-// your team started, a bar per week (your points, with the FPL average
-// marked), and a table with rank, bench points and captain choice.
+// your team started, a slot for each of the 38 gameweeks (your points, with
+// the FPL average marked), and a table with rank, bench points and captain choice.
 // Server-rendered; nothing here is interactive.
 
 import { formatXp } from "@/lib/format";
@@ -65,6 +65,16 @@ function SeasonTotals({ season }: { season: SeasonData }) {
   );
 }
 
+const SEASON_WEEKS = 38;
+
+// A slot for every gameweek of the season: your bar where a week is
+// finished, an empty slot otherwise, so the chart fills in left to right
+// instead of one bar sitting alone in a corner.
+function seasonSlots(weeks: SeasonWeek[]): { gameweek: number; week: SeasonWeek | null }[] {
+  const byWeek = new Map(weeks.map((week) => [week.gameweek, week]));
+  return Array.from({ length: SEASON_WEEKS }, (_, index) => ({ gameweek: index + 1, week: byWeek.get(index + 1) ?? null }));
+}
+
 // One bar per week, scaled to the season's best week, with a tick at the FPL average.
 function PointsChart({ weeks }: { weeks: SeasonWeek[] }) {
   const top = Math.max(...weeks.map((week) => Math.max(week.points, week.average ?? 0)), 1);
@@ -76,14 +86,14 @@ function PointsChart({ weeks }: { weeks: SeasonWeek[] }) {
         <span className="muted">Line marks the FPL average</span>
       </div>
       <div className="season-chart" role="img" aria-label={weeks.map((week) => `GW${week.gameweek} ${week.points} points, average ${week.average ?? "unknown"}`).join("; ")}>
-        {weeks.map((week) => (
-          <div key={week.gameweek} className="season-chart-col">
-            <span className="season-chart-value num">{week.points}</span>
+        {seasonSlots(weeks).map(({ gameweek, week }) => (
+          <div key={gameweek} className={week ? "season-chart-col" : "season-chart-col season-chart-empty"}>
+            <span className="season-chart-value num">{week ? week.points : ""}</span>
             <div className="season-chart-track">
-              <div className={week.average !== null && week.points > week.average ? "season-chart-bar above" : "season-chart-bar"} style={{ height: percent(week.points) }} />
-              {week.average !== null && <div className="season-chart-average" style={{ bottom: percent(week.average) }} />}
+              {week && <div className={week.average !== null && week.points > week.average ? "season-chart-bar above" : "season-chart-bar"} style={{ height: percent(week.points) }} />}
+              {week?.average != null && <div className="season-chart-average" style={{ bottom: percent(week.average) }} />}
             </div>
-            <span className="season-chart-label">{week.gameweek}</span>
+            <span className="season-chart-label">{gameweek}</span>
           </div>
         ))}
       </div>

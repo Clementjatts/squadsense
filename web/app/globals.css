@@ -274,10 +274,9 @@ table.ticker tbody tr { transition: opacity 200ms var(--ease-out-quart); }
 /* Page frame and grids. Rows stretch so neighbouring cards share a height. */
 .bc-page { max-width: 1440px; margin: 0 auto; padding: 28px 36px 24px; display: flex; flex-direction: column; gap: 20px; }
 .bc-grid-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 20px; align-items: stretch; }
-.bc-grid-main, .bc-grid-analysis { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 20px; }
+.bc-grid-main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 20px; }
 .bc-grid-main { align-items: stretch; }
-.bc-grid-analysis { align-items: start; }
-@media (max-width: 1100px) { .bc-grid-main, .bc-grid-analysis { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) { .bc-grid-main { grid-template-columns: minmax(0, 1fr); } }
 
 /* Shared card pieces. */
 .bc-card { position: relative; overflow: hidden; border-radius: 18px; background: var(--panel); border: 1px solid var(--panel-line); }
@@ -674,7 +673,6 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .plan-close { display: inline-block; margin: 4px 0 0; color: var(--warn); border-color: var(--warn); }
 .plan-price-note { margin-top: 4px; font-size: 11px; line-height: 1.3; }
 .plan-sure { margin-top: 4px; font-size: 11px; line-height: 1.3; white-space: nowrap; }
-.bc-side-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .changes-entry { padding: 12px 20px; border-top: 1px solid #16213a; font-size: 13px; line-height: 1.5; }
 .changes-entry ul { margin: 4px 0 0; padding-left: 18px; }
 .changes-when { font-size: 12px; }
@@ -1038,4 +1036,80 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 }
 @media (max-width: 359px) {
   .panel-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Rows that end together (25 November 2026). Two-column rows used to let
+   each column stop where its own content stopped, leaving a hole under the
+   shorter side. Now the columns stretch to the taller one, and the last
+   card in each column grows to fill, so both sides finish on one line.
+   Pages with very uneven sides use .bc-row instead: a grid of cards that
+   share a height, with anything long given a full-width row of its own. */
+.row { align-items: stretch; }
+.row > .col-wide > :last-child, .row > .col-narrow > :last-child { flex-grow: 1; }
+.bc-row { display: grid; gap: 20px; align-items: stretch; }
+.bc-row > * { min-width: 0; }
+.bc-row-wide { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+.bc-row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bc-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bc-row .bc-lineup .bc-pitch { flex: 1 0 auto; }
+@media (max-width: 1100px) {
+  .bc-row-wide, .bc-row-2 { grid-template-columns: minmax(0, 1fr); }
+  .bc-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) { .bc-row-4 { grid-template-columns: minmax(0, 1fr); } }
+
+/* The pitch's tag when it shows points (Review): lime beat the forecast, orange fell short. */
+.bc-token-xp-short { background: var(--warn); }
+.bc-token-xp-plain { background: var(--ink); }
+
+/* Review: colors for good and short of expectations. */
+.review-tone-good { color: var(--accent); }
+.review-tone-short { color: var(--warn); }
+.review-tone-plain { color: var(--muted); }
+.review-tone-bg-good { background: var(--accent); }
+.review-tone-bg-short { background: var(--warn); }
+
+/* Review: "Your decisions", four tiles sharing the height of the pitch beside them. */
+.review-decision-list { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.review-decision { flex: 1; min-height: 112px; padding: 14px 16px; background: var(--raised); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
+.review-decision-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
+.review-decision-verdict { font-family: var(--condensed); font-weight: 800; font-size: 26px; line-height: 1; white-space: nowrap; }
+.review-decision-headline { font-family: var(--condensed); font-weight: 800; font-size: 26px; line-height: 1.05; }
+.review-decision-detail { font-size: 14px; line-height: 1.45; color: #c7d0e2; }
+
+/* Review: expected against scored, a bar either side of a zero line per player. */
+.review-gaps { list-style: none; margin: 0; padding: 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+.review-gap-row { height: 30px; display: grid; grid-template-columns: 120px minmax(0, 1fr) 52px; align-items: center; gap: 12px; }
+.review-gap-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.review-gap-track { position: relative; height: 14px; }
+.review-gap-track::before { content: ""; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 1px; background: #3a4a6b; }
+.review-gap-bar { position: absolute; top: 0; bottom: 0; transform: skewX(-12deg); }
+.review-gap-row b { text-align: right; font-family: var(--condensed); font-weight: 800; font-size: 17px; }
+
+/* Review: Across FPL's top scorers spread to the bottom of their card. */
+.review-top-title { font-size: 13px; }
+.review-top-list { list-style: none; margin: 0; padding: 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+
+/* Season chart: a slot for each of the 38 gameweeks, empty until that week is played. */
+.season-chart { gap: 4px; overflow-x: auto; }
+.season-chart-col { flex: 1 1 0; min-width: 18px; max-width: none; }
+.season-chart-empty .season-chart-track { background: linear-gradient(to top, #16213a 4px, transparent 4px); }
+
+@media (max-width: 560px) {
+  .review-gap-row { grid-template-columns: 96px minmax(0, 1fr) 44px; gap: 8px; }
+  .review-decision-headline { font-size: 22px; }
+}
+
+/* Live: the matches across the full width, in two columns. */
+.live-matches .share-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; }
+@media (max-width: 760px) { .live-matches .share-list { grid-template-columns: minmax(0, 1fr); } }
+
+/* Dashboard: "What changed" sits beside "Keep an eye on". With two columns
+   it takes no height of its own (height 0, then 100% of the row), so the
+   row is as tall as "Keep an eye on" and the feed scrolls inside. On
+   narrower screens the cards stack and the feed shows in full. */
+.changes-card { display: flex; flex-direction: column; }
+@media (min-width: 1101px) {
+  .bc-row > .changes-card { height: 0; min-height: 100%; }
+  .bc-row > .changes-card .changes-feed { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 }

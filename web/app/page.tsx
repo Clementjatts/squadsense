@@ -41,12 +41,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="bc-grid-analysis">
-        <SquadTable snapshot={snapshot} />
-        <div className="bc-side-stack">
-          <KeepAnEye snapshot={snapshot} />
-          <WhatChanged snapshot={snapshot} />
-        </div>
+      {/* The squad table is long, so it gets its own row; the two lists below share a height. */}
+      <SquadTable snapshot={snapshot} />
+      <div className="bc-row bc-row-2">
+        <KeepAnEye snapshot={snapshot} />
+        <WhatChanged snapshot={snapshot} />
       </div>
     </div>
   );

@@ -191,12 +191,13 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
   }
 
   // A pitch click (or Sell on a phone) starts a normal "replace this player"
-  // search, and drops any player waiting to be brought in. On phones the
-  // replacement list sits above the sell list, so the page scrolls up to it.
+  // search, and drops any player waiting to be brought in. The replacement
+  // list sits under the pitch (above the sell list on phones), so the page
+  // scrolls just far enough to show it.
   function pickPlayerToReplace(id: number) {
     setBringInId(null);
     setSwapOutId(id);
-    scrollIntoViewOnPhone(replaceCardRef.current);
+    replaceCardRef.current?.scrollIntoView({ behavior: "smooth", block: window.matchMedia(PHONE_QUERY).matches ? "start" : "nearest" });
   }
 
   // Why selling `outId` for `inId` this week isn't allowed, or null if it is.
@@ -403,130 +404,7 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
             </button>
           </section>
           <MakeOrRollCard suggestion={matchingSuggestion(snapshot.suggestions, weekMoves, selectedWeek === weeks[0])} weeks={weeks} />
-          <section className="card" ref={replaceCardRef}>
-            {/* Crossfade between "Suggested moves" and "Replace ...": the old
-                view fades out before the new one fades in. */}
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={outPlayer ? `replace-${outPlayer.id}` : inPlayer ? `bring-${inPlayer.id}` : "suggested"}
-                className="card-body"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {outPlayer ? (
-                  <>
-                    <div className="card-head">
-                      <h2>Replace {outPlayer.name}</h2>
-                      <button type="button" className="btn" onClick={() => setSwapOutId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                    <p className="muted" style={{ margin: 0 }}>
-                      You can spend up to {formatPrice(bankBeforeWeek + outPlayer.sellingPrice)} on a {outPlayer.position}.
-                    </p>
-                    <div className="table-wrap">
-                      <table className="planner-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Player</th>
-                            <th scope="col" className="right">Price</th>
-                            <th scope="col" className="right">Owned</th>
-                            <th scope="col" className="right">xP next {weeks.length}</th>
-                            <th scope="col" className="right">Gain</th>
-                            <th scope="col"><span className="visually-hidden">Add</span></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {options.map((option) => {
-                            const blocked = blockedReason(outPlayer.id, option.id);
-                            return (
-                              <tr key={option.id} style={{ opacity: blocked ? 0.5 : 1 }}>
-                                <td><strong>{option.name}</strong> <span className="muted">{option.team}</span></td>
-                                <td className="right">{formatPrice(option.price)}</td>
-                                <td className="right muted">{option.ownership.toFixed(1)}%</td>
-                                <td className="right"><b>{formatXp(option.windowXp)}</b></td>
-                                <td className={gainClass(option.windowXp - outPlayer.windowXp)}>{formatGain(option.windowXp - outPlayer.windowXp)}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="btn"
-                                    disabled={blocked !== null}
-                                    title={blocked ?? undefined}
-                                    onClick={() => addMove(outPlayer.id, option.id)}
-                                    aria-label={`Bring in ${option.name}`}
-                                  >
-                                    Add
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : inPlayer ? (
-                  <BringInView
-                    inPlayer={inPlayer}
-                    sellOptions={sellOptions}
-                    alreadyOwned={weekPlan.squad.includes(inPlayer.id)}
-                    week={selectedWeek}
-                    windowLength={weeks.length}
-                    players={players}
-                    blockedReason={blockedReason}
-                    onSell={(outId) => addMove(outId, inPlayer.id)}
-                    onCancel={() => setBringInId(null)}
-                  />
-                ) : (
-                  <>
-                    <div className="card-head">
-                      <h2>Single moves to try</h2>
-                      <span className="muted">One transfer at a time, no chips. Your recommended plan is below.</span>
-                    </div>
-                    {snapshot.suggestions.length === 0 && (
-                      <p className="muted">
-                        {snapshot.squadSource === "model"
-                          ? "No suggestions: this squad is already the model's best pick for the week."
-                          : "No single transfer beats your current squad over the next few weeks."}
-                      </p>
-                    )}
-                    <ul className="list">
-                      {snapshot.suggestions.map((suggestion) => (
-                        <li key={`${suggestion.out}-${suggestion.in}`}>
-                          <span className="grow">
-                            <strong>
-                              {players[suggestion.out].name} → {players[suggestion.in].name}
-                            </strong>
-                            <span className="muted">
-                              {formatGain(suggestion.gain)} xP · {suggestion.advice === "make" ? "make it" : "roll instead"}
-                              {suggestion.priceNote && <> · <span className="bc-accent">{suggestion.priceNote}</span></>}
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            className="btn"
-                            disabled={!plans[0].squad.includes(suggestion.out) || plans[0].squad.includes(suggestion.in)}
-                            onClick={() => {
-                              chooseWeek(weeks[0]);
-                              setMoves([...moves, { week: weeks[0], outId: suggestion.out, inId: suggestion.in }]);
-                            }}
-                          >
-                            Try it
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="muted" style={{ margin: 0 }}>
-                      <span className="desktop-only">Or click any player on the pitch to search for a replacement yourself.</span>
-                      <span className="phone-only">Or choose Sell on any player below to search for a replacement yourself.</span>
-                    </p>
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </section>
+          {/* The five-week plan fills the column under the week's check, level with the pitch. */}
           {snapshot.solverPlan && (
             <SolverPlanCard
               plan={snapshot.solverPlan}
@@ -540,30 +418,170 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
               }}
             />
           )}
-          <ScenariosCard drafts={drafts} snapshot={snapshot} freeHitSquads={freeHitSquads} currentScore={totalScore} onLoad={loadScenario} />
-          <SellList
-            ref={sellListRef}
-            squad={weekPlan.squad}
-            players={players}
-            captain={weekPlan.captain}
-            sellingIds={weekMoves.map((move) => move.outId)}
-            selectedId={swapOutId}
-            onSell={pickPlayerToReplace}
-          />
-          {/* On a Mac it shows in Lineup mode, next to the pitch; on phones it's always there and lists all 15. */}
-          <LineupEditor
-            weekPlan={weekPlan}
-            players={players}
-            picked={lineupPick}
-            message={lineupMessage}
-            showList={pitchMode === "transfers"}
-            className={pitchMode === "lineup" ? "lineup-editor-pitch" : "phone-only"}
-            onPick={pickForLineup}
-            onArmband={giveArmband}
-            onReset={resetLineup}
-          />
+          {/* Lineup mode on a Mac: the editor sits beside the pitch. */}
+          {pitchMode === "lineup" && (
+            <LineupEditor
+              weekPlan={weekPlan}
+              players={players}
+              picked={lineupPick}
+              message={lineupMessage}
+              showList={false}
+              className="lineup-editor-pitch desktop-only"
+              onPick={pickForLineup}
+              onArmband={giveArmband}
+              onReset={resetLineup}
+            />
+          )}
         </div>
       </div>
+
+      {/* The replacement table can run long, so it gets the full width under the pitch. */}
+      <section className="card" ref={replaceCardRef}>
+        {/* Crossfade between "Suggested moves" and "Replace ...": the old
+            view fades out before the new one fades in. */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={outPlayer ? `replace-${outPlayer.id}` : inPlayer ? `bring-${inPlayer.id}` : "suggested"}
+            className="card-body"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {outPlayer ? (
+              <>
+                <div className="card-head">
+                  <h2>Replace {outPlayer.name}</h2>
+                  <button type="button" className="btn" onClick={() => setSwapOutId(null)}>
+                    Cancel
+                  </button>
+                </div>
+                <p className="muted" style={{ margin: 0 }}>
+                  You can spend up to {formatPrice(bankBeforeWeek + outPlayer.sellingPrice)} on a {outPlayer.position}.
+                </p>
+                <div className="table-wrap">
+                  <table className="planner-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Player</th>
+                        <th scope="col" className="right">Price</th>
+                        <th scope="col" className="right">Owned</th>
+                        <th scope="col" className="right">xP next {weeks.length}</th>
+                        <th scope="col" className="right">Gain</th>
+                        <th scope="col"><span className="visually-hidden">Add</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {options.map((option) => {
+                        const blocked = blockedReason(outPlayer.id, option.id);
+                        return (
+                          <tr key={option.id} style={{ opacity: blocked ? 0.5 : 1 }}>
+                            <td><strong>{option.name}</strong> <span className="muted">{option.team}</span></td>
+                            <td className="right">{formatPrice(option.price)}</td>
+                            <td className="right muted">{option.ownership.toFixed(1)}%</td>
+                            <td className="right"><b>{formatXp(option.windowXp)}</b></td>
+                            <td className={gainClass(option.windowXp - outPlayer.windowXp)}>{formatGain(option.windowXp - outPlayer.windowXp)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn"
+                                disabled={blocked !== null}
+                                title={blocked ?? undefined}
+                                onClick={() => addMove(outPlayer.id, option.id)}
+                                aria-label={`Bring in ${option.name}`}
+                              >
+                                Add
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : inPlayer ? (
+              <BringInView
+                inPlayer={inPlayer}
+                sellOptions={sellOptions}
+                alreadyOwned={weekPlan.squad.includes(inPlayer.id)}
+                week={selectedWeek}
+                windowLength={weeks.length}
+                players={players}
+                blockedReason={blockedReason}
+                onSell={(outId) => addMove(outId, inPlayer.id)}
+                onCancel={() => setBringInId(null)}
+              />
+            ) : (
+              <>
+                <div className="card-head">
+                  <h2>Single moves to try</h2>
+                  <span className="muted">One transfer at a time, no chips. Your recommended plan is below.</span>
+                </div>
+                {snapshot.suggestions.length === 0 && (
+                  <p className="muted">
+                    {snapshot.squadSource === "model"
+                      ? "No suggestions: this squad is already the model's best pick for the week."
+                      : "No single transfer beats your current squad over the next few weeks."}
+                  </p>
+                )}
+                <ul className="list">
+                  {snapshot.suggestions.map((suggestion) => (
+                    <li key={`${suggestion.out}-${suggestion.in}`}>
+                      <span className="grow">
+                        <strong>
+                          {players[suggestion.out].name} → {players[suggestion.in].name}
+                        </strong>
+                        <span className="muted">
+                          {formatGain(suggestion.gain)} xP · {suggestion.advice === "make" ? "make it" : "roll instead"}
+                          {suggestion.priceNote && <> · <span className="bc-accent">{suggestion.priceNote}</span></>}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={!plans[0].squad.includes(suggestion.out) || plans[0].squad.includes(suggestion.in)}
+                        onClick={() => {
+                          chooseWeek(weeks[0]);
+                          setMoves([...moves, { week: weeks[0], outId: suggestion.out, inId: suggestion.in }]);
+                        }}
+                      >
+                        Try it
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="muted" style={{ margin: 0 }}>
+                  <span className="desktop-only">Or click any player on the pitch to search for a replacement yourself.</span>
+                  <span className="phone-only">Or choose Sell on any player below to search for a replacement yourself.</span>
+                </p>
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </section>
+      <ScenariosCard drafts={drafts} snapshot={snapshot} freeHitSquads={freeHitSquads} currentScore={totalScore} onLoad={loadScenario} />
+      <SellList
+        ref={sellListRef}
+        squad={weekPlan.squad}
+        players={players}
+        captain={weekPlan.captain}
+        sellingIds={weekMoves.map((move) => move.outId)}
+        selectedId={swapOutId}
+        onSell={pickPlayerToReplace}
+      />
+      {/* Phones: always here, listing all 15 (the pitch is hidden there). */}
+      <LineupEditor
+        weekPlan={weekPlan}
+        players={players}
+        picked={lineupPick}
+        message={lineupMessage}
+        showList={pitchMode === "transfers"}
+        className="phone-only"
+        onPick={pickForLineup}
+        onArmband={giveArmband}
+        onReset={resetLineup}
+      />
     </>
   );
 }
