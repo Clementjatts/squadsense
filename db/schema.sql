@@ -95,6 +95,16 @@ create table if not exists made_moves (
   primary key (team_id, gameweek, player_out)
 );
 
+-- Players on the Price Watch watchlist, shared between your devices. The
+-- sync reads it to send "Watched player likely to rise tonight". Added
+-- 25 November 2026.
+create table if not exists watchlist (
+  team_id integer not null,
+  player_id integer not null,
+  added_at timestamptz not null default now(),
+  primary key (team_id, player_id)
+);
+
 -- Lock every table down. Only the jobs (using the database password) and
 -- the website's server code (using the service role key) can read or write.
 -- Nothing is readable straight from a browser.
@@ -108,6 +118,7 @@ alter table push_subscriptions enable row level security;
 alter table alerts_sent enable row level security;
 alter table planner_drafts enable row level security;
 alter table made_moves enable row level security;
+alter table watchlist enable row level security;
 
 -- The project was created with "grant API access to new tables" turned off,
 -- so give the website's server key (service_role) what it needs, and make

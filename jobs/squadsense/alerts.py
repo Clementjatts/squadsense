@@ -1,10 +1,11 @@
 """Alerts: email and phone notifications, checked at the end of every sync.
 
-Five kinds, all about your own squad and plan:
+What they cover, mostly your own squad and plan:
 
 - the plan brief, once, within BRIEF_WINDOW_HOURS of the deadline
 - the final call, once, within DEADLINE_WINDOW_HOURS, with what changed since the brief
 - players the plan sells this week that FPL expects to drop in price tonight
+- players on your watchlist (not in your squad) that FPL expects to rise tonight
 - new injury news on your players
 - your players one yellow card from a ban
 - FPL changing a scoring or squad rule (from rules.apply_fpl_settings)
@@ -37,6 +38,7 @@ import httpx
 
 from . import briefs
 from .email_template import render_email
+from .price_watch import price_day, rises_tonight
 
 log = logging.getLogger("squadsense.alerts")
 
@@ -168,6 +170,25 @@ def price_drop_alert(snapshot, now):
     )]
 
 
+def watch_rise_alert(snapshot, now, watched_ids):
+    """Watched players you don't own that FPL expects to rise at 00:00 UK, once per player per night.
+
+    Uses the same rule as the website's TONIGHT tag (price_watch.rises_tonight).
+    """
+    watched = set(watched_ids) - set(snapshot["squad"])
+    if not watched:
+        return []
+    rising = [row["id"] for row in snapshot["priceWatch"]["players"] if row["id"] in watched and rises_tonight(row)]
+    if not rising:
+        return []
+    night = price_day(now)
+    names = ", ".join(name_of(snapshot, player_id) for player_id in rising)
+    return [Alert(
+        [f"watch-{night}-{player_id}" for player_id in rising], "Watched player likely to rise tonight",
+        f"FPL expects {names} from your watchlist to rise £0.1m at 00:00 UK. Buying before then avoids the rise.", "/prices",
+    )]
+
+
 def injury_alerts(snapshot):
     """One alert per new piece of injury or availability news on your players."""
     alerts = []
@@ -219,7 +240,8 @@ def collect(snapshot, now, storage):
     """Every alert the snapshot calls for right now (before checking what was already sent)."""
     return (
         plan_brief_alert(snapshot, now, storage) + final_call_alert(snapshot, now, storage)
-        + price_drop_alert(snapshot, now) + injury_alerts(snapshot) + ban_alerts(snapshot)
+        + price_drop_alert(snapshot, now) + watch_rise_alert(snapshot, now, storage.load_watchlist(team_id(snapshot)))
+        + injury_alerts(snapshot) + ban_alerts(snapshot)
         + rule_change_alert(snapshot) + made_move_mismatch_alert(snapshot)
     )
 
