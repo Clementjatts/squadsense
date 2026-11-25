@@ -14,6 +14,9 @@ points the chip earned:
   forecast week. This was the first version, and it waited too long.
 - first double: the first week the captain (Triple Captain) or any
   squad player (Bench Boost) plays twice; the first week if none do.
+- double xW: the planner, with the first known double gameweek after
+  the five-week plan counted W times, the way strategy.DOUBLE_WEIGHT
+  does it in the live keep values. One column per --double-weights value.
 - straight away: the first week of the half.
 - average week: the real gain averaged over every week of the half,
   which is what picking a week at random would earn.
@@ -37,6 +40,12 @@ from .planner import best_lineup
 from .squad_builder import pick_best_squad
 
 HALVES = ((FIRST_TEST_WEEK, 19), (20, 38))
+# Past fixture files already hold every double gameweek, but in real life a
+# double is only announced some weeks ahead, once a cup tie or a postponed
+# match is rescheduled. So the backtests only count a double as known from
+# this many weeks before it. Six is a rough guess at typical notice.
+DOUBLE_NOTICE_WEEKS = 6
+PLAN_WEEKS = 5  # the live strategy plans five weeks; only doubles after them change keep values
 SQUAD_WINDOW = 5  # weeks the starting squad is picked for
 METHODS = ("planner", "best week only", "first double", "straight away", "average week", "hindsight")
 
@@ -98,18 +107,34 @@ def chip_gain(chip, lineup, forecaster, week):
     return sum(forecaster.real_points(player_id, week) for player_id in lineup["bench"])
 
 
-def planner_week(chip, squad, players_by_id, forecaster, weeks, play_share=PLAY_SHARE):
+def known_double(chip, squad, lineup, forecaster, decision_week, week):
+    """True when `week` is a double for this chip and is already known at `decision_week`.
+
+    Triple Captain needs that week's captain to play twice, Bench Boost anyone in the squad.
+    """
+    if week - decision_week > DOUBLE_NOTICE_WEEKS:
+        return False
+    players = [lineup["captain"]] if chip == "3xc" else squad
+    return any(len(forecaster.matches(player_id, decision_week, week)) > 1 for player_id in players)
+
+
+def planner_week(chip, squad, players_by_id, forecaster, weeks, play_share=PLAY_SHARE, double_weight=1.0):
     """The first week worth at least `play_share` of the best one left, by the forecast made that week.
 
     1.0 means "only if this week is the best"; lower values play sooner.
+    `double_weight` counts the first known double after the five-week plan
+    that many times, as strategy.keep_values does with DOUBLE_WEIGHT.
     """
     for index, week in enumerate(weeks):
         remaining = weeks[index:]
         forecast = forecaster.forecast(squad, week, remaining)
-        values = {}
+        values, weighted = {}, False
         for later in remaining:
             lineup = best_lineup(squad, players_by_id, forecast, later)
             values[later] = forecast[lineup["captain"]][later] if chip == "3xc" else sum(forecast[p][later] for p in lineup["bench"])
+            if not weighted and later >= week + PLAN_WEEKS and known_double(chip, squad, lineup, forecaster, week, later):
+                values[later] *= double_weight
+                weighted = True
         if values[week] >= play_share * max(values.values()):
             return week
     return weeks[-1]
@@ -124,8 +149,8 @@ def first_double_week(chip, squad, lineups, forecaster, weeks):
     return weeks[0]
 
 
-def backtest_half(forecaster, start, stop):
-    """{chip: {method: real gain}} for one half of one season."""
+def backtest_half(forecaster, start, stop, double_weights=()):
+    """{chip: {method: real gain}} for one half of one season, with a "double xW" method per weight."""
     weeks = [week for week in range(start, stop + 1) if week in forecaster.contexts]
     squad = starting_squad(forecaster, weeks[0])
     players_by_id = {player_id: forecaster.player_at(player_id, weeks[0]) for player_id in squad}
@@ -143,18 +168,20 @@ def backtest_half(forecaster, start, stop):
             "average week": statistics.mean(gains.values()),
             "hindsight": max(gains.values()),
         }
+        for weight in double_weights:
+            results[chip][f"double x{weight}"] = gains[planner_week(chip, squad, players_by_id, forecaster, weeks, double_weight=weight)]
     return results
 
 
-def format_results(all_results):
+def format_results(all_results, methods=METHODS):
     """A plain-text table: average real points per chip and method, one line per half."""
     lines = []
     for chip, label in (("3xc", "Triple Captain"), ("bboost", "Bench Boost")):
         lines.append(f"\n{label}: real points the chip added")
-        lines.append(f'{"half":14}' + "".join(f"{method:>15}" for method in METHODS))
+        lines.append(f'{"half":14}' + "".join(f"{method:>15}" for method in methods))
         for name, results in all_results.items():
-            lines.append(f"{name:14}" + "".join(f"{results[chip][method]:15.1f}" for method in METHODS))
-        averages = [statistics.mean(results[chip][method] for results in all_results.values()) for method in METHODS]
+            lines.append(f"{name:14}" + "".join(f"{results[chip][method]:15.1f}" for method in methods))
+        averages = [statistics.mean(results[chip][method] for results in all_results.values()) for method in methods]
         lines.append(f'{"average":14}' + "".join(f"{value:15.1f}" for value in averages))
     return "\n".join(lines)
 
@@ -162,7 +189,9 @@ def format_results(all_results):
 def main():
     parser = argparse.ArgumentParser(description="Backtest the Chip Planner's timing against simple rules.")
     parser.add_argument("--past-folder", default=".data/past", help="Folder with one subfolder per downloaded season")
+    parser.add_argument("--double-weights", default="", help="Comma-separated DOUBLE_WEIGHT values to try, e.g. 1.0,1.2,1.4")
     args = parser.parse_args()
+    double_weights = [float(weight) for weight in args.double_weights.split(",") if weight]
 
     all_results = {}
     for folder in sorted(Path(args.past_folder).iterdir()):
@@ -170,9 +199,9 @@ def main():
             continue
         forecaster = SeasonForecaster(load_season(folder))
         for start, stop in HALVES:
-            all_results[f"{folder.name} {start}-{stop}"] = backtest_half(forecaster, start, stop)
+            all_results[f"{folder.name} {start}-{stop}"] = backtest_half(forecaster, start, stop, double_weights)
             print(f"Done {folder.name} GW{start}-{stop}", flush=True)
-    print(format_results(all_results))
+    print(format_results(all_results, METHODS + tuple(f"double x{weight}" for weight in double_weights)))
 
 
 if __name__ == "__main__":

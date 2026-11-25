@@ -11,7 +11,9 @@ can never disagree. The rules:
    squad that your normal transfers wouldn't close.
 3. Each chip has a keep value: PLAY_SHARE of its best value later in the
    half, after the five weeks. The plan only plays a chip now if that
-   beats saving it. (PLAY_SHARE came from the chip backtest.)
+   beats saving it. (PLAY_SHARE came from the chip backtest.) For Bench
+   Boost and Triple Captain, a known double gameweek later in the half
+   counts DOUBLE_WEIGHT times.
 4. A chip played now can't be played later, and the forecasts it relies
    on are rough, so each chip also has to clear its CHIP_MARGINS points
    before the plan uses it. The Wildcard's is largest, since it rebuilds
@@ -54,6 +56,18 @@ MAX_PLAN_AGE_HOURS = 12  # re-plan at least twice a day, so new matches and form
 # noise on every player's xP, and each move's share of runs is shown.
 SENSITIVITY_RUNS = 15
 SENSITIVITY_SECONDS = 30  # per run; these runs only check the transfers, chips stay as decided
+# Bench Boost and Triple Captain gain most in a double gameweek, so when the
+# rest of the half has one for your squad, its value counts DOUBLE_WEIGHT
+# times in their keep values: playing them earlier needs a clearly better
+# week. 1.0 leaves keep values as they were. 1.2 lost 14.6 real points per
+# half in plan_backtest (25 November 2026), so it stays at 1.0 for now.
+# See docs/backtest-results.md.
+DOUBLE_WEIGHT = 1.0
+DOUBLE_CHIPS = ("bboost", "3xc")
+# How many weeks ahead a double counts as known. None in the live app, where
+# a double is only in FPL's fixture list once it has been announced. The
+# backtests set it, since past fixture files already hold every double.
+DOUBLE_NOTICE_WEEKS = None
 # Bump this whenever the strategy's rules change, so a saved plan made under old rules isn't reused.
 STRATEGY_VERSION = 8  # 8: later weeks use availability by match (availability.py)
 
@@ -82,17 +96,63 @@ def against_normal_transfers(values, gap, normal_gain):
     return adjusted, share_left
 
 
-def later_weeks(values, window_end):
-    """The week after the window each chip would be saved for, sharing weeks out so no two chips land together."""
-    after = {chip: {week: value for week, value in by_week.items() if week > window_end} for chip, by_week in values.items()}
+def plays_twice(player_ids, context, week):
+    """True when any of these players' clubs has two or more matches in `week`."""
+    return any(len(chips.matches_in_week(context.players_by_id[player_id], context.schedule, week)) > 1 for player_id in player_ids)
+
+
+def first_double_weeks(values, context, first_week, later):
+    """{chip: week} with the first known double in `later` for Bench Boost and Triple Captain.
+
+    Bench Boost counts a week where anyone in the squad plays twice;
+    Triple Captain one where that week's captain does. A double more than
+    DOUBLE_NOTICE_WEEKS after `first_week` isn't known yet.
+    """
+    known = [week for week in sorted(later) if DOUBLE_NOTICE_WEEKS is None or week - first_week <= DOUBLE_NOTICE_WEEKS]
+    doubles = {}
+    for chip in DOUBLE_CHIPS:
+        for week in known:
+            value = values.get(chip, {}).get(week)
+            if value is None:
+                continue
+            players = [value.risk["captainId"]] if chip == "3xc" else context.squad_ids
+            if plays_twice(players, context, week):
+                doubles[chip] = week
+                break
+    return doubles
+
+
+def weight_doubles(values, double_weeks):
+    """A copy of `values` with each chip's first double week counted DOUBLE_WEIGHT times."""
+    weighted = {}
+    for chip, by_week in values.items():
+        week = (double_weeks or {}).get(chip)
+        weighted[chip] = dict(by_week)
+        if week in by_week:
+            value = by_week[week]
+            weighted[chip][week] = ChipValue(value.gain * DOUBLE_WEIGHT, value.reason, value.risk)
+    return weighted
+
+
+def later_weeks(values, window_end, double_weeks=None):
+    """The week after the window each chip would be saved for, sharing weeks out so no two chips land together.
+
+    `double_weeks` (from first_double_weeks) weights known doubles before the weeks are chosen.
+    """
+    weighted = weight_doubles(values, double_weeks)
+    after = {chip: {week: value for week, value in by_week.items() if week > window_end} for chip, by_week in weighted.items()}
     return chips.best_chip_weeks(after)
 
 
-def keep_values(values, window_end):
-    """What each chip is worth if saved: PLAY_SHARE of its value in its later week, plus its margin."""
-    saved_for = later_weeks(values, window_end)
+def keep_values(values, window_end, double_weeks=None):
+    """What each chip is worth if saved: PLAY_SHARE of its value in its later week, plus its margin.
+
+    A known double for Bench Boost or Triple Captain counts DOUBLE_WEIGHT times (see weight_doubles).
+    """
+    saved_for = later_weeks(values, window_end, double_weeks)
+    weighted = weight_doubles(values, double_weeks)
     keep = {}
-    for chip, by_week in values.items():
+    for chip, by_week in weighted.items():
         week = saved_for.get(chip)
         keep[chip] = (chips.PLAY_SHARE * by_week[week].gain if week is not None else 0.0) + CHIP_MARGINS.get(chip, 0.0)
     return keep
@@ -295,7 +355,8 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
         normal = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, price_moves=price_moves)
         gap = chips.wildcard_value(context, first_week).gain
         values, share_left = against_normal_transfers(raw_values, gap, normal["gain"])
-        keep = keep_values(values, weeks[-1])
+        double_weeks = first_double_weeks(values, context, first_week, [week for week in half_weeks if week > weeks[-1]])
+        keep = keep_values(values, weeks[-1], double_weeks)
         chip_weeks = chips.available_chip_weeks(bootstrap, squad_state, weeks, [chip for chip in SOLVER_CHIPS if chip in available])
         free_hit_best = free_hit_squads(context, chip_weeks.get("freehit", []))
         plan = solve_transfer_plan(squad_state, players_by_id, expected_points, weeks, chip_weeks, free_hit_best, keep, price_moves)
@@ -318,7 +379,7 @@ def plan_and_chips(bootstrap, fixtures, model_results, squad_state, weeks):
     add_price_notes(plan["weeks"], price_moves)
     add_price_notes(normal["weeks"], price_moves)
     add_sensitivity(plan, squad_state, players_by_id, expected_points, model_results.rates_by_player, weeks, free_hit_best, price_moves)
-    saved_for = later_weeks({chip: by_week for chip, by_week in values.items() if chip not in plan["chips"]}, weeks[-1])
+    saved_for = later_weeks({chip: by_week for chip, by_week in values.items() if chip not in plan["chips"]}, weeks[-1], double_weeks)
     decisions = {
         chip: decide(chip, plan["chips"].get(chip), values, keep, marginals.get(chip, 0.0), first_week, saved_for, weeks[-1])
         for chip in available
