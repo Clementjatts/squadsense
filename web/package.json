@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings tests/applyPlan.test.mts && node --experimental-strip-types --no-warnings tests/live.test.mts && node --experimental-strip-types --no-warnings tests/rules.test.mts && node --experimental-strip-types --no-warnings tests/lineup.test.mts && node --experimental-strip-types --no-warnings tests/calendar.test.mts && node --experimental-strip-types --no-warnings tests/leagueTable.test.mts && node --experimental-strip-types --no-warnings tests/watchlist.test.mts"
+    "test": "node --experimental-strip-types --no-warnings tests/applyPlan.test.mts && node --experimental-strip-types --no-warnings tests/live.test.mts && node --experimental-strip-types --no-warnings tests/rules.test.mts && node --experimental-strip-types --no-warnings tests/lineup.test.mts && node --experimental-strip-types --no-warnings tests/calendar.test.mts && node --experimental-strip-types --no-warnings tests/leagueTable.test.mts && node --experimental-strip-types --no-warnings tests/watchlist.test.mts && node --experimental-strip-types --no-warnings tests/session.test.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

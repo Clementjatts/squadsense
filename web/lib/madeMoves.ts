@@ -1,10 +1,11 @@
-// Moves Clement marked "Done on FPL". FPL hides transfers until the
+// Moves a member marked "Done on FPL". FPL hides transfers until the
 // deadline, so the sync can't see them; these marks (Supabase table
 // made_moves) tell it to plan from the squad after them. Server only,
 // since it uses the Supabase server key.
 
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import { serverDatabase } from "./accounts";
+import { currentTeam, type CurrentTeam } from "./currentTeam";
 
 export interface MadeMove {
   gameweek: number;
@@ -13,17 +14,15 @@ export interface MadeMove {
   priceIn: number; // tenths of a million, as shown when marked
 }
 
-/** The Supabase client with the server key and Clement's team id, or null when not set up. */
-export function madeMovesDatabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const teamId = Number(process.env.FPL_TEAM_ID);
-  return url && key && teamId ? { db: createClient(url, key, { auth: { persistSession: false } }), teamId } : null;
+/** The Supabase client with the server key and the signed-in team, or null when Supabase isn't set up. */
+export async function madeMovesDatabase(): Promise<({ db: NonNullable<ReturnType<typeof serverDatabase>> } & CurrentTeam) | null> {
+  const db = serverDatabase();
+  return db ? { db, ...(await currentTeam()) } : null;
 }
 
-/** The marks for one gameweek. Empty when Supabase isn't set up; throws when it fails. */
+/** The signed-in team's marks for one gameweek. Empty when Supabase isn't set up; throws when it fails. */
 export async function loadMadeMoves(gameweek: number): Promise<MadeMove[]> {
-  const setup = madeMovesDatabase();
+  const setup = await madeMovesDatabase();
   if (!setup) return [];
   const { data, error } = await setup.db
     .from("made_moves")

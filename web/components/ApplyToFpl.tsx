@@ -40,7 +40,8 @@ export function ApplyToFpl({ plan }: { plan: ApplyRequest }) {
   const [typed, setTyped] = useState("");
 
   if (!status) return null;
-  if (!status.available) return <p className="muted apply-note">{status.reason}</p>;
+  // No reason means applying isn't offered to this account at all (members), so show nothing.
+  if (!status.available) return status.reason ? <p className="muted apply-note">{status.reason}</p> : null;
 
   async function preview() {
     setStage({ kind: "working", message: "Signing in to FPL and reading your team..." });

@@ -604,6 +604,23 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .signin-submit:active { transform: scale(0.99); }
 .signin-submit:focus-visible, .signin-reveal:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .signin-footnote { text-align: center; font-size: 12px; color: #6b7894; }
+/* Account pages (sign up, forgotten and reset password) share the sign-in card. */
+.signin-form { display: flex; flex-direction: column; gap: 14px; }
+.signin-form .signin-error { margin: 0; }
+.signin-submit:disabled { opacity: 0.6; cursor: wait; }
+.signin-hint { min-height: 16px; font-size: 12px; color: #6b7894; }
+.signin-hint-found { color: var(--accent); font-weight: 600; }
+.signin-hint-warn { color: var(--warn); }
+.signin-note { margin: 0; padding: 12px 14px; border-radius: 10px; background: rgba(183, 243, 74, 0.08); border: 1px solid rgba(183, 243, 74, 0.3); color: var(--ink); font-size: 14px; line-height: 1.5; }
+.signin-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; font-size: 13px; }
+.signin-links a, .signin-link-button { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.signin-links a:hover, .signin-link-button:hover { color: var(--ink); }
+.signin-progress { height: 4px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent) 0 0 / 40% 100% no-repeat, rgba(255, 255, 255, 0.06); animation: signin-progress 1.6s linear infinite; }
+@keyframes signin-progress { from { background-position: -40% 0, 0 0; } to { background-position: 140% 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { .signin-progress { animation: none; } }
+.account-name { font-family: var(--condensed); font-size: 18px; letter-spacing: 0.02em; }
+.account-switch { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; cursor: pointer; }
+.account-switch input { width: 18px; height: 18px; accent-color: var(--accent); }
 @keyframes signin-rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .signin-card { animation: none; } .signin-submit, .signin-submit svg, .signin-field { transition: none; } }
 @media (max-width: 480px) { .signin-card { padding: 30px 22px 24px; gap: 20px; } .signin-heading h1 { font-size: 40px; } }
