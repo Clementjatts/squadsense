@@ -7,9 +7,10 @@ what the backtest (squadsense/backtest.py) found about it.
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from . import rules
+from .availability import match_availability, next_week_chance
 from .fixtures import LEAGUE_AVERAGE_GOALS
 
 # Weights below were checked with the backtest (python -m squadsense.backtest)
@@ -60,9 +61,13 @@ class PlayerRates:
     bonus_per_90: float
     saves_per_90: float
     defensive_contribution_rate: float
-    chance_60_minutes: float
+    chance_60_minutes: float  # for the next gameweek, after FPL's availability flag
     chance_under_60: float
     recent_points_per_match: float
+    # The same two chances for a fit player, before the flag. Later weeks
+    # scale these by availability.match_availability. None means use the above.
+    fit_chance_60: float | None = None
+    fit_chance_under_60: float | None = None
 
 
 def _as_float(value):
@@ -120,23 +125,25 @@ def starting_rates(position, past_seasons):
     }
 
 
-def playing_chances(player, history_rows):
-    """Chance of playing 60+ minutes and chance of a shorter appearance.
+def fit_playing_chances(history_rows):
+    """Chance of playing 60+ minutes and of a shorter appearance when fit.
 
-    Starts from his share of the last five matches, then scales by FPL's
-    own availability flag (75%, 50% and so on). No history means a new
-    signing, so we assume he's a squad player until he proves otherwise.
+    His share of the last five matches. No history means a new signing,
+    so we assume he's a squad player until he proves otherwise.
     """
-    availability = player.get("chance_of_playing_next_round")
-    availability = 1.0 if availability is None else availability / 100
-
     recent = history_rows[-RECENT_MATCHES:]
     if not recent:
-        return 0.5 * availability, 0.2 * availability
-
+        return 0.5, 0.2
     full_games = sum(1 for row in recent if row["minutes"] >= 60)
     short_games = sum(1 for row in recent if 0 < row["minutes"] < 60)
-    return availability * full_games / len(recent), availability * short_games / len(recent)
+    return full_games / len(recent), short_games / len(recent)
+
+
+def playing_chances(player, history_rows):
+    """The fit chances scaled by FPL's availability flag for the next gameweek (75%, 50% and so on)."""
+    availability = next_week_chance(player)
+    full, short = fit_playing_chances(history_rows)
+    return availability * full, availability * short
 
 
 def defensive_contribution_rate(position, history_rows):
@@ -177,6 +184,7 @@ def player_rates(player, history_rows, past_seasons=None):
         else 0.0
     )
     chance_60, chance_short = playing_chances(player, history_rows)
+    fit_60, fit_short = fit_playing_chances(history_rows)
 
     return PlayerRates(
         xg_per_90=_blend_with_prior(totals["xg"], weighted_minutes, prior["xg"]),
@@ -187,6 +195,8 @@ def player_rates(player, history_rows, past_seasons=None):
         chance_60_minutes=chance_60,
         chance_under_60=chance_short,
         recent_points_per_match=recent_points,
+        fit_chance_60=fit_60,
+        fit_chance_under_60=fit_short,
     )
 
 
@@ -243,15 +253,27 @@ def expected_points_for_match(position, team_id, rates, match, fixture_model):
     )
 
 
-def expected_points_for_week(player, rates, matches, fixture_model):
-    """xP for a whole gameweek: zero for a blank, both games for a double."""
-    model_points = sum(
-        expected_points_for_match(player["element_type"], player["team"], rates, match, fixture_model)
-        for match in matches
-    )
-    # Recent real points nudge the estimate to catch role changes the
-    # underlying stats miss, such as a new penalty taker.
-    availability = rates.chance_60_minutes + rates.chance_under_60
-    recent_points = rates.recent_points_per_match * availability * len(matches)
-    blended = (1 - RECENT_POINTS_WEIGHT) * model_points + RECENT_POINTS_WEIGHT * recent_points
-    return round(blended, 2)
+def rates_for_match(player, rates, match, later_week):
+    """The rates for one match: the next gameweek's as they are, later ones scaled by that match's availability."""
+    if not later_week or rates.fit_chance_60 is None:
+        return rates
+    availability = match_availability(player, match, later_week=True)
+    return replace(rates, chance_60_minutes=rates.fit_chance_60 * availability,
+                   chance_under_60=rates.fit_chance_under_60 * availability)
+
+
+def expected_points_for_week(player, rates, matches, fixture_model, later_week=False):
+    """xP for a whole gameweek: zero for a blank, both games for a double.
+
+    `later_week` is True for any gameweek after the next one, where FPL's
+    availability flag no longer applies (see availability.py).
+    """
+    total = 0.0
+    for match in matches:
+        match_rates = rates_for_match(player, rates, match, later_week)
+        model_points = expected_points_for_match(player["element_type"], player["team"], match_rates, match, fixture_model)
+        # Recent real points nudge the estimate to catch role changes the
+        # underlying stats miss, such as a new penalty taker.
+        recent_points = match_rates.recent_points_per_match * (match_rates.chance_60_minutes + match_rates.chance_under_60)
+        total += (1 - RECENT_POINTS_WEIGHT) * model_points + RECENT_POINTS_WEIGHT * recent_points
+    return round(total, 2)

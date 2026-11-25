@@ -79,7 +79,7 @@ def horizon_expected_points(bootstrap, fixtures, model_results, weeks):
         player["id"]: {
             week: expected_points_for_week(
                 player, model_results.rates_by_player[player["id"]], schedule[player["team"]].get(week, []),
-                model_results.fixture_model,
+                model_results.fixture_model, later_week=week != weeks[0],
             )
             for week in weeks
         }

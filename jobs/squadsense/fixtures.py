@@ -161,11 +161,12 @@ def fixtures_by_team_and_week(fixtures, first_week, last_week):
         week = fixture.get("event")
         if week is None or not first_week <= week <= last_week:
             continue  # unscheduled or outside the window
+        kickoff = fixture.get("kickoff_time")  # compared with return dates in availability.py
         schedule[fixture["team_h"]][week].append(
-            {"opponent": fixture["team_a"], "is_home": True, "fpl_difficulty": fixture["team_h_difficulty"]}
+            {"opponent": fixture["team_a"], "is_home": True, "fpl_difficulty": fixture["team_h_difficulty"], "kickoff": kickoff}
         )
         schedule[fixture["team_a"]][week].append(
-            {"opponent": fixture["team_h"], "is_home": False, "fpl_difficulty": fixture["team_a_difficulty"]}
+            {"opponent": fixture["team_h"], "is_home": False, "fpl_difficulty": fixture["team_a_difficulty"], "kickoff": kickoff}
         )
     return schedule
 

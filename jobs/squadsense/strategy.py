@@ -55,7 +55,7 @@ MAX_PLAN_AGE_HOURS = 12  # re-plan at least twice a day, so new matches and form
 SENSITIVITY_RUNS = 15
 SENSITIVITY_SECONDS = 30  # per run; these runs only check the transfers, chips stay as decided
 # Bump this whenever the strategy's rules change, so a saved plan made under old rules isn't reused.
-STRATEGY_VERSION = 7  # 7: plans carry every week's Free Hit squad
+STRATEGY_VERSION = 8  # 8: later weeks use availability by match (availability.py)
 
 
 def scaled(value, keep_share, note):

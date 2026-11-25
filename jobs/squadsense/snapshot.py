@@ -19,7 +19,7 @@ from .price_watch import add_price_timing, build_price_watch
 from .strategy import cached_plan_and_chips
 from .ticker import build_ticker
 
-MODEL_VERSION = "v2"  # v2: assist factor and forward bonus from the backtest
+MODEL_VERSION = "v3"  # v3: availability by match for weeks after the next; v2: assist factor and forward bonus
 PLANNING_WINDOW = 5
 CANDIDATES_IN_SNAPSHOT = 30  # per position, for the planner's search table
 
@@ -53,7 +53,8 @@ def run_model(bootstrap, fixtures, histories, first_week, pasts=None, market=Non
         rates = player_rates(player, histories.get(player["id"], []), pasts.get(player["id"]))
         rates_by_player[player["id"]] = rates
         expected_points[player["id"]] = {
-            week: expected_points_for_week(player, rates, schedule[player["team"]].get(week, []), fixture_model)
+            week: expected_points_for_week(player, rates, schedule[player["team"]].get(week, []), fixture_model,
+                                           later_week=week != first_week)
             for week in range(first_week, last_week + 1)
         }
 
