@@ -14,16 +14,23 @@ What they cover, mostly your own squad and plan:
 The plan is re-solved every sync and close calls flip often, so plan
 changes are only reported in the two briefs, never on their own.
 
-Each alert has a key, and keys already in `alerts_sent` are skipped, so
-nothing is sent twice however often the sync runs. The very first time
-alerts run, the injury and ban news that already exists is marked as
-sent without sending, so you aren't flooded with old news.
+Every team (the owner's and each member's) gets its own alerts. "FPL
+changed its rules" goes to the owner only.
 
-Email goes through Resend (RESEND_API_KEY, ALERT_EMAIL_TO and
-ALERT_EMAIL_FROM); phone and browser notifications go through web push
-(VAPID_PRIVATE_KEY and VAPID_SUBJECT) to every device you turned alerts
-on for. Without any of these settings, alerts are skipped with a note in
-the log, so local runs never send anything.
+Each alert has a key, stored as "{team id}:{key}", and keys already in
+`alerts_sent` are skipped, so nothing is sent twice however often the
+sync runs, and one team's alert never blocks another's. The very first
+time alerts run for a team, the injury and ban news that already exists
+is marked as sent without sending, so a new member isn't flooded with
+old news.
+
+Email goes through Resend (RESEND_API_KEY and ALERT_EMAIL_FROM) to the
+member's own address, unless they switched emails off in the bell menu
+(`members.emails`). Replies go to ALERT_EMAIL_TO, the owner's address.
+Phone and browser notifications go through web push (VAPID_PRIVATE_KEY
+and VAPID_SUBJECT) to the devices that turned alerts on for that team.
+Without any of these settings, alerts are skipped with a note in the
+log, so local runs never send anything.
 """
 
 import hashlib
@@ -69,7 +76,7 @@ class Channels:
     """Which ways of sending are set up, read from the environment."""
 
     resend_key: str | None = None
-    email_to: str | None = None
+    email_to: str | None = None  # the owner's address: replies go here, and so does the test alert
     email_from: str = DEFAULT_FROM
     vapid_private_key: str | None = None
     vapid_subject: str | None = None
@@ -85,7 +92,8 @@ class Channels:
         )
 
     def email_ready(self):
-        return bool(self.resend_key and self.email_to)
+        """True when Resend is set up; each team's own address comes from its member row."""
+        return bool(self.resend_key)
 
     def push_ready(self):
         return bool(self.vapid_private_key and self.vapid_subject)
@@ -236,28 +244,32 @@ def made_move_mismatch_alert(snapshot):
     ) for move in snapshot.get("madeMoveMismatches") or []]
 
 
-def collect(snapshot, now, storage):
-    """Every alert the snapshot calls for right now (before checking what was already sent)."""
+def collect(snapshot, now, storage, is_owner):
+    """Every alert the snapshot calls for right now (before checking what was already sent).
+
+    The rules alert is about the app itself, so only the owner gets it.
+    """
     return (
         plan_brief_alert(snapshot, now, storage) + final_call_alert(snapshot, now, storage)
         + price_drop_alert(snapshot, now) + watch_rise_alert(snapshot, now, storage.load_watchlist(team_id(snapshot)))
         + injury_alerts(snapshot) + ban_alerts(snapshot)
-        + rule_change_alert(snapshot) + made_move_mismatch_alert(snapshot)
+        + (rule_change_alert(snapshot) if is_owner else []) + made_move_mismatch_alert(snapshot)
     )
 
 
-def send_email(channels, alert, client, site_url, sent_at):
-    """Sends one alert by email through Resend, as HTML with a plain-text copy.
+def send_email(channels, alert, client, site_url, sent_at, to):
+    """Sends one alert by email through Resend to `to`, as HTML with a plain-text copy.
 
-    Replies go to your own address. Returns True if Resend accepted it. A
-    failure is logged, not raised, so a mail problem never stops the sync.
+    Replies go to the owner's address (or `to` when none is set). Returns
+    True if Resend accepted it. A failure is logged, not raised, so a mail
+    problem never stops the sync.
     """
     html, text = render_email(alert, site_url, sent_at)
     try:
         response = client.post(
             RESEND_URL,
             headers={"Authorization": f"Bearer {channels.resend_key}"},
-            json={"from": channels.email_from, "to": [channels.email_to], "reply_to": channels.email_to,
+            json={"from": channels.email_from, "to": [to], "reply_to": channels.email_to or to,
                   "subject": f"SquadSense: {alert.title}", "html": html, "text": text},
         )
     except httpx.HTTPError as error:
@@ -269,13 +281,16 @@ def send_email(channels, alert, client, site_url, sent_at):
     return True
 
 
-def send_push(channels, alert, storage, site_url):
-    """Sends one alert to every subscribed device. Returns True if at least one accepted it."""
+def send_push(channels, alert, storage, site_url, team):
+    """Sends one alert to every device subscribed for `team` (every device when it's None).
+
+    Returns True if at least one device accepted it.
+    """
     from pywebpush import WebPushException, webpush
 
     delivered = False
     payload = json.dumps({"title": alert.title, "body": alert.body, "url": f"{site_url}{alert.path}" if site_url else alert.path})
-    for subscription in storage.load_push_subscriptions():
+    for subscription in storage.load_push_subscriptions(team):
         try:
             webpush(subscription, payload, vapid_private_key=channels.vapid_private_key, vapid_claims={"sub": channels.vapid_subject})
             delivered = True
@@ -290,26 +305,45 @@ def send_push(channels, alert, storage, site_url):
     return delivered
 
 
-def run_alerts(storage, snapshot, channels=None, client=None, now=None):
-    """Checks every alert, sends the new ones and records them. Returns the titles sent."""
+def team_key(team, key):
+    """An alert key as stored in `alerts_sent`: the team id, a colon, then the key ("11304359:brief-12")."""
+    return f"{team}:{key}"
+
+
+def email_address(channels, member):
+    """Where this member's alert emails go, or None when Resend isn't set up or they switched emails off."""
+    if channels.email_ready() and member.get("emails") and member.get("email"):
+        return member["email"]
+    return None
+
+
+def run_alerts(storage, snapshot, member, channels=None, client=None, now=None):
+    """Checks every alert for one member's team, sends the new ones and records them. Returns the titles sent.
+
+    `member` is a row from storage.load_members(): its team id keys the
+    alerts and picks the push devices, and its email and `emails` switch
+    decide whether email goes out.
+    """
     channels = channels or Channels.from_environment()
-    if not channels.email_ready() and not channels.push_ready():
-        log.info("Alerts not set up (no Resend or web push settings), so nothing is sent")
+    team = member["teamId"]
+    to = email_address(channels, member)
+    if not to and not channels.push_ready():
+        log.info("Team %d: no alert email address or web push settings, so nothing is sent", team)
         return []
     now = now or datetime.now(timezone.utc)
-    first_run = not storage.alert_was_sent(PRIMED_KEY)
+    first_run = not storage.alert_was_sent(team_key(team, PRIMED_KEY))
     client = client or httpx.Client(timeout=20)
     site_url = os.environ.get("SITE_URL", "").rstrip("/")
     sent = []
-    for alert in collect(snapshot, now, storage):
-        new_keys = [key for key in alert.keys if not storage.alert_was_sent(key)]
+    for alert in collect(snapshot, now, storage, member["role"] == "owner"):
+        new_keys = [team_key(team, key) for key in alert.keys if not storage.alert_was_sent(team_key(team, key))]
         if not new_keys:
             continue
         if first_run and alert.silent_on_first_run:
             storage.mark_alerts_sent(new_keys)  # existing news when alerts were first switched on
             continue
-        delivered = (channels.email_ready() and send_email(channels, alert, client, site_url, now)) | (
-            channels.push_ready() and send_push(channels, alert, storage, site_url)
+        delivered = (bool(to) and send_email(channels, alert, client, site_url, now, to)) | (
+            channels.push_ready() and send_push(channels, alert, storage, site_url, team)
         )
         if delivered:
             storage.mark_alerts_sent(new_keys)
@@ -317,27 +351,36 @@ def run_alerts(storage, snapshot, channels=None, client=None, now=None):
                 alert.after_send()
             sent.append(alert.title)
     if first_run:
-        storage.mark_alerts_sent([PRIMED_KEY])
-    log.info("Alerts sent: %s", ", ".join(sent) or "none")
+        storage.mark_alerts_sent([team_key(team, PRIMED_KEY)])
+    log.info("Team %d alerts sent: %s", team, ", ".join(sent) or "none")
     return sent
+
+
+def owner_team_id(storage):
+    """The owner's team id from storage.load_members(), or None when no owner is known."""
+    return next((member["teamId"] for member in storage.load_members() if member["role"] == "owner"), None)
 
 
 def send_test_alert(storage, channels=None, client=None):
     """Sends one test message by email and push, to check the settings work.
 
-    Uses the same send functions as real alerts but records nothing, so it
-    can be run any number of times. Returns {"email": ..., "push": ...},
-    each True (accepted), False (failed, reason in the log) or None (not set up).
+    Email goes to ALERT_EMAIL_TO and push to the owner's devices, so
+    members never get it. Uses the same send functions as real alerts but
+    records nothing, so it can be run any number of times. Returns
+    {"email": ..., "push": ...}, each True (accepted), False (failed,
+    reason in the log) or None (not set up).
     """
     channels = channels or Channels.from_environment()
     client = client or httpx.Client(timeout=20)
     site_url = os.environ.get("SITE_URL", "").rstrip("/")
+    owner = owner_team_id(storage)
     alert = Alert([], "Test alert", "Alerts are working. Real ones arrive like this one.", "/")
+    email_on = channels.email_ready() and channels.email_to
     results = {
-        "email": send_email(channels, alert, client, site_url, datetime.now(timezone.utc)) if channels.email_ready() else None,
-        "push": send_push(channels, alert, storage, site_url) if channels.push_ready() else None,
+        "email": send_email(channels, alert, client, site_url, datetime.now(timezone.utc), channels.email_to) if email_on else None,
+        "push": send_push(channels, alert, storage, site_url, owner) if channels.push_ready() else None,
     }
-    if channels.push_ready() and not results["push"] and not storage.load_push_subscriptions():
+    if channels.push_ready() and not results["push"] and not storage.load_push_subscriptions(owner):
         log.warning("No devices have alerts turned on yet: tap the bell on the website first")
     return results
 

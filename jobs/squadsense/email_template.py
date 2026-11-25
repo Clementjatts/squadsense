@@ -32,6 +32,9 @@ def footer_line(sent_at):
     return f"Sent by SquadSense after the {sent_at.astimezone(UK):%H:%M} UK sync."
 
 
+EMAILS_OFF_LINE = "To stop these emails, turn alert emails off in the bell menu on the website."
+
+
 def page_link(site_url, path):
     """The full link to the alert's page, or the bare path when no site address is set."""
     return f"{site_url}{path}" if site_url else path
@@ -87,7 +90,8 @@ def render_html(alert, link, sent_at):
 <p style="margin:22px 0 0"><a href="{escape(link)}" style="display:inline-block;background:{LIME};color:{NAVY};text-decoration:none;font-weight:700;font-size:14px;padding:11px 18px;border-radius:6px">{button}</a></p>
 </td></tr>
 <tr><td style="padding:14px 4px 0;color:{MUTED};font-size:12px;line-height:1.5">
-{escape(footer_line(sent_at))} You get these because alerts are on for your FPL team. Times are UK time.
+{escape(footer_line(sent_at))} You get these because alerts are on for your FPL team. Times are UK time.<br>
+{escape(EMAILS_OFF_LINE)}
 </td></tr>
 </table></td></tr></table>
 </body></html>"""
@@ -99,7 +103,7 @@ def render_text(alert, link, sent_at):
     lines += [f"{row.label}: {row.value}" + (f" [{row.tag}]" if row.tag else "") for row in alert.rows]
     if alert.note:
         lines += ["", alert.note]
-    lines += ["", f"{PAGE_NAMES.get(alert.path, 'Open SquadSense')}: {link}", "", footer_line(sent_at)]
+    lines += ["", f"{PAGE_NAMES.get(alert.path, 'Open SquadSense')}: {link}", "", footer_line(sent_at), EMAILS_OFF_LINE]
     return "\n".join(lines)
 
 

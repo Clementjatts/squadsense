@@ -62,5 +62,5 @@ def test_collect_reads_the_watchlist_from_storage(tmp_path):
     snapshot = {**watch_snapshot(), "team": {"id": 7}, "gameweek": 12, "deadline": "2026-12-05T11:00:00Z",
                 "flags": [], "solverPlan": None}
     snapshot["priceWatch"]["atRisk"] = []
-    titles = [alert.title for alert in collect(snapshot, NIGHT, storage)]
+    titles = [alert.title for alert in collect(snapshot, NIGHT, storage, is_owner=True)]
     assert "Watched player likely to rise tonight" in titles

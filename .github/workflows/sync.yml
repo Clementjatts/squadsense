@@ -8,6 +8,10 @@
 # The repository is public (since 24 November 2026), so Actions minutes are
 # free and unlimited. The schedule is 12 runs a day plus a nightly refresh
 # that only downloads players whose club played in the last 36 hours.
+#
+# Member teams (db/member-accounts.sql): a regular run syncs the owner's
+# team, then starts one run per member with the `team` input, so every
+# member's team runs on its own runner at the same time.
 
 name: Sync FPL data
 
@@ -26,11 +30,17 @@ on:
         description: "Only send a test email and phone alert (skips the sync)"
         type: boolean
         default: false
+      team:
+        description: "Only sync this member's FPL team ID, on the data the last regular run saved (empty: every team)"
+        type: string
+        default: ""
 
-# A run that starts while another is going waits for it, so two syncs
-# never write at once.
+# A regular run that starts while another is going waits for it, and so
+# does a second run for the same member. A member's run has its own group,
+# so it doesn't wait behind a long regular sync; it only writes that
+# team's rows.
 concurrency:
-  group: sync
+  group: sync-${{ inputs.team || 'all' }}
   cancel-in-progress: false
 
 jobs:
@@ -62,9 +72,12 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           SITE_URL: ${{ secrets.SITE_URL }}
+          TEAM: ${{ inputs.team }}
         run: |
           if [ "${{ inputs.test_alert }}" = "true" ]; then
             python -m squadsense.alerts --test
+          elif [ -n "$TEAM" ]; then
+            python -m squadsense.sync --member-team "$TEAM"
           elif [ "${{ inputs.full }}" = "true" ]; then
             python -m squadsense.sync --full
           else

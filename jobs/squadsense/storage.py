@@ -6,12 +6,83 @@ before Supabase is set up; Postgres is what the scheduled job uses.
 """
 
 import json
-from datetime import datetime, timezone
+import logging
+import os
+import re
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+log = logging.getLogger("squadsense.storage")
+
+# The nightly clean-up (prune_cache) deletes cache rows nothing reads any more.
+GAMEWEEKS_KEPT = 3  # per-gameweek rows more than this many weeks behind the current one go
+PRICE_PREDICTION_DAYS_KEPT = 30  # price_audit.py only compares each day with the next
+WEEKLY_NAME = re.compile(r"^(picks|history|strategy|brief|forecast)/(\d+)/(\d+)$")
+OWN_TEAM_PREFIXES = ("picks", "forecast")  # a member's own rows feed the season review, so they stay
+PRICE_DAY_NAME = re.compile(r"^price_predictions/(\d{4}-\d{2}-\d{2})$")
+PRUNABLE_PATTERNS = ["picks/%", "history/%", "strategy/%", "brief/%", "forecast/%", "price_predictions/%"]
 
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+def owner_from_settings(fallback_team_id=None):
+    """The one owner to sync when no member has signed up yet, from FPL_TEAM_ID and ALERT_EMAIL_TO.
+
+    An empty list when there's no team id either, so the caller can say
+    there's nothing to sync.
+    """
+    team_id = fallback_team_id or os.environ.get("FPL_TEAM_ID")
+    if not team_id:
+        return []
+    return [{"teamId": int(team_id), "name": None, "email": os.environ.get("ALERT_EMAIL_TO") or None, "role": "owner", "emails": True}]
+
+
+def active_members_owner_first(rows, fallback_team_id=None):
+    """Active member rows in the sync's shape, owner first, or the owner from the settings if there are none."""
+    members = [
+        {"teamId": row["teamId"], "name": row.get("name"), "email": row.get("email"), "role": row.get("role", "member"),
+         "emails": row.get("emails", True)}
+        for row in rows if row.get("active", True)
+    ]
+    members.sort(key=lambda member: member["role"] != "owner")
+    return members or owner_from_settings(fallback_team_id)
+
+
+def is_prunable(name, current_gameweek, today, keep_team_ids):
+    """True for a cache name nothing reads any more (see GAMEWEEKS_KEPT and PRICE_PREDICTION_DAYS_KEPT)."""
+    weekly = WEEKLY_NAME.match(name)
+    if weekly:
+        prefix, team_or_entry, gameweek = weekly.group(1), int(weekly.group(2)), int(weekly.group(3))
+        if prefix in OWN_TEAM_PREFIXES and team_or_entry in keep_team_ids:
+            return False
+        return gameweek < current_gameweek - GAMEWEEKS_KEPT
+    price_day = PRICE_DAY_NAME.match(name)
+    if price_day:
+        return date.fromisoformat(price_day.group(1)) < today - timedelta(days=PRICE_PREDICTION_DAYS_KEPT)
+    return False
+
+
+def cache_names_to_prune(names, current_gameweek, today, keep_team_ids=()):
+    """The cache names from `names` that the nightly clean-up deletes.
+
+    Rivals' picks and histories, plans (strategy), briefs and forecasts are
+    keyed by gameweek, and only recent weeks are read. Price predictions
+    are keyed by day. A member's own picks and forecasts are kept, since
+    the season review reads every week since their team started.
+    """
+    keep = set(keep_team_ids)
+    return [name for name in names if is_prunable(name, current_gameweek, today, keep)]
+
+
+def raw_name_from_file(stem):
+    """The cache name a FileStorage file was saved under ("raw_picks_1001_12" is "picks/1001/12").
+
+    Saving turns "/" into "_", so names are rebuilt by turning them back;
+    "price_predictions" is the one prunable name that has a "_" of its own.
+    """
+    return stem.removeprefix("raw_").replace("_", "/").replace("price/predictions/", "price_predictions/", 1)
 
 
 class FileStorage:
@@ -42,6 +113,24 @@ class FileStorage:
     def _raw_path(self, name):
         return self.folder / f"raw_{name.replace('/', '_')}.json"
 
+    def prune_cache(self, current_gameweek, today, keep_team_ids=()):
+        """Deletes saved responses nothing reads any more (see cache_names_to_prune). Returns how many went."""
+        files = {raw_name_from_file(path.stem): path for path in self.folder.glob("raw_*.json")}
+        gone = cache_names_to_prune(files, current_gameweek, today, keep_team_ids)
+        for name in gone:
+            files[name].unlink()
+        return len(gone)
+
+    def load_members(self, fallback_team_id=None):
+        """Active members, owner first. Locally they're read from members.json, if you add one."""
+        path = self.folder / "members.json"
+        rows = json.loads(path.read_text()) if path.exists() else []
+        return active_members_owner_first(rows, fallback_team_id)
+
+    def start_team_sync(self, team_id):
+        """Member runs need the hosted setup, so a local run only notes that it skipped one."""
+        log.info("Team %d not synced: member runs only happen with Supabase", team_id)
+
     def save_player_history(self, player_id, rows):
         self._write(self.folder / "history" / f"{player_id}.json", rows)
 
@@ -63,7 +152,7 @@ class FileStorage:
     def mark_alerts_sent(self, keys):
         self.save_raw("alerts-sent", sorted(set(self.load_raw("alerts-sent") or []) | set(keys)))
 
-    def load_push_subscriptions(self):
+    def load_push_subscriptions(self, team_id=None):
         """Devices that turned alerts on. Only the hosted site saves these, so locally there are none."""
         return []
 
@@ -209,10 +298,41 @@ class PostgresStorage:
         with self.connection.cursor() as cursor:
             cursor.executemany("insert into alerts_sent (alert_key) values (%s) on conflict do nothing", [(key,) for key in keys])
 
-    def load_push_subscriptions(self):
+    def load_push_subscriptions(self, team_id=None):
+        """Devices that turned alerts on for one team, or every device when `team_id` is None."""
         with self.connection.cursor() as cursor:
-            cursor.execute("select subscription from push_subscriptions")
+            if team_id is None:
+                cursor.execute("select subscription from push_subscriptions")
+            else:
+                cursor.execute("select subscription from push_subscriptions where team_id = %s", (team_id,))
             return [row[0] for row in cursor.fetchall()]
+
+    def load_members(self, fallback_team_id=None):
+        """Active members from the members table, owner first, or the owner from the settings if it's empty."""
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """select team_id, name, email, role, emails from members
+                   where active order by role = 'owner' desc, created_at"""
+            )
+            rows = cursor.fetchall()
+        return active_members_owner_first(
+            [{"teamId": row[0], "name": row[1], "email": row[2], "role": row[3], "emails": row[4]} for row in rows],
+            fallback_team_id,
+        )
+
+    def start_team_sync(self, team_id):
+        """Asks for a separate sync of one team, through start_sync in db/member-accounts.sql."""
+        self._execute("select public.start_sync(false, %s)", (team_id,))
+
+    def prune_cache(self, current_gameweek, today, keep_team_ids=()):
+        """Deletes cache rows nothing reads any more (see cache_names_to_prune) in one statement. Returns how many went."""
+        with self.connection.cursor() as cursor:
+            cursor.execute("select path from api_cache where path like any(%s)", (PRUNABLE_PATTERNS,))
+            names = [row[0] for row in cursor.fetchall()]
+        gone = cache_names_to_prune(names, current_gameweek, today, keep_team_ids)
+        if gone:
+            self._execute("delete from api_cache where path = any(%s)", (gone,))
+        return len(gone)
 
     def delete_push_subscription(self, endpoint):
         self._execute("delete from push_subscriptions where endpoint = %s", (endpoint,))
