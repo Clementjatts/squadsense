@@ -15,7 +15,9 @@ the real points his lineup got. The managers (MANAGERS) are:
   (planner.suggest_transfers, the older advice)
 - hold: never transfers, never plays a chip
 
-By default the first five run; --managers picks others.
+By default the first five run; --managers picks others. --double-weight
+sets strategy.DOUBLE_WEIGHT for the run, and doubles only count as known
+DOUBLE_NOTICE_WEEKS ahead (see chip_backtest.py).
 
 All four start each half from the same model-picked squad (nobody's real
 past squads are available) with one free transfer. Real points use the
@@ -35,7 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import rules, strategy, transfer_solver
-from .chip_backtest import HALVES, SeasonForecaster, starting_squad
+from .chip_backtest import DOUBLE_NOTICE_WEEKS, HALVES, SeasonForecaster, starting_squad
 from .fixtures import fixtures_by_team_and_week
 from .model import player_rates
 from .past_seasons import load_season
@@ -225,6 +227,7 @@ def main():
     parser.add_argument("--past-folder", default=".data/past")
     parser.add_argument("--season", help="Only this season's folder, e.g. 2023-24")
     parser.add_argument("--managers", default=",".join(DEFAULT_MANAGERS), help=f"Comma-separated, from: {', '.join(MANAGERS)}")
+    parser.add_argument("--double-weight", type=float, default=strategy.DOUBLE_WEIGHT, help="strategy.DOUBLE_WEIGHT for this run")
     args = parser.parse_args()
     names = args.managers.split(",")
     unknown = [name for name in names if name not in MANAGERS]
@@ -233,6 +236,8 @@ def main():
     # Faster settings than the live app: the backtest solves hundreds of plans.
     transfer_solver.SOLVER_SECONDS, transfer_solver.SOLVER_GAP = 60, 0.005
     strategy.SENSITIVITY_RUNS = 0  # the noisy re-solves only explain moves on the website
+    strategy.DOUBLE_WEIGHT = args.double_weight
+    strategy.DOUBLE_NOTICE_WEEKS = DOUBLE_NOTICE_WEEKS  # past fixture files show every double from the start
 
     results = {}
     for folder in sorted(Path(args.past_folder).iterdir()):

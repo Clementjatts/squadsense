@@ -107,6 +107,56 @@ What it showed:
 - Both beat a random week, but neither beat "first double gameweek" (14.0 and 17.7). The Chips page says so, and a known double deserves extra weight.
 - Six half-seasons is a small sample, and the kept squad is a stand-in for a real one, which changes every week. Treat these as direction, not precision.
 
+## Double gameweeks in chip timing (25 November 2026)
+
+The chip timing table above showed "first double" beating the planner for both chips. So `strategy.py` got `DOUBLE_WEIGHT`: when the rest of the half after the five-week plan has a known double for your squad (anyone in the squad plays twice for Bench Boost, that week's captain for Triple Captain), that first double week counts `DOUBLE_WEIGHT` times in the chip's keep value. Playing the chip earlier then needs a clearly better week. Wildcard and Free Hit don't change, and with no known double nothing changes at all.
+
+Past fixture files already hold every double from the start of the season, but in real life a double is only announced some weeks ahead. So the backtests treat a double as known only from `DOUBLE_NOTICE_WEEKS` (6) weeks before it. The live app leaves this off, since a double is only in FPL's fixture list once it has been announced.
+
+`python -m squadsense.chip_backtest --double-weights 1.0,1.2,1.4,1.6` adds a "double xW" column per weight: the planner with the first known double after the five-week plan counted W times. The planner column differs from the table above because the model has changed since 21 November (for example availability by match).
+
+```
+Triple Captain: real points the chip added
+half                  planner   first double    double x1.0    double x1.2    double x1.4    double x1.6
+2022-23 4-19              9.0            9.0            9.0            9.0            9.0            9.0
+2022-23 20-38            10.0            8.0           10.0           11.0           11.0           11.0
+2023-24 4-19             10.0           10.0           10.0           10.0           10.0           10.0
+2023-24 20-38             7.0            7.0            7.0            7.0            7.0            7.0
+2024-25 4-19             13.0           13.0           13.0           13.0           13.0           13.0
+2024-25 20-38            20.0           29.0           20.0           20.0           20.0           20.0
+average                  11.5           12.7           11.5           11.7           11.7           11.7
+
+Bench Boost: real points the chip added
+half                  planner   first double    double x1.0    double x1.2    double x1.4    double x1.6
+2022-23 4-19             24.0           24.0           24.0           24.0           24.0           24.0
+2022-23 20-38            18.0           18.0           18.0           18.0           18.0           18.0
+2023-24 4-19              8.0           20.0            8.0            8.0            8.0            8.0
+2023-24 20-38             3.0           16.0            3.0           22.0           22.0           22.0
+2024-25 4-19             12.0           23.0           12.0           12.0           12.0           12.0
+2024-25 20-38            10.0            5.0           10.0           10.0           10.0           10.0
+average                  12.5           17.7           12.5           15.7           15.7           15.7
+```
+
+1.2, 1.4 and 1.6 gave the same weeks, so 1.2 (the smallest change) went on to the full replay. `python -m squadsense.plan_backtest --managers strategy --double-weight W` replays each half with the full strategy, transfers and all:
+
+```
+Real points per half, after hits
+half             weight 1.0   weight 1.2
+2022-23 4-19            970          970
+2022-23 20-38          1307         1272
+2023-24 4-19            930          930
+2023-24 20-38          1332         1273
+2024-25 4-19            979          979
+2024-25 20-38          1132         1138
+average              1108.3       1093.7
+```
+
+What it showed:
+
+- In the chip-only test the weight helped Bench Boost in one half (3 to 22 points) and Triple Captain by 1 point in another. Every other half was unchanged.
+- In the full replay the weight cost 14.6 real points per half. It changed only the three second halves, where doubles sit far enough ahead to matter. In 2022-23 Bench Boost moved to GW29 (GW20 without the weight) and hits rose to 32 (20 without). In 2023-24 hits rose to 44 (40 without) and the score fell 59 points. The weight changes the keep values the transfer solver plans against, so it moves transfers as well as chips, and here those moves cost more than the better chip weeks earned.
+- So `DOUBLE_WEIGHT` stays at 1.0, and live behavior is unchanged. The setting and the `--double-weight` option stay so this can be retested once more seasons are downloaded. Six halves is a small sample, and three of them didn't move at all.
+
 ## Ideas from GitHub (21 November 2026)
 
 Each idea below was tested on the three downloaded seasons (2022-23 to 2024-25, "past") and on 2026-27 GW4-10 ("now"). Numbers are top20 and captain real points, as above.
