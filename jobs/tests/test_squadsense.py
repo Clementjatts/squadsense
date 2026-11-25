@@ -665,6 +665,9 @@ def alert_snapshot(**overrides):
     return snapshot
 
 
+OWNER = {"teamId": TEAM_ID, "name": None, "email": "me@example.com", "role": "owner", "emails": True}  # who run_alerts sends to
+
+
 class FakeResend:
     """Stands in for httpx.Client: records every email instead of sending it."""
 
@@ -730,12 +733,12 @@ def test_alerts_send_once_and_skip_old_news_on_the_first_run(tmp_path):
     channels = Channels(resend_key="test", email_to="me@example.com")
     resend = FakeResend()
     now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
-    first = run_alerts(storage, alert_snapshot(), channels, resend, now)
+    first = run_alerts(storage, alert_snapshot(), OWNER, channels, resend, now)
     # First run: the price drop goes out, but existing injury and ban news is only recorded.
     assert first == ["Price drop likely tonight"]
-    assert run_alerts(storage, alert_snapshot(), channels, resend, now) == []  # nothing twice
+    assert run_alerts(storage, alert_snapshot(), OWNER, channels, resend, now) == []  # nothing twice
     newer = alert_snapshot(players={**alert_snapshot()["players"], "1": {"name": "Haaland", "news": "Hamstring - 50% chance of playing", "yellowCards": 4}})
-    assert run_alerts(storage, newer, channels, resend, now) == ["Haaland: injury news"]
+    assert run_alerts(storage, newer, OWNER, channels, resend, now) == ["Haaland: injury news"]
     assert len(resend.sent) == 2 and resend.sent[0]["to"] == ["me@example.com"]
 
 
@@ -755,7 +758,7 @@ def test_no_alert_settings_means_nothing_is_sent(tmp_path):
     from squadsense.alerts import Channels, run_alerts
     from squadsense.storage import FileStorage
     now = datetime(2026, 11, 27, 22, 15, tzinfo=timezone.utc)
-    assert run_alerts(FileStorage(tmp_path), alert_snapshot(), Channels(), FakeResend(), now) == []
+    assert run_alerts(FileStorage(tmp_path), alert_snapshot(), OWNER, Channels(), FakeResend(), now) == []
 
 
 class FakeLeagueClient:

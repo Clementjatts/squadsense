@@ -1,14 +1,21 @@
-"""The scheduled job: fetch FPL data, run the model, save a snapshot.
+"""The scheduled job: fetch FPL data, run the model, save a snapshot per team.
 
 Run it from the jobs/ folder:
 
     python -m squadsense.sync --team-id 11304359
     python -m squadsense.sync --team-id 11304359 --full
+    python -m squadsense.sync --member-team 2222
+
+A regular run does the shared work once (FPL's data, prices, player
+histories, odds and the model), then the owner's team, then asks for a
+separate run for each member's team. A `--member-team` run syncs only
+that team, on the shared data the last regular run saved.
 
 Without DATABASE_URL set, everything goes to jobs/.data/ as JSON files.
 """
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import logging
@@ -21,7 +28,7 @@ from .fpl_client import FplApiError, FplClient
 from .planner import best_lineup
 from .price_watch import predictions_record
 from .snapshot import MODEL_VERSION, SnapshotExtras, build_snapshot, run_model
-from .squad_builder import SquadBuilderError, pick_best_squad
+from .squad_builder import pick_best_squad
 from .squad_state import apply_made_moves, build_squad_state, marked_move_mismatches, model_squad_state
 from .storage import FileStorage, PostgresStorage
 
@@ -245,16 +252,51 @@ def market_expected_goals(storage, bootstrap, fixtures, first_week, odds_client=
     return market
 
 
-def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odds_client=None):
-    """Does one complete sync, then sends any new alerts. Split out from main() so tests can call it."""
-    run_started = datetime.now(timezone.utc)
-    client = client or FplClient()
-    storage = choose_storage(local_folder)
+class TeamSyncFailed(Exception):
+    """One or more teams couldn't be synced. The others carried on; `team_ids` lists the ones that failed."""
 
+    def __init__(self, team_ids):
+        super().__init__(f"Sync failed for team {', '.join(str(team) for team in team_ids)} (see the log above)")
+        self.team_ids = team_ids
+
+
+@dataclass
+class SharedData:
+    """Everything the teams share in one run: FPL's data, player histories and the model's results."""
+
+    bootstrap: dict
+    fixtures: list
+    rule_changes: list
+    histories: dict
+    model_results: object
+    current_week: int
+    next_week: int
+
+    @property
+    def players_by_id(self):
+        return {player["id"]: player for player in self.bootstrap["elements"]}
+
+
+@dataclass
+class TeamStart:
+    """A team's FPL entry and the picks to plan with (None while its squad is hidden)."""
+
+    team_entry: dict
+    is_public: bool
+    picks: dict | None
+
+    @property
+    def squad_ids(self):
+        return [pick["element"] for pick in self.picks["picks"]] if self.picks else []
+
+
+def download_shared(client, storage, run_started):
+    """Downloads FPL's data and saves it with the day's prices. Returns (bootstrap, fixtures, rule changes).
+
+    Only regular runs do this; one-team runs read what it saved.
+    """
     bootstrap = client.bootstrap()
-    rule_changes = rules.apply_fpl_settings(bootstrap)
-    for difference in rule_changes:
-        log.warning("FPL changed a rule: %s", difference)
+    rule_changes = apply_rules(bootstrap)
     fixtures = client.fixtures()
     storage.save_raw("bootstrap-static", bootstrap)
     storage.save_raw("fixtures", fixtures)
@@ -263,82 +305,211 @@ def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odd
     # run before 00:00 is what price_audit.py checks against the next day.
     record = predictions_record(bootstrap, run_started)
     storage.save_raw(f"price_predictions/{record['day']}", record)
+    return bootstrap, fixtures, rule_changes
 
+
+def apply_rules(bootstrap):
+    """Uses FPL's published rules for this run and logs any that differ from the typed-in ones."""
+    rule_changes = rules.apply_fpl_settings(bootstrap)
+    for difference in rule_changes:
+        log.warning("FPL changed a rule: %s", difference)
+    return rule_changes
+
+
+def refresh_shared_histories(client, storage, bootstrap, fixtures, priority_ids, full_refresh):
+    """Downloads the player histories this run needs (see histories_to_fetch)."""
+    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), storage.load_player_pasts(), priority_ids, full_refresh, fixtures)
+    log.info("Refreshing %d player histories", len(to_fetch))
+    refresh_histories(client, storage, to_fetch)
+
+
+def build_shared(storage, bootstrap, fixtures, rule_changes, odds_client=None):
+    """Runs the model on the saved player histories. Every team in the run uses its results."""
     current_week, next_week = find_gameweeks(bootstrap)
+    histories = storage.load_player_histories()
+    market = market_expected_goals(storage, bootstrap, fixtures, next_week, odds_client)
+    model_results = run_model(bootstrap, fixtures, histories, next_week, storage.load_player_pasts(), market)
+    return SharedData(bootstrap, fixtures, rule_changes, histories, model_results, current_week, next_week)
+
+
+def load_shared(storage, odds_client=None):
+    """The shared data for a one-team run: FPL's data and histories as the last regular run saved them.
+
+    Nothing shared is downloaded again; the model is rerun on the saved data.
+    """
+    bootstrap = storage.load_raw("bootstrap-static")
+    fixtures = storage.load_raw("fixtures")
+    if bootstrap is None or fixtures is None:
+        raise SystemExit("No saved FPL data yet, so one team can't be synced on its own: run a regular sync first")
+    return build_shared(storage, bootstrap, fixtures, apply_rules(bootstrap), odds_client)
+
+
+def read_team_start(client, team_id, current_week):
+    """Reads a team's FPL entry and, once its squad is public, the picks to plan with."""
     team_entry = client.entry(team_id)
     is_public = squad_is_public(team_entry, current_week)
     picks = squad_picks(client, team_id, current_week, team_entry["started_event"]) if is_public else None
-    squad_ids = [pick["element"] for pick in picks["picks"]] if picks else []
+    return TeamStart(team_entry, is_public, picks)
 
-    to_fetch = histories_to_fetch(bootstrap, storage.load_player_histories(), storage.load_player_pasts(), squad_ids, full_refresh, fixtures)
-    log.info("Refreshing %d player histories", len(to_fetch))
-    refresh_histories(client, storage, to_fetch)
-    histories = storage.load_player_histories()
 
-    market = market_expected_goals(storage, bootstrap, fixtures, next_week, odds_client)
-    model_results = run_model(bootstrap, fixtures, histories, next_week, storage.load_player_pasts(), market)
-    expected_points = model_results.expected_points
-    players_by_id = {player["id"]: player for player in bootstrap["elements"]}
+def team_squad(client, storage, shared, team_id, start, entry_history):
+    """(squad state, moves marked done that were applied, marks missing from the real squad) for one team."""
+    players_by_id = shared.players_by_id
+    if not start.is_public:
+        return pick_model_squad(team_id, shared.next_week, shared.bootstrap, shared.model_results.expected_points, players_by_id), [], []
+    squad_state = read_real_squad(client, team_id, shared.next_week, start.picks, start.team_entry, entry_history, players_by_id, shared.histories)
+    squad_state, made_moves = apply_marked_moves(storage, squad_state, players_by_id)
+    mismatches = marked_move_mismatches(storage.load_made_moves(team_id, shared.current_week), start.squad_ids)
+    return squad_state, made_moves, mismatches
+
+
+def run_team(client, storage, shared, member, start=None, web_snapshot_path=None):
+    """Syncs one member's team on the shared data: squad, marks, plan, leagues, review, snapshot and alerts.
+
+    `start` is the team's entry and picks when the caller already read them.
+    SQUADSENSE_LEAGUES only narrows the owner's leagues; members get every
+    private league they're in. Returns the snapshot.
+    """
+    team_started = datetime.now(timezone.utc)
+    team_id = member["teamId"]
+    start = start or read_team_start(client, team_id, shared.current_week)
+    team_entry, is_public = start.team_entry, start.is_public
     entry_history = client.entry_history(team_id) if is_public else None
-    made_moves, mismatches = [], []
-    if is_public:
-        squad_state = read_real_squad(client, team_id, next_week, picks, team_entry, entry_history, players_by_id, histories)
-        squad_state, made_moves = apply_marked_moves(storage, squad_state, players_by_id)
-        mismatches = marked_move_mismatches(storage.load_made_moves(team_id, current_week), squad_ids)
-    else:
-        squad_state = pick_model_squad(team_id, next_week, bootstrap, expected_points, players_by_id)
+    squad_state, made_moves, mismatches = team_squad(client, storage, shared, team_id, start, entry_history)
 
-    league_data = leagues.fetch_leagues(client, storage, team_entry, current_week, leagues.league_ids_from_env())
-    picks_by_week, forecasts_by_week = review_inputs(client, storage, team_id, team_entry, bootstrap, is_public)
-    reviewed = review.last_finished_week(bootstrap)
+    chosen_leagues = leagues.league_ids_from_env() if member["role"] == "owner" else None
+    league_data = leagues.fetch_leagues(client, storage, team_entry, shared.current_week, chosen_leagues)
+    picks_by_week, forecasts_by_week = review_inputs(client, storage, team_id, team_entry, shared.bootstrap, is_public)
+    reviewed = review.last_finished_week(shared.bootstrap)
     reviewed_week = reviewed["id"] if reviewed else None
     snapshot = build_snapshot(
-        bootstrap, fixtures, histories, model_results, squad_state, team_entry,
+        shared.bootstrap, shared.fixtures, shared.histories, shared.model_results, squad_state, team_entry,
         extras=SnapshotExtras(
             league_data=league_data,
             review=review.build_review(
-                bootstrap, histories, entry_history, picks_by_week.get(reviewed_week), forecasts_by_week.get(reviewed_week),
+                shared.bootstrap, shared.histories, entry_history, picks_by_week.get(reviewed_week), forecasts_by_week.get(reviewed_week),
                 picks_by_week, forecasts_by_week,
             ),
-            live_picks=live_picks(storage, client, team_id, current_week, is_public, league_data, bootstrap),
+            live_picks=live_picks(storage, client, team_id, shared.current_week, is_public, league_data, shared.bootstrap),
             storage=storage,
         ),
     )
 
-    snapshot["ruleChanges"] = rule_changes
+    snapshot["ruleChanges"] = shared.rule_changes
     snapshot["madeMoves"] = made_moves
     snapshot["madeMoveMismatches"] = mismatches
     snapshot["changes"] = changes.update_feed(storage, team_id, snapshot)
-    lineup = snapshot["lineups"][str(next_week)]
-    review.save_forecast(storage, team_id, next_week, lineup, squad_state.player_ids, expected_points)
-    storage.save_predictions(expected_points, MODEL_VERSION)
-    storage.save_snapshot(team_id, next_week, snapshot)
-    alerts.run_alerts(storage, snapshot)
+    lineup = snapshot["lineups"][str(shared.next_week)]
+    review.save_forecast(storage, team_id, shared.next_week, lineup, squad_state.player_ids, shared.model_results.expected_points)
+    storage.save_snapshot(team_id, shared.next_week, snapshot)
+    alerts.run_alerts(storage, snapshot, member)
     if web_snapshot_path:
         Path(web_snapshot_path).write_text(json.dumps(snapshot, indent=1))
         log.info("Wrote website snapshot to %s", web_snapshot_path)
+    log.info("Team %d synced in %.0f seconds", team_id, (datetime.now(timezone.utc) - team_started).total_seconds())
+    return snapshot
+
+
+def attempt(team_id, step, failed, action):
+    """Runs one team's step. If it fails, logs the error with the team id, adds the team to `failed` and returns None.
+
+    One team's problem (an FPL error, a squad that can't be read) never
+    stops the others; the run still fails at the end (TeamSyncFailed).
+    """
+    try:
+        return action()
+    except Exception:
+        log.exception("Team %d: %s failed", team_id, step)
+        failed.append(team_id)
+        return None
+
+
+def split_owner(members):
+    """(the owner's member row or None, everyone else) from storage.load_members()."""
+    owner = next((member for member in members if member["role"] == "owner"), None)
+    return owner, [member for member in members if member is not owner]
+
+
+def run(team_id, full_refresh, local_folder, web_snapshot_path, client=None, odds_client=None):
+    """A regular sync: the shared work once, then the owner's team, then one separate run per member.
+
+    `team_id` is the owner's team when no member has signed up yet (see
+    storage.load_members). Members' teams run on their own GitHub runners,
+    asked for through storage.start_team_sync. A full refresh also clears
+    old cache rows. Returns the owner's snapshot, or raises TeamSyncFailed
+    at the end if any team failed. Split out from main() so tests can call it.
+    """
+    run_started = datetime.now(timezone.utc)
+    client = client or FplClient()
+    storage = choose_storage(local_folder)
+    members = storage.load_members(team_id)
+    if not members:
+        raise SystemExit("No teams to sync: no members have signed up and FPL_TEAM_ID isn't set")
+    owner, others = split_owner(members)
+    if owner is None:
+        log.warning("No member is the owner, so every team gets its own run")
+
+    bootstrap, fixtures, rule_changes = download_shared(client, storage, run_started)
+    current_week, _ = find_gameweeks(bootstrap)
+    failed = []
+    start = attempt(owner["teamId"], "reading the squad", failed, lambda: read_team_start(client, owner["teamId"], current_week)) if owner else None
+    refresh_shared_histories(client, storage, bootstrap, fixtures, start.squad_ids if start else [], full_refresh)
+    shared = build_shared(storage, bootstrap, fixtures, rule_changes, odds_client)
+    storage.save_predictions(shared.model_results.expected_points, MODEL_VERSION)
+
+    snapshot = attempt(owner["teamId"], "the sync", failed, lambda: run_team(client, storage, shared, owner, start, web_snapshot_path)) if start else None
+    for member in others:
+        attempt(member["teamId"], "starting its own run", failed, lambda: storage.start_team_sync(member["teamId"]))
+    if full_refresh:
+        pruned = storage.prune_cache(current_week, run_started.date(), [member["teamId"] for member in members])
+        log.info("Cleared %d old cache rows", pruned)
+    if failed:
+        raise TeamSyncFailed(failed)
+    return snapshot
+
+
+def run_member(team_id, local_folder, web_snapshot_path=None, client=None, odds_client=None):
+    """A one-team run (a new member's first sync, or after a Done on FPL mark).
+
+    Uses the shared data the last regular run saved, so it downloads only
+    this team's own data, and rewrites only this team's rows and per-key
+    cache entries. Returns the snapshot, or raises TeamSyncFailed.
+    """
+    client = client or FplClient()
+    storage = choose_storage(local_folder)
+    member = next((member for member in storage.load_members() if member["teamId"] == team_id), None)
+    if member is None:
+        log.error("Team %d isn't an active member, so it wasn't synced", team_id)
+        raise TeamSyncFailed([team_id])
+    shared = load_shared(storage, odds_client)
+    failed = []
+    snapshot = attempt(team_id, "the sync", failed, lambda: run_team(client, storage, shared, member, web_snapshot_path=web_snapshot_path))
+    if failed:
+        raise TeamSyncFailed(failed)
     return snapshot
 
 
 def main():
+    """Command line: a regular sync, or one team's with --member-team."""
     parser = argparse.ArgumentParser(description="Fetch FPL data and refresh SquadSense predictions.")
-    parser.add_argument("--team-id", type=int, default=os.environ.get("FPL_TEAM_ID"), help="Your FPL team ID")
+    parser.add_argument("--team-id", type=int, default=os.environ.get("FPL_TEAM_ID"), help="Your FPL team ID, used when no member has signed up")
+    parser.add_argument("--member-team", type=int, help="Sync only this team, on the shared data the last regular run saved")
     parser.add_argument("--full", action="store_true", help="Refresh every player's history (slow, ~13 min)")
     parser.add_argument("--local-folder", default=".data", help="Folder for local runs without Postgres")
     parser.add_argument("--web-snapshot", help="Also write the snapshot here, e.g. ../web/data/snapshot.json")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if not args.team_id:
-        parser.error("Give --team-id or set FPL_TEAM_ID")
-
     try:
-        run(int(args.team_id), args.full, args.local_folder, args.web_snapshot)
+        if args.member_team:
+            run_member(args.member_team, args.local_folder, args.web_snapshot)
+        else:
+            run(int(args.team_id) if args.team_id else None, args.full, args.local_folder, args.web_snapshot)
     except FplApiError as error:
         log.error("FPL API problem: %s", error)
         sys.exit(1)
-    except SquadBuilderError as error:
-        log.error("Couldn't pick a model squad: %s", error)
+    except TeamSyncFailed as error:
+        log.error("%s", error)
         sys.exit(1)
 
 
