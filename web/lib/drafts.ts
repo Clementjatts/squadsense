@@ -45,14 +45,18 @@ function keepWeeks<T>(record: Partial<Record<number, T>> | undefined, weeks: num
 
 /**
  * Fits a saved draft to today's snapshot. Weeks that have passed are
- * dropped, and so are moves naming a player the snapshot doesn't know.
+ * dropped, and so are moves naming a player the snapshot doesn't know
+ * and moves already marked "Done on FPL" (the sync has made them).
  * The Planner's own rules then report anything that no longer works (a
  * move selling someone you've since sold, for example).
  */
 export function draftForSnapshot(draft: Partial<PlannerDraft>, snapshot: Snapshot): PlannerDraft {
   const known = (id: number) => snapshot.players[String(id)] !== undefined;
+  // A move marked "Done on FPL" is already in the squad once the sync has run.
+  const made = new Set((snapshot.madeMoves ?? []).map((move) => `${move.gameweek}:${move.out}:${move.in}`));
+  const alreadyMade = (move: PlannedMove) => made.has(`${move.week}:${move.outId}:${move.inId}`);
   return {
-    moves: (draft.moves ?? []).filter((move) => snapshot.weeks.includes(move.week) && known(move.outId) && known(move.inId)),
+    moves: (draft.moves ?? []).filter((move) => snapshot.weeks.includes(move.week) && known(move.outId) && known(move.inId) && !alreadyMade(move)),
     chips: keepWeeks(draft.chips, snapshot.weeks),
     captains: keepWeeks(draft.captains, snapshot.weeks),
     lineups: keepWeeks<LineupChoice>(draft.lineups, snapshot.weeks),

@@ -155,8 +155,15 @@ def model_squad_state(team_id, next_gameweek, player_ids, lineup, players_by_id)
     )
 
 
-def mark_fits(state, move):
-    """True when the marked player out is in the squad and the player in isn't."""
+def mark_fits(state, move, players_by_id):
+    """True when the marked player out is in the squad, the player in isn't, and both play the same position.
+
+    The website checks marks before saving them; this is the backstop,
+    since any transfer can be marked, not only the plan's.
+    """
+    out, into = players_by_id.get(move["out"]), players_by_id.get(move["in"])
+    if out is None or into is None or out["element_type"] != into["element_type"]:
+        return False
     return move["out"] in state.player_ids and move["in"] not in state.player_ids
 
 
@@ -173,7 +180,7 @@ def apply_made_moves(state, moves, players_by_id):
     """
     applied, skipped = [], []
     for move in moves:
-        if not mark_fits(state, move):
+        if not mark_fits(state, move, players_by_id):
             skipped.append(move)
             continue
         out, into, price = move["out"], move["in"], move["priceIn"]

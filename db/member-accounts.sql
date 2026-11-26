@@ -107,9 +107,36 @@ as $$
     coalesce(content->>'footer', 'Sent by the SquadSense sync watchdog at ' || to_char(sent_at at time zone 'Europe/London', 'HH24:MI') || ' UK.'));
 $$;
 
+-- Reset emails sent, so they can be limited: one per address every 10
+-- minutes and 20 a day in all, which keeps Resend's free 100 emails a day
+-- for the deadline alerts. Rows older than two days are cleared as it goes.
+create table if not exists public.reset_emails (
+  address text not null,
+  sent_at timestamptz not null default now()
+);
+create index if not exists reset_emails_sent_at on public.reset_emails (sent_at);
+alter table public.reset_emails enable row level security;
+revoke all on public.reset_emails from anon, authenticated;
+
+-- True when a reset email to `address` at `at` would go over a limit.
+create or replace function public.reset_email_limited(address text, at timestamptz default now())
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.reset_emails r where r.address = lower(reset_email_limited.address) and r.sent_at > at - interval '10 minutes')
+      or (select count(*) from public.reset_emails r where r.sent_at > at - interval '24 hours') >= 20;
+$$;
+revoke all on function public.reset_email_limited(text, timestamptz) from public, anon, authenticated;
+grant execute on function public.reset_email_limited(text, timestamptz) to service_role;
+
 -- The password reset email. The website makes a one-time link with
 -- Supabase Auth and calls this, so the email comes from SquadSense's own
 -- address through Resend (key in Vault) rather than Supabase's mail server.
+-- Over a limit it sends nothing and says so in the database log; the page
+-- tells the visitor the same thing either way.
 create or replace function public.send_reset_email(email text, link text)
 returns void
 language plpgsql
@@ -131,6 +158,12 @@ begin
   if api_key is null or email_from is null then
     raise exception 'Password reset email not sent: resend_api_key or alert_email_from is missing from Supabase Vault';
   end if;
+  delete from public.reset_emails where sent_at < now() - interval '2 days';
+  if public.reset_email_limited(email) then
+    raise log 'Password reset email not sent: limit reached (one per address every 10 minutes, 20 a day)';
+    return;
+  end if;
+  insert into public.reset_emails (address) values (lower(email));
   perform net.http_post(
     url := 'https://api.resend.com/emails',
     headers := jsonb_build_object('Authorization', 'Bearer ' || api_key, 'Content-Type', 'application/json'),

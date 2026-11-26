@@ -96,3 +96,13 @@ check("a saved draft drops past weeks' chips and captains", fitted.chips[pastWee
 check("a saved draft keeps its lineups", fitted.lineups[week]?.captain === chosen.captain);
 check("an empty draft is recognized", isEmptyDraft(draftForSnapshot({}, snapshot)) && !isEmptyDraft(fitted));
 check("draft names are trimmed and shortened", cleanDraftName("   Roll   GW12   ") === "Roll GW12" && cleanDraftName("x".repeat(50)).length === 30 && cleanDraftName("   ") === "");
+
+// A move marked "Done on FPL" is in the squad once the sync has run, so a saved draft drops it.
+{
+  const out = snapshot.squad[0];
+  const into = Object.values(players).find((candidate) => candidate.position === position(out) && !snapshot.squad.includes(candidate.id))!.id;
+  const made: Snapshot = { ...snapshot, madeMoves: [{ gameweek: week, out, in: into, priceIn: players[String(into)].price }] };
+  const kept = { week: snapshot.weeks[1], outId: out, inId: into };
+  const restored = draftForSnapshot({ moves: [{ week, outId: out, inId: into }, kept] }, made);
+  check("a draft drops a move already made on FPL, and keeps the same move in a later week", restored.moves.length === 1 && restored.moves[0] === kept);
+}

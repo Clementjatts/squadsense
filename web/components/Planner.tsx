@@ -5,6 +5,7 @@
 // Nothing here talks to FPL: it's a sandbox for testing ideas. Phones hide
 // the pitch and use the "Pick who to sell" list (SellList) instead.
 
+import { MadeMoveButton } from "./MadeMoveButton";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
@@ -68,7 +69,8 @@ function freeHitMoves(squad: number[], freeHitSquad: number[], players: Record<s
 
 const OPTIONS_SHOWN = 12;
 
-export function Planner({ snapshot }: { snapshot: Snapshot }) {
+// `markedOuts`: players already marked "Done on FPL" as sold in the coming week (their moves show as made).
+export function Planner({ snapshot, markedOuts }: { snapshot: Snapshot; markedOuts: number[] }) {
   const { players, weeks } = snapshot;
   const [moves, setMoves] = useState<PlannedMove[]>([]);
   const [chips, setChips] = useState<PlannedChips>({});
@@ -394,6 +396,10 @@ export function Planner({ snapshot }: { snapshot: Snapshot }) {
                     <button type="button" className="btn" onClick={() => removeMove(move)}>
                       Undo
                     </button>
+                    {/* The coming week's moves can be marked as made on the FPL site, whoever suggested them. */}
+                    {selectedWeek === weeks[0] && (
+                      <MadeMoveButton gameweek={weeks[0]} out={move.outId} into={move.inId} marked={markedOuts.includes(move.outId)} />
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>

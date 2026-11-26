@@ -7,7 +7,9 @@ Run from the jobs/ folder with:  python -m pytest tests/test_made_moves.py
 from squadsense import alerts, briefs
 from squadsense.squad_state import SquadState, apply_made_moves, marked_move_mismatches
 
-PLAYERS = {1: {"now_cost": 60}, 2: {"now_cost": 50}, 3: {"now_cost": 80}, 4: {"now_cost": 45}, 5: {"now_cost": 55}}
+# Players 1 and 3 are midfielders (element_type 3), 2 and 4 defenders (2), 5 a forward (4).
+PLAYERS = {1: {"now_cost": 60, "element_type": 3}, 2: {"now_cost": 50, "element_type": 2}, 3: {"now_cost": 80, "element_type": 3},
+           4: {"now_cost": 45, "element_type": 2}, 5: {"now_cost": 55, "element_type": 4}}
 
 
 def squad(free_transfers=1):
@@ -40,6 +42,13 @@ def test_a_mark_that_does_not_fit_the_squad_is_skipped():
     assert applied == [] and skipped == marks
 
 
+def test_a_mark_swapping_positions_is_skipped():
+    # Any transfer can be marked now, so the sync checks positions too: a midfielder can't be replaced by a defender.
+    state, applied, skipped = apply_made_moves(squad(), [mark(1, 4, 45)], PLAYERS)
+    assert applied == [] and skipped == [mark(1, 4, 45)]
+    assert state.player_ids == [1, 2]
+
+
 def test_two_marks_use_two_transfers_but_never_below_zero():
     state, applied, _ = apply_made_moves(squad(), [mark(1, 3, 80), mark(2, 4, 45)], PLAYERS)
     assert state.player_ids == [3, 4]
@@ -53,7 +62,7 @@ def test_a_first_week_stays_unlimited():
 
 
 def test_a_bought_player_who_rose_since_sells_for_half_the_rise():
-    rising = {**PLAYERS, 3: {"now_cost": 82}}
+    rising = {**PLAYERS, 3: {"now_cost": 82, "element_type": 3}}
     state, _, _ = apply_made_moves(squad(), [mark(1, 3, 80)], rising)
     assert state.selling_prices[3] == 81
 
