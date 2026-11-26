@@ -3,6 +3,9 @@
 
 export type Position = "GK" | "DEF" | "MID" | "FWD";
 
+/** What the shared pitch (BroadcastPitch) needs from a player: your own players, or a rival's from FPL's picks. */
+export type PitchPlayer = Pick<Player, "id" | "name" | "team" | "position" | "xp"> & { setPieces?: Player["setPieces"] };
+
 export interface Player {
   id: number;
   name: string;

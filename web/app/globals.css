@@ -161,6 +161,16 @@ table.prices .right { text-align: right; }
 /* Player detail panel: a sheet sliding in from the right over a dimmed page. */
 .player-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .player-link:hover, .player-link:focus-visible { text-decoration: underline; color: var(--accent); }
+/* A rival's team (TeamPanel.tsx): the player panel's shell, wide enough for a back five. */
+.player-panel.team-panel { width: min(720px, 100%); }
+.player-panel.team-panel > * { flex-shrink: 0; } /* the panel scrolls rather than squashing the pitch */
+.team-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.team-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); min-width: 0; }
+.team-tile b { font-family: var(--condensed); font-size: 22px; line-height: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .team-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* A team name in the league table: looks like the name, opens the team. */
+.team-link { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.team-link:hover { text-decoration-color: var(--accent); }
 .panel-backdrop { position: fixed; inset: 0; background: rgba(5, 8, 15, 0.62); z-index: 40; }
 .player-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(500px, 100%); background: var(--surface); border-left: 1px solid var(--line); padding: 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; z-index: 50; }
 .panel-head { display: flex; align-items: flex-start; gap: 12px; }

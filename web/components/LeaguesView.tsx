@@ -6,10 +6,12 @@
 // Leagues over 100 teams show their top 50 and the 50 around you, and their
 // lists come from a sample of rivals: the top 10 and the 10 either side of you.
 
+import { AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PlayerLink } from "./PlayerPanel";
 import { ExposureCard } from "./leagues/ExposureCard";
+import { TeamPanel } from "./leagues/TeamPanel";
 import { formatXp } from "@/lib/format";
 import { pageCount, pageRows, pageWithEntry } from "@/lib/leagueTable";
 import type { League, LeaguePlayerLine, LeagueRow, Snapshot } from "@/lib/types";
@@ -114,13 +116,15 @@ function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }
   );
 }
 
-// The standings, 20 teams a page, opening on the page with your row. In a
+// The standings, 20 teams a page, opening on the page with your row. A
+// team's name opens its whole team (TeamPanel.tsx). In a
 // big league a "..." row marks the jump from the top 50 to the teams around
 // you, and only the sampled rivals have a captain and chip.
 function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot }) {
   const full = isFull(league);
   const myPage = pageWithEntry(league.table, snapshot.team.id);
   const [page, setPage] = useState(myPage);
+  const [openTeam, setOpenTeam] = useState<LeagueRow | null>(null); // the team whose panel is open
   const pages = pageCount(league.table.length);
   return (
     <section className="bc-card bc-table-card">
@@ -147,12 +151,15 @@ function LeagueTable({ league, snapshot }: { league: League; snapshot: Snapshot 
           </thead>
           <tbody>
             {pageRows(league.table, page).map(({ row, index }) => (
-              <TableRows key={row.entry} row={row} previous={league.table[index - 1]} full={full} snapshot={snapshot} />
+              <TableRows key={row.entry} row={row} previous={league.table[index - 1]} full={full} snapshot={snapshot} onOpen={setOpenTeam} />
             ))}
           </tbody>
         </table>
       </div>
       {pages > 1 && <Pager page={page} pages={pages} myPage={myPage} onChange={setPage} />}
+      <AnimatePresence>
+        {openTeam && <TeamPanel key={openTeam.entry} row={openTeam} snapshot={snapshot} onClose={() => setOpenTeam(null)} />}
+      </AnimatePresence>
     </section>
   );
 }
@@ -162,10 +169,11 @@ interface TableRowsProps {
   previous: LeagueRow | undefined;
   full: boolean;
   snapshot: Snapshot;
+  onOpen: (row: LeagueRow) => void; // opens the team's panel
 }
 
 // One team's row, with a "..." row above it when ranks were skipped.
-function TableRows({ row, previous, full, snapshot }: TableRowsProps) {
+function TableRows({ row, previous, full, snapshot, onOpen }: TableRowsProps) {
   const isMine = row.entry === snapshot.team.id;
   const captain = row.captain ? snapshot.players[String(row.captain)] : undefined;
   // Only big leagues leave rows out; ties alone (11, 11, 13) aren't a gap, so compare positions.
@@ -182,7 +190,9 @@ function TableRows({ row, previous, full, snapshot }: TableRowsProps) {
           {row.rank.toLocaleString("en-GB")} <RankMove rank={row.rank} lastRank={row.lastRank} />
         </td>
         <td className="bc-cell-name">
-          {row.teamName} <span className="muted bc-manager">{row.manager}</span>
+          {/* The team name opens its whole team in a panel. */}
+          <button type="button" className="team-link" onClick={() => onOpen(row)}>{row.teamName}</button>{" "}
+          <span className="muted bc-manager">{row.manager}</span>
         </td>
         <td className="right bc-cell-num">{row.eventPoints}</td>
         <td className="right bc-cell-num bc-cell-strong">{row.total.toLocaleString("en-GB")}</td>

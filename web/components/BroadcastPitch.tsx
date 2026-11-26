@@ -9,7 +9,7 @@
 import { formatXp } from "@/lib/format";
 import { formation, pitchRows } from "@/lib/dashboard";
 import { rowDepthScale } from "@/lib/pitchDepth";
-import type { Player } from "@/lib/types";
+import type { PitchPlayer } from "@/lib/types";
 import { ClubKit } from "./ClubKit";
 
 const SUB_LABELS = ["GK", "1ST SUB", "2ND SUB", "3RD SUB"];
@@ -20,7 +20,7 @@ interface BroadcastPitchProps {
   bench: number[];
   captain: number;
   viceCaptain: number; // takes the captain's double points if the captain doesn't play
-  players: Record<string, Player>;
+  players: Record<string, PitchPlayer>; // your own players, or a rival's (TeamPanel)
   week: number;
   onPlayerClick: (playerId: number) => void;
   selectedId?: number | null; // Planner: the player being replaced
@@ -89,7 +89,7 @@ export function BroadcastPitch(props: BroadcastPitchProps) {
 }
 
 interface PlayerTokenProps {
-  player: Player;
+  player: PitchPlayer;
   week: number;
   armband?: "captain" | "vice";
   subLabel?: string;

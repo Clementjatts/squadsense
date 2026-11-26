@@ -1,7 +1,7 @@
 // Small helpers that turn the snapshot into what the Dashboard's sections
 // show. Kept apart from the components so each component stays short.
 
-import type { Player, Position, PriceWatchRow, Snapshot } from "./types";
+import type { PitchPlayer, Player, Position, PriceWatchRow, Snapshot } from "./types";
 
 export interface FixtureChip {
   label: string; // e.g. "FUL H"
@@ -31,12 +31,12 @@ const PITCH_ORDER: Position[] = ["FWD", "MID", "DEF", "GK"];
 const TABLE_ORDER: Position[] = ["GK", "DEF", "MID", "FWD"];
 
 // The starting eleven as pitch rows, forwards at the top.
-export function pitchRows(starters: number[], players: Record<string, Player>): number[][] {
+export function pitchRows(starters: number[], players: Record<string, Pick<PitchPlayer, "position">>): number[][] {
   return PITCH_ORDER.map((position) => starters.filter((id) => players[id].position === position)).filter((row) => row.length > 0);
 }
 
 // "5-2-3": defenders, midfielders, forwards.
-export function formation(starters: number[], players: Record<string, Player>): string {
+export function formation(starters: number[], players: Record<string, Pick<PitchPlayer, "position">>): string {
   return (["DEF", "MID", "FWD"] as Position[]).map((position) => starters.filter((id) => players[id].position === position).length).join("-");
 }
 
