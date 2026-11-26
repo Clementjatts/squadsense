@@ -135,12 +135,12 @@ All 47 Python tests pass (about 6 minutes, mostly the chip plan in the agreement
 
 On 21 November 2026 hosting went live: Supabase, the GitHub repo (private then, public since 24 November 2026) with its Actions schedule, and Vercel at https://squadsense.vercel.app. Since 22 November 2026 it is also at https://squadsense.clementadegbenro.com (Cloudflare CNAME `squadsense`, DNS only, pointing at Vercel; Vercel issues the certificate), and the `SITE_URL` secret uses the new address. The scheduled sync writes to Supabase, and the site reads from it and saves push subscriptions with the new `sb_secret_...` key as `SUPABASE_SERVICE_ROLE_KEY`. Alerts work end to end: a test alert (Run workflow, "Only send a test email and phone alert", which runs `python -m squadsense.alerts --test`) reached Clement's inbox and his iPhone's Home Screen app. The iPhone bell menu checks for push support, not `display-mode: standalone`, which an iPhone opened from its icon reported as false.
 
+On 26 November 2026 the rebuilt squad was compared with FPL's own Transfers page for GW12 (after Raya → Trafford, marked "Done on FPL"): bank £2.2m, 0 free transfers and all 15 selling prices matched exactly, including the half-rise rounding (Evanilson, N.Jackson, Rudoni, Tavernier and Van Hecke sell for £0.1m under their price).
+
 ### Not verified
 
-- **Real squad not read yet.** The sync runs against the live API, but Clement's picks stay hidden until the GW11 deadline, so the rebuilt bank, selling prices and free transfers haven't been compared with the FPL site yet. Every other field the code reads matched the live API, except the club attack and defence strengths (now all 0, see `fixtures.py`).
 - Free Hit handling: in a Free Hit week the sync plans with the previous week's picks and bank, and leaves Free Hit transfers out of purchase prices. Tested with sample data only; FPL listing Free Hit transfers in the transfer history is about 85% sure.
 - Mini-leagues, Review and Live haven't been seen with Clement's own picks yet, since his squad is hidden until the GW11 deadline. Review needs GW11 to finish first. Live was only checked against GW10 data (see below for what was verified).
-- The five-week plan hasn't been checked on his real squad for the same reason.
 - No real alert (deadline, price drop, injury, ban, plan change) has gone out yet, only the test alert.
 
 ## Known gaps and assumptions
@@ -158,7 +158,7 @@ On 21 November 2026 hosting went live: Supabase, the GitHub repo (private then, 
 
 ## Next steps, in order
 
-1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data; free transfers still to confirm on the site) and the Next.js 16 upgrade (npm audit now clean). Hosting is live on Vercel (Supabase and the Actions schedule too). The Cloudflare subdomain is live (22 November).
+1. Done 21 November: the GW11 squad sync (bank and value match FPL's public data) and the Next.js 16 upgrade (npm audit now clean). Hosting is live on Vercel (Supabase and the Actions schedule too). The Cloudflare subdomain is live (22 November).
 2. Price Watch is done, using FPL's own predictor. Each sync now saves that day's predictions (`price_predictions/{UK date}` raw, one per day, the last run before 00:00 kept), and `python -m squadsense.price_audit` scores each likelihood band against the next day's prices. It needs two days in a row of data, so the first results are due from 23 November 2026. Still open: whether projection offsets 1 and 2 are the following nights (about 75% sure).
 3. Chip Planner and Fixture Ticker are done. The five-week plan now covers pairs and rolls. Still open: backtest the captain haul chance and the plan's untested settings.
 4. Player detail panel is done, including "Add to plan" and "Make captain".
