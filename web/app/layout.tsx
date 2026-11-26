@@ -3,6 +3,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PlayerPanelProvider } from "@/components/PlayerPanel";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { TopNav } from "@/components/TopNav";
 import { SettingUpTeam } from "@/components/SettingUpTeam";
 import { cookies } from "next/headers";
@@ -95,6 +96,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <SharedHead />
       <body>
         <PlayerPanelProvider>
+          <PullToRefresh />
           <TopNav gameweek={snapshot.gameweek} deadline={snapshot.deadline} />
           <div className="main">{children}</div>
           <footer className="site-footer">

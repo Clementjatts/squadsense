@@ -3,7 +3,7 @@
 // points each player has gained or cost you so far.
 // Run with: npm test
 
-import { leagueOwnership, type PlayerLive, type TeamLive } from "../lib/live.ts";
+import { leagueGroups, leagueOwnership, type PlayerLive, type TeamLive } from "../lib/live.ts";
 
 // Prints PASS or FAIL for one check, and makes the run fail if any check fails.
 const check = (label: string, cond: boolean) => {
@@ -42,3 +42,15 @@ check("biggest exposure first (player 3, net +2)", lines[0].element === 3);
 check("a player everyone owns equally is left out", leagueOwnership([team([5, 1])], team([5, 1]), players, 10).length === 0);
 check("no rivals means no lines", leagueOwnership([], mine, players, 10).length === 0);
 check("the list stops at the number asked for", leagueOwnership(rivals, mine, players, 2).length === 2);
+
+// leagueGroups: a small league is one group; a big league's sample splits into its leaders and the teams around you.
+{
+  const teamEntry = (entry: number, groups?: ("top" | "around")[]) => ({ entry, teamName: `T${entry}`, totalBefore: 0, picks: [], chip: null, groups });
+  const small = leagueGroups({ kind: "full", teams: [teamEntry(1), teamEntry(2)] });
+  check("a small league is one group of everyone", small.length === 1 && small[0].key === "all" && small[0].teams.length === 2);
+  check("an older snapshot without a kind counts as a small league", leagueGroups({ teams: [teamEntry(1)] })[0].key === "all");
+  const big = leagueGroups({ kind: "sample", teams: [teamEntry(1, ["top"]), teamEntry(2, ["top", "around"]), teamEntry(3, ["around"]), teamEntry(9, ["top", "around"])] });
+  check("a big league has Top 10 then Around you", big.map((group) => group.label).join() === "Top 10,Around you");
+  check("each group holds its own teams", big[0].teams.map((t) => t.entry).join() === "1,2,9" && big[1].teams.map((t) => t.entry).join() === "2,3,9");
+  check("an empty group is left out", leagueGroups({ kind: "sample", teams: [teamEntry(1, ["top"])] }).length === 1);
+}

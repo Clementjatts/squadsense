@@ -3,6 +3,7 @@
 // The Live page body. Asks /api/live for fresh numbers every minute while
 // the tab is open, and shows your eleven, the fixtures and live league tables.
 
+import { SegmentedControl } from "./SegmentedControl";
 import { useEffect, useState } from "react";
 import type { OwnershipLine } from "@/lib/live";
 import { PageHero } from "./PageHero";
@@ -27,10 +28,19 @@ interface LiveResponse {
   leagues: {
     id: number;
     name: string;
-    rows: { entry: number; teamName: string; live: number; total: number; chip: string | null; playersLeft: number }[];
-    ownership?: (OwnershipLine & { name: string })[]; // missing from responses made before 22 November 2026
+    kind: "full" | "sample"; // a big league only has its sample: its leaders and the teams around you
+    size: number;
+    groups: LeagueGroupLive[];
   }[];
   fixtures: { id: number; home: string; away: string; homeScore: number | null; awayScore: number | null; minutes: number; status: string }[];
+}
+
+// One part of a league with its own live table and ownership list: everyone, "Top 10" or "Around you".
+interface LeagueGroupLive {
+  key: "all" | "top" | "around";
+  label: string;
+  rows: { entry: number; teamName: string; live: number; total: number; chip: string | null; playersLeft: number }[];
+  ownership: (OwnershipLine & { name: string })[];
 }
 
 type LoadState = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; data: LiveResponse };
@@ -160,7 +170,10 @@ function MyLineup({ mine, names }: { mine: NonNullable<LiveResponse["mine"]>; na
 // Live mini-league tables, one league at a time.
 function LiveLeagues({ leagues }: { leagues: LiveResponse["leagues"] }) {
   const [leagueId, setLeagueId] = useState(leagues[0].id);
+  const [groupKey, setGroupKey] = useState<LeagueGroupLive["key"]>("top");
   const league = leagues.find((candidate) => candidate.id === leagueId) ?? leagues[0];
+  // A big league shows one of its groups at a time; a small league has just the one.
+  const group = league.groups.find((candidate) => candidate.key === groupKey) ?? league.groups[0];
   return (
     <section className="card">
       <div className="card-head">
@@ -173,6 +186,22 @@ function LiveLeagues({ leagues }: { leagues: LiveResponse["leagues"] }) {
           <span className="muted">{league.name}</span>
         )}
       </div>
+      {league.kind === "sample" && (
+        <div className="live-sample">
+          {league.groups.length > 1 && (
+            <SegmentedControl
+              label="Compare with"
+              options={league.groups.map((item) => ({ value: item.key, label: item.label }))}
+              value={group.key}
+              onChange={setGroupKey}
+              layoutGroup="live-group"
+            />
+          )}
+          <p className="muted small" style={{ margin: 0 }}>
+            A sample of this league&apos;s {league.size.toLocaleString("en-GB")} teams: its top 10 and the teams just above and below you.
+          </p>
+        </div>
+      )}
       <div className="live-row live-row-head muted" aria-hidden="true">
         <span>#</span>
         <span>Team</span>
@@ -181,7 +210,7 @@ function LiveLeagues({ leagues }: { leagues: LiveResponse["leagues"] }) {
         <span>Total</span>
       </div>
       <ol className="share-list">
-        {league.rows.map((row, index) => (
+        {group.rows.map((row, index) => (
           <li key={row.entry} className="live-row">
             <span className="muted num">{index + 1}</span>
             <span className="share-name">{row.teamName}</span>
@@ -191,7 +220,7 @@ function LiveLeagues({ leagues }: { leagues: LiveResponse["leagues"] }) {
           </li>
         ))}
       </ol>
-      {league.ownership && league.ownership.length > 0 && <OwnershipList lines={league.ownership} />}
+      {group.ownership.length > 0 && <OwnershipList lines={group.ownership} />}
     </section>
   );
 }

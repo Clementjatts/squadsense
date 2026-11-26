@@ -524,6 +524,8 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
 .live-row-head { height: 26px; border-top: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
 .live-row-head span:nth-child(n + 3) { text-align: right; }
 /* Effective ownership under the live table. */
+/* A big league on the Live page: the Top 10 / Around you switch and what the sample is. */
+.live-sample { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .live-eo { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--panel-line); }
 .live-eo-title { margin: 0; font-family: var(--condensed); font-weight: 800; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; }
 .live-eo-row { height: 36px; display: grid; grid-template-columns: minmax(0, 1fr) 56px 48px 56px; align-items: center; gap: 10px; border-top: 1px solid var(--panel-line); font-size: 14px; }
@@ -1138,3 +1140,14 @@ table.prices td.right, .progress b { font-family: var(--condensed); font-weight:
   .bc-row > .changes-card { height: 0; min-height: 100%; }
   .bc-row > .changes-card .changes-feed { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 }
+
+/* Pull to refresh in the Home Screen app (PullToRefresh.tsx): a round
+   spinner that drops in from the top and turns as you pull, lit once
+   letting go would reload. */
+.pull-refresh { position: fixed; z-index: 60; top: calc(env(safe-area-inset-top) - 44px); left: 50%; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-card); pointer-events: none; }
+.pull-refresh-spinner { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--muted); }
+.pull-refresh-ready { border-top-color: var(--accent); }
+.pull-refresh:has(.pull-refresh-ready) { border-color: var(--edge-lime); }
+@media (prefers-reduced-motion: no-preference) { .pull-refresh-ready { animation: pull-refresh-turn 0.8s linear infinite; } }
+@keyframes pull-refresh-turn { to { transform: rotate(360deg); } }

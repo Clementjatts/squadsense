@@ -1,10 +1,12 @@
 // GET /api/live: live points for your team and every team in your
-// mini-leagues, for the gameweek being played. FPL's live data is cached
+// mini-leagues, for the gameweek being played. A big league only has its
+// sample, so it comes as two groups (its leaders and the teams around you),
+// each with its own live table and effective ownership. FPL's live data is cached
 // for a minute, so however many tabs are open we ask FPL at most twice a
 // minute (live points plus fixtures).
 
 import { NextResponse } from "next/server";
-import { leagueOwnership, playerLivePoints, teamLivePoints, type LiveElement, type LiveFixture } from "@/lib/live";
+import { leagueGroups, leagueOwnership, playerLivePoints, teamLivePoints, type LiveElement, type LiveFixture } from "@/lib/live";
 import { getLivePicks, getSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -50,29 +52,35 @@ export async function GET() {
       hits: livePicks.mine?.hits ?? 0,
       lineup: mine.lineup.map((line) => ({ ...line, ...players.get(line.element) })),
     },
-    leagues: livePicks.leagues.map((league) => {
-      const results = league.teams.map((team) => ({
-        team,
-        result: team.picks.length > 0 ? teamLivePoints({ picks: team.picks, active_chip: team.chip }, players, livePicks.elements) : null,
-      }));
-      const rivals = results.filter(({ team, result }) => team.entry !== snapshot.team.id && result !== null).map(({ result }) => result!);
-      return {
-        id: league.id,
-        name: league.name,
-        rows: results
-          .map(({ team, result }) => {
-            // totalBefore already has this week's hits taken off, so add the score before hits.
-            const livePoints = result?.points ?? 0;
-            return { entry: team.entry, teamName: team.teamName, live: livePoints, total: team.totalBefore + livePoints, chip: team.chip, playersLeft: result?.playersLeft ?? 0 };
-          })
-          .sort((a, b) => b.total - a.total),
-        ownership: leagueOwnership(rivals, mine, players, OWNERSHIP_SHOWN).map((line) => ({
-          ...line,
-          // The sync stores every player's short name; older snapshots only have the players they mention.
-          name: livePicks.elements[String(line.element)]?.[2] ?? snapshot.players[String(line.element)]?.name ?? `#${line.element}`,
-        })),
-      };
-    }),
+    leagues: livePicks.leagues.map((league) => ({
+      id: league.id,
+      name: league.name,
+      kind: league.kind ?? "full",
+      size: league.size ?? league.teams.length,
+      groups: leagueGroups(league).map((group) => {
+        const results = group.teams.map((team) => ({
+          team,
+          result: team.picks.length > 0 ? teamLivePoints({ picks: team.picks, active_chip: team.chip }, players, livePicks.elements) : null,
+        }));
+        const rivals = results.filter(({ team, result }) => team.entry !== snapshot.team.id && result !== null).map(({ result }) => result!);
+        return {
+          key: group.key,
+          label: group.label,
+          rows: results
+            .map(({ team, result }) => {
+              // totalBefore already has this week's hits taken off, so add the score before hits.
+              const livePoints = result?.points ?? 0;
+              return { entry: team.entry, teamName: team.teamName, live: livePoints, total: team.totalBefore + livePoints, chip: team.chip, playersLeft: result?.playersLeft ?? 0 };
+            })
+            .sort((a, b) => b.total - a.total),
+          ownership: leagueOwnership(rivals, mine, players, OWNERSHIP_SHOWN).map((line) => ({
+            ...line,
+            // The sync stores every player's short name; older snapshots only have the players they mention.
+            name: livePicks.elements[String(line.element)]?.[2] ?? snapshot.players[String(line.element)]?.name ?? `#${line.element}`,
+          })),
+        };
+      }),
+    })),
     fixtures: fixtures.map((fixture) => ({
       id: fixture.id,
       home: clubNames.get(fixture.team_h) ?? String(fixture.team_h),

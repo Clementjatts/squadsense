@@ -222,34 +222,17 @@ def live_picks(storage, client, team_id, current_week, is_public, league_data, b
     multipliers (captain, bench), each team's total before the week (FPL
     has already taken this week's hits off it) and your own hits. `elements` gives every player's club and position, which
     the automatic substitutions need, and his short name for the ownership list.
+    Big leagues send only their sample of picks, tagged as the leaders and
+    the teams around you.
     """
     mine = leagues.cached_picks(client, storage, team_id, current_week) if is_public else None
-    # Live totals need every team's picks, which only fully analysed leagues have.
-    league_data = [league for league in league_data if league["kind"] == "full"]
-    for league in league_data:
-        league["picks"][team_id] = mine
     hits = lambda picks: ((picks or {}).get("entry_history") or {}).get("event_transfers_cost", 0)
     return {
         "gameweek": current_week,
         "elements": {str(player["id"]): [player["team"], player["element_type"], player["web_name"]] for player in bootstrap["elements"]},
         "mine": {"picks": mine["picks"], "active_chip": mine.get("active_chip"), "hits": hits(mine)} if mine else None,
-        "leagues": [
-            {
-                "id": league["info"]["id"],
-                "name": league["info"]["name"],
-                "teams": [
-                    {
-                        "entry": row["entry"],
-                        "teamName": row["entry_name"],
-                        "totalBefore": row["total"] - row["event_total"],
-                        "picks": (league["picks"].get(row["entry"]) or {}).get("picks", []),
-                        "chip": (league["picks"].get(row["entry"]) or {}).get("active_chip"),
-                    }
-                    for row in league["standings"]
-                ],
-            }
-            for league in league_data
-        ],
+        # Small leagues send every team; big ones their sample of leaders and neighbours (leagues.live_league).
+        "leagues": [leagues.live_league(league, team_id, mine) for league in league_data],
     }
 
 

@@ -401,5 +401,24 @@ export interface LivePicks {
   gameweek: number;
   elements: Record<string, [number, number, string?]>; // player id -> [club id, position 1-4, short name (missing before 22 November 2026)]
   mine: LiveTeamPicks | null;
-  leagues: { id: number; name: string; teams: { entry: number; teamName: string; totalBefore: number; picks: LivePick[]; chip: string | null }[] }[];
+  leagues: LiveLeaguePicks[];
+}
+
+/** One league for the Live page. A big league ("sample") sends only its leaders and the teams around you. */
+export interface LiveLeaguePicks {
+  id: number;
+  name: string;
+  kind?: "full" | "sample"; // missing before 26 November 2026, when only small leagues were sent
+  size?: number; // teams in the whole league
+  teams: LiveLeagueTeam[];
+}
+
+export interface LiveLeagueTeam {
+  entry: number;
+  teamName: string;
+  totalBefore: number;
+  picks: LivePick[];
+  chip: string | null;
+  rank?: number; // league rank before this week
+  groups?: ("top" | "around")[]; // big leagues only: the leaders, the teams around you, or both
 }

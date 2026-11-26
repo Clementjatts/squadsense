@@ -172,6 +172,46 @@ def fetch_big_league(client, storage, info, my_team_id, gameweek, today):
     return {"info": info, "kind": "table", "standings": standings, "picks": picks, "histories": {}}
 
 
+def live_league(league, my_team_id, my_picks):
+    """One league for the Live page: each team's picks and its total before the week.
+
+    A small ("full") league sends every team. A big league sends only its
+    sample plus you, as kind "sample", each team tagged with its groups:
+    "top" for the league's leaders, "around" for the teams either side of
+    you. You're in both, since the page compares you with each group.
+    """
+    info, standings = league["info"], league["standings"]
+    picks = {**league["picks"], my_team_id: my_picks}
+    sample = league["kind"] != "full"
+    leaders = {row["entry"] for row in sorted(standings, key=lambda row: row["rank"])[:SAMPLE_TOP]}
+    my_rank = info.get("entry_rank")
+
+    def groups(row):
+        if row["entry"] == my_team_id:
+            return ["top", "around"]
+        found = ["top"] if row["entry"] in leaders else []
+        if my_rank and abs(row["rank"] - my_rank) <= SAMPLE_AROUND:
+            found.append("around")
+        return found
+
+    teams = []
+    for row in standings:
+        if sample and row["entry"] not in picks:
+            continue
+        team = {
+            "entry": row["entry"],
+            "teamName": row["entry_name"],
+            "rank": row["rank"],
+            "totalBefore": row["total"] - row["event_total"],
+            "picks": (picks.get(row["entry"]) or {}).get("picks", []),
+            "chip": (picks.get(row["entry"]) or {}).get("active_chip"),
+        }
+        if sample:
+            team["groups"] = groups(row)
+        teams.append(team)
+    return {"id": info["id"], "name": info["name"], "kind": "sample" if sample else "full", "size": info.get("rank_count") or len(standings), "teams": teams}
+
+
 def fetch_full_league(client, storage, info, my_team_id, gameweek):
     """A small league's whole table, with every rival's picks and chip history."""
     standings = all_standings(client, info["id"])

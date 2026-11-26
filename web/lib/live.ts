@@ -10,7 +10,7 @@
 //
 // Pure functions only, so the API route and the page can share them.
 
-import type { LivePick, LivePicks, LiveTeamPicks } from "./types";
+import type { LiveLeaguePicks, LiveLeagueTeam, LivePick, LivePicks, LiveTeamPicks } from "./types";
 
 export interface LiveFixture {
   id: number;
@@ -194,4 +194,26 @@ export function leagueOwnership(rivals: TeamLive[], mine: TeamLive | null, playe
     .filter((line) => Math.abs(line.net) > 0.001)
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || Math.abs(b.swing) - Math.abs(a.swing))
     .slice(0, shown);
+}
+
+/** A part of a league the Live page shows on its own: everyone, or a big league's leaders or neighbours. */
+export interface LeagueGroup {
+  key: "all" | "top" | "around";
+  label: string;
+  teams: LiveLeagueTeam[];
+}
+
+/**
+ * The groups a league is shown in. A small league is one group of every
+ * team. A big league's sample splits into "Top 10" (its leaders) and
+ * "Around you" (the teams either side of you); you're in both, and a
+ * group with no teams is left out.
+ */
+export function leagueGroups(league: Pick<LiveLeaguePicks, "kind" | "teams">): LeagueGroup[] {
+  if (league.kind !== "sample") return [{ key: "all", label: "Everyone", teams: league.teams }];
+  const groups: LeagueGroup[] = [
+    { key: "top", label: "Top 10", teams: league.teams.filter((team) => team.groups?.includes("top")) },
+    { key: "around", label: "Around you", teams: league.teams.filter((team) => team.groups?.includes("around")) },
+  ];
+  return groups.filter((group) => group.teams.length > 0);
 }

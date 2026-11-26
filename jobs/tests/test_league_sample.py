@@ -58,3 +58,44 @@ def test_where_you_stand_at_the_top_has_no_team_above():
 
 def test_where_you_stand_is_none_when_you_are_not_in_the_table():
     assert leagues.standing([{"entry": 2, "teamName": "X", "rank": 1, "total": 9}], TEAM_ID) is None
+
+
+def big_league(my_rank, ranks):
+    """A big league as fetch_big_league returns it: standings for `ranks`, you at `my_rank`, picks for the sample."""
+    standings = [dict(row, event_total=40) for row in rows_for(ranks)]
+    for row in standings:
+        if row["rank"] == my_rank:
+            row["entry"] = TEAM_ID
+    sample = leagues.sample_entries(standings, my_rank, TEAM_ID)
+    picks = {entry: {"picks": [{"element": entry}], "active_chip": None} for entry in sample}
+    return {"info": {"id": 9, "name": "Big", "entry_rank": my_rank, "rank_count": 5000}, "kind": "table", "standings": standings, "picks": picks, "histories": {}}
+
+
+MY_PICKS = {"picks": [{"element": 1}], "active_chip": None}
+
+
+def test_live_entry_for_a_big_league_is_the_sample_in_two_groups():
+    league = leagues.live_league(big_league(230, list(range(1, 51)) + list(range(201, 251))), TEAM_ID, MY_PICKS)
+    assert league["kind"] == "sample" and league["size"] == 5000
+    groups = {team["entry"]: team["groups"] for team in league["teams"]}
+    assert len(groups) == 31  # 10 leaders, 10 teams either side of you, and you
+    assert groups[5001] == ["top"] and groups[5225] == ["around"]
+    assert groups[TEAM_ID] == ["top", "around"]  # you're compared with both groups
+    mine = next(team for team in league["teams"] if team["entry"] == TEAM_ID)
+    assert mine["picks"] == MY_PICKS["picks"] and mine["rank"] == 230 and mine["totalBefore"] == 1000 - 2300 - 40
+
+
+def test_a_team_near_the_top_is_in_both_groups():
+    league = leagues.live_league(big_league(5, list(range(1, 51))), TEAM_ID, MY_PICKS)
+    groups = {team["entry"]: team["groups"] for team in league["teams"]}
+    assert groups[5003] == ["top", "around"] and groups[5012] == ["around"]
+
+
+def test_live_entry_for_a_small_league_keeps_every_team():
+    standings = [dict(row, event_total=40) for row in rows_for(range(1, 6))]
+    standings[2]["entry"] = TEAM_ID
+    picks = {row["entry"]: {"picks": [{"element": 2}], "active_chip": "bboost"} for row in standings if row["entry"] != TEAM_ID}
+    league = leagues.live_league({"info": {"id": 3, "name": "Small", "rank_count": 5}, "kind": "full", "standings": standings, "picks": picks, "histories": {}}, TEAM_ID, MY_PICKS)
+    assert league["kind"] == "full" and len(league["teams"]) == 5
+    assert all("groups" not in team for team in league["teams"])
+    assert next(team for team in league["teams"] if team["entry"] == 5001)["chip"] == "bboost"
