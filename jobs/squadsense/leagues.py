@@ -7,8 +7,9 @@ the last gameweek that has passed its deadline and works out:
 
 - the league table (rank, total, last week's points, chip played),
 - how many rivals own and captain each player,
-- threats: players most rivals own and you don't, ranked by next week's xP,
-- differentials: your players few rivals own.
+- this week's exposure: effective ownership (captains count twice, the
+  bench not at all) against your planned team, and the points each player
+  is expected to gain or cost you against the average rival.
 
 It also reads each rival's season history for the chips they've played,
 so the Chip Planner can show what your rivals still have.
@@ -18,8 +19,9 @@ requests per rival, so that full analysis is only done for leagues of up
 to FULL_ANALYSIS_MAX teams. Bigger leagues get the top 50 and the 50
 around you, fetched once a day, plus the picks of a sample: the top
 SAMPLE_TOP teams and the SAMPLE_AROUND teams either side of you. So every
-league gets the same threats, differentials and captains, and the page
-says whether they come from every rival or the sample.
+league gets the same exposure and captains, and the page says whether
+they come from every rival or the sample. A big league's exposure is split
+into its leaders and the teams around you.
 
 Rival picks for a past deadline never change, so each one is cached and
 only fetched once per gameweek. Histories are cached the same way.
@@ -39,12 +41,10 @@ FULL_ANALYSIS_MAX = 100  # rivals' picks are read for leagues this size or small
 STANDINGS_PAGE_SIZE = 50  # FPL returns a league table 50 teams at a time
 ALL_CHIPS = ("bboost", "3xc", "freehit", "wildcard")
 RIVAL_CHIP_ROWS = 12  # rivals listed per league on the Chip Planner
-THREATS_SHOWN = 6
-DIFFERENTIALS_SHOWN = 6
-THREAT_MIN_SHARE = 0.3  # at least this share of rivals own him
-DIFFERENTIAL_MAX_SHARE = 0.25
 SAMPLE_TOP = 10  # a big league's leaders whose picks are read
 SAMPLE_AROUND = 10  # teams read just above and just below you in a big league
+EXPOSURE_SHOWN = 6  # players in each of "Costing you" and "Gaining you"
+STARTING_POSITIONS = 11  # FPL lists the starting eleven in positions 1 to 11
 
 
 def league_ids_from_env():
@@ -172,6 +172,87 @@ def fetch_big_league(client, storage, info, my_team_id, gameweek, today):
     return {"info": info, "kind": "table", "standings": standings, "picks": picks, "histories": {}}
 
 
+def sample_groups(standings, my_rank, my_team_id):
+    """{entry: groups} for a big league's table: "top" for its leaders, "around" for the teams either side of you.
+
+    You're in both, since each group is compared with you. A team near the
+    top can be in both too.
+    """
+    leaders = {row["entry"] for row in sorted(standings, key=lambda row: row["rank"])[:SAMPLE_TOP]}
+
+    def groups(row):
+        if row["entry"] == my_team_id:
+            return ["top", "around"]
+        found = ["top"] if row["entry"] in leaders else []
+        if my_rank and abs(row["rank"] - my_rank) <= SAMPLE_AROUND:
+            found.append("around")
+        return found
+
+    return {row["entry"]: groups(row) for row in standings}
+
+
+def rival_multiplier(pick):
+    """How many times a rival's player scores in a normal week: 2 as captain, 1 starting, 0 on the bench.
+
+    A Triple Captain or Bench Boost was a one-off, so last week's chip is
+    ignored and the lineup is read as a normal week.
+    """
+    if pick["position"] > STARTING_POSITIONS:
+        return 0
+    return 2 if pick["is_captain"] else 1
+
+
+def league_exposure(rival_picks, my_multipliers, next_xp):
+    """Effective ownership among rivals against your planned team, for the coming week.
+
+    `rival_picks` are rivals' last lineups (their new picks stay hidden until
+    the deadline); a rival who played Free Hit is left out, since that squad
+    is gone. `my_multipliers` is {player: 1 starting, 2 captain} from the
+    plan, and `next_xp(player)` his xP for the coming week. Each player's
+    swing is (your multiplier minus the rivals' average) times his xP: what
+    he's expected to gain or cost you against the average rival.
+    Returns {"rivals", "swing" (all players added up), "costing", "gaining"}.
+    """
+    rivals = [team for team in rival_picks if team and team.get("active_chip") != "freehit"]
+    if not rivals:
+        return {"rivals": 0, "swing": 0.0, "costing": [], "gaining": []}
+    effective, owned, captained = Counter(), Counter(), Counter()
+    for team in rivals:
+        for pick in team["picks"]:
+            owned[pick["element"]] += 1
+            captained[pick["element"]] += pick["is_captain"]
+            effective[pick["element"]] += rival_multiplier(pick)
+
+    lines = []
+    for player in set(owned) | {player for player, multiplier in my_multipliers.items() if multiplier}:
+        eo = effective[player] / len(rivals)
+        mine = my_multipliers.get(player, 0)
+        lines.append({
+            "playerId": player, "owned": round(owned[player] / len(rivals), 3), "captained": round(captained[player] / len(rivals), 3),
+            "eo": round(eo, 3), "mine": mine, "xp": round(next_xp(player), 2), "swing": round((mine - eo) * next_xp(player), 2),
+        })
+    return {
+        "rivals": len(rivals),
+        "swing": round(sum(line["swing"] for line in lines), 1),
+        "costing": sorted((line for line in lines if line["swing"] < -0.05), key=lambda line: line["swing"])[:EXPOSURE_SHOWN],
+        "gaining": sorted((line for line in lines if line["swing"] > 0.05), key=lambda line: -line["swing"])[:EXPOSURE_SHOWN],
+    }
+
+
+def exposure_groups(league, my_team_id, my_multipliers, next_xp):
+    """The exposure card's groups: one of everyone for a small league, "Top 10" and "Around you" for a big one."""
+    rivals = {entry: picks for entry, picks in league["picks"].items() if entry != my_team_id}
+    if league["kind"] == "full":
+        return [{"key": "all", "label": "Everyone", **league_exposure(list(rivals.values()), my_multipliers, next_xp)}]
+    groups = sample_groups(league["standings"], league["info"].get("entry_rank"), my_team_id)
+    found = []
+    for key, label in (("top", "Top 10"), ("around", "Around you")):
+        members = [picks for entry, picks in rivals.items() if key in groups.get(entry, [])]
+        if members:
+            found.append({"key": key, "label": label, **league_exposure(members, my_multipliers, next_xp)})
+    return found
+
+
 def live_league(league, my_team_id, my_picks):
     """One league for the Live page: each team's picks and its total before the week.
 
@@ -183,16 +264,7 @@ def live_league(league, my_team_id, my_picks):
     info, standings = league["info"], league["standings"]
     picks = {**league["picks"], my_team_id: my_picks}
     sample = league["kind"] != "full"
-    leaders = {row["entry"] for row in sorted(standings, key=lambda row: row["rank"])[:SAMPLE_TOP]}
-    my_rank = info.get("entry_rank")
-
-    def groups(row):
-        if row["entry"] == my_team_id:
-            return ["top", "around"]
-        found = ["top"] if row["entry"] in leaders else []
-        if my_rank and abs(row["rank"] - my_rank) <= SAMPLE_AROUND:
-            found.append("around")
-        return found
+    groups = sample_groups(standings, info.get("entry_rank"), my_team_id)
 
     teams = []
     for row in standings:
@@ -207,7 +279,7 @@ def live_league(league, my_team_id, my_picks):
             "chip": (picks.get(row["entry"]) or {}).get("active_chip"),
         }
         if sample:
-            team["groups"] = groups(row)
+            team["groups"] = groups[row["entry"]]
         teams.append(team)
     return {"id": info["id"], "name": info["name"], "kind": "sample" if sample else "full", "size": info.get("rank_count") or len(standings), "teams": teams}
 
@@ -287,20 +359,15 @@ def standing(table, my_team_id):
     }
 
 
-def summarise_league(league, my_team_id, my_squad, expected_points, next_week, half):
-    """Everything the Leagues page shows for one league."""
+def summarise_league(league, my_team_id, my_squad, my_multipliers, expected_points, next_week, half):
+    """Everything the Leagues page shows for one league.
+
+    `my_multipliers` is your planned team for `next_week` ({player: 1
+    starting, 2 captain}), which the exposure card compares with rivals.
+    """
     owned, captained, rival_total = rival_counts(league["picks"], my_team_id)
     share = lambda player_id: owned[player_id] / rival_total if rival_total else 0.0
     next_xp = lambda player_id: expected_points.get(player_id, {}).get(next_week, 0.0)
-
-    threats = sorted(
-        (player_id for player_id in owned if player_id not in my_squad and share(player_id) >= THREAT_MIN_SHARE),
-        key=lambda player_id: share(player_id) * next_xp(player_id), reverse=True,
-    )[:THREATS_SHOWN]
-    differentials = sorted(
-        (player_id for player_id in my_squad if share(player_id) <= DIFFERENTIAL_MAX_SHARE),
-        key=next_xp, reverse=True,
-    )[:DIFFERENTIALS_SHOWN]
 
     def player_line(player_id):
         return {"playerId": player_id, "share": round(share(player_id), 3), "xp": next_xp(player_id),
@@ -321,15 +388,15 @@ def summarise_league(league, my_team_id, my_squad, expected_points, next_week, h
         "myLastRank": my_row["lastRank"] if my_row else info.get("entry_last_rank"),
         "table": rows,
         "mySquad": [player_line(player_id) for player_id in my_squad],
-        "threats": [player_line(player_id) for player_id in threats],
-        "differentials": [player_line(player_id) for player_id in differentials],
+        # Rivals' last lineups against your planned team (their new picks are hidden until the deadline).
+        "exposure": {"picksWeek": next_week - 1, "groups": exposure_groups(league, my_team_id, my_multipliers, next_xp)},
         "topCaptains": [player_line(player_id) for player_id, _ in captained.most_common(3)],
     }
 
 
-def build_leagues(league_data, my_team_id, my_squad, expected_points, next_week, half):
+def build_leagues(league_data, my_team_id, my_squad, my_multipliers, expected_points, next_week, half):
     """One summary per league fetched by fetch_leagues(). `half` is the chip window (start, stop)."""
-    return [summarise_league(league, my_team_id, set(my_squad), expected_points, next_week, half) for league in league_data]
+    return [summarise_league(league, my_team_id, set(my_squad), my_multipliers, expected_points, next_week, half) for league in league_data]
 
 
 def rival_chip_summary(leagues):
@@ -357,7 +424,9 @@ def players_mentioned(leagues):
     """Every player id a league summary refers to, so the snapshot can include them."""
     ids = set()
     for league in leagues:
-        for key in ("threats", "differentials", "topCaptains", "mySquad"):
+        for key in ("topCaptains", "mySquad"):
             ids.update(line["playerId"] for line in league[key])
+        for group in league["exposure"]["groups"]:
+            ids.update(line["playerId"] for line in group["costing"] + group["gaining"])
         ids.update(row["captain"] for row in league["table"] if row["captain"])
     return ids

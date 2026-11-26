@@ -390,15 +390,18 @@ def test_transfer_plan_keeps_every_week_legal(tmp_path, fake_client, sample, mon
     assert plan["gain"] >= 0
 
 
-def test_league_summary_finds_threats_and_differentials(tmp_path, fake_client, monkeypatch):
+def test_league_summary_shows_this_weeks_exposure(tmp_path, fake_client, monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     snapshot = run(TEAM_ID, False, tmp_path, None, client=fake_client)
     league = snapshot["leagues"][0]
     assert league["name"] == "Family League" and league["size"] == 4 and league["rivalsWithPicks"] == 3
-    squad = set(snapshot["squad"])
-    assert all(line["playerId"] not in squad for line in league["threats"])
-    assert all(line["share"] <= 0.25 for line in league["differentials"])
-    assert all(str(line["playerId"]) in snapshot["players"] for line in league["threats"])
+    exposure = league["exposure"]
+    assert exposure["picksWeek"] == snapshot["weeks"][0] - 1
+    [everyone] = exposure["groups"]
+    assert everyone["key"] == "all" and everyone["rivals"] == 3
+    assert all(line["swing"] < 0 for line in everyone["costing"]) and all(line["swing"] > 0 for line in everyone["gaining"])
+    assert everyone["costing"] or everyone["gaining"]
+    assert all(str(line["playerId"]) in snapshot["players"] for line in everyone["costing"] + everyone["gaining"])
     rival = next(row for row in league["table"] if row["entry"] == 1001)
     assert "3xc" not in rival["chipsLeft"] and "bboost" in rival["chipsLeft"]
     holding = snapshot["chipPlan"]["rivals"][0]["holding"]
@@ -825,7 +828,7 @@ def test_big_leagues_get_sampled_lists_but_no_chip_rows(tmp_path):
     from squadsense import leagues
     from squadsense.storage import FileStorage
     fetched = leagues.fetch_leagues(FakeLeagueClient({1: 10, 3: 500}), FileStorage(tmp_path), league_entry((1, 10, 4), (3, 500, 230)), 12, today="2026-11-22")
-    summaries = leagues.build_leagues(fetched, TEAM_ID, [], {}, 13, (1, 19))
+    summaries = leagues.build_leagues(fetched, TEAM_ID, [], {}, {}, 13, (1, 19))
     big = summaries[1]
     assert big["kind"] == "table" and big["size"] == 500 and big["myRank"] == 230
     assert big["picksFrom"] == "sample" and big["rivalsWithPicks"] == 30

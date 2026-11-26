@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 // Pages reached from the More menu, in the order the menu lists them.
 const MORE_PAGES = [
   { label: "Chips", href: "/chips", note: "When to play each chip" },
-  { label: "Leagues", href: "/leagues", note: "Mini-leagues, threats and differentials" },
+  { label: "Leagues", href: "/leagues", note: "Mini-leagues, exposure and captains" },
   { label: "Review", href: "/review", note: "Last week against the forecast" },
   { label: "Live", href: "/live", note: "Points during the gameweek" },
   { label: "Compare", href: "/compare", note: "Up to three players side by side" },

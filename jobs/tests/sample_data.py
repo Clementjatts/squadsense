@@ -246,8 +246,8 @@ def make_picks(squad_ids, captain_id, vice_id):
 def add_league(responses, players, squad_ids):
     """One private league: your team plus the rivals, each with picks for the current week.
 
-    Rivals keep most of your squad but swap a few players, so the
-    threats and differentials have something to find.
+    Rivals keep most of your squad but swap a few players, so
+    the exposure card has something to find.
     """
     rows = [{"entry": TEAM_ID, "entry_name": "Clement's XI", "player_name": "Clement Adegbenro",
              "rank": 2, "last_rank": 3, "total": 600, "event_total": 62}]

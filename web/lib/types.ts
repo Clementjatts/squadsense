@@ -283,6 +283,31 @@ export interface LeaguePlayerLine {
   xp: number; // next gameweek
 }
 
+// "This week's exposure": rivals' last lineups against your planned team.
+export interface LeagueExposure {
+  picksWeek: number; // the gameweek of the rivals' lineups (their new ones are hidden until the deadline)
+  groups: ExposureGroup[]; // "Everyone" in a small league; "Top 10" and "Around you" in a big one
+}
+
+export interface ExposureGroup {
+  key: "all" | "top" | "around";
+  label: string;
+  rivals: number;
+  swing: number; // points your planned team is expected to gain (+) or lose (-) against the average rival
+  costing: ExposureLine[]; // rivals own him more than you, biggest expected loss first
+  gaining: ExposureLine[]; // you own him more than rivals, biggest expected gain first
+}
+
+export interface ExposureLine {
+  playerId: number;
+  owned: number; // share of rivals who own him, 0 to 1
+  captained: number; // share of rivals who captain him
+  eo: number; // effective ownership: 1.4 means 140% (captains twice, bench not at all)
+  mine: number; // your planned multiplier: 0, 1 starting, 2 captain
+  xp: number; // his xP for the coming week
+  swing: number; // (mine - eo) x xp
+}
+
 export interface LeagueRow {
   entry: number;
   teamName: string;
@@ -298,8 +323,8 @@ export interface LeagueRow {
 }
 
 // "full": every rival's picks were read (leagues of up to 100 teams).
-// "table": a bigger league with only its top 50 and the 50 around you, and
-// no threats, differentials or captains.
+// "table": a bigger league with only its top 50 and the 50 around you; its
+// exposure and captains come from a sample of rivals.
 export interface League {
   id: number;
   name: string;
@@ -310,10 +335,9 @@ export interface League {
   myLastRank: number | null;
   table: LeagueRow[];
   mySquad: LeaguePlayerLine[];
-  threats: LeaguePlayerLine[];
-  differentials: LeaguePlayerLine[];
   topCaptains: LeaguePlayerLine[];
-  // Whose picks the three lists come from: every rival, or a big league's
+  exposure?: LeagueExposure; // missing in snapshots saved before 26 November 2026
+  // Whose picks the lists come from: every rival, or a big league's
   // top 10 and the 10 either side of you. Missing in older snapshots.
   picksFrom?: "all" | "sample";
   standing?: LeagueStanding | null; // null when you aren't in the table

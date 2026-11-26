@@ -32,13 +32,13 @@ def test_big_leagues_read_the_sample_of_picks(tmp_path):
     fetched = leagues.fetch_leagues(FakeLeagueClient({3: 500}), FileStorage(tmp_path), league_entry((3, 500, 230)), 12, today="2026-11-22")
     assert fetched[0]["kind"] == "table"
     assert len(fetched[0]["picks"]) == 30
-    summary = leagues.build_leagues(fetched, TEAM_ID, [], {}, 13, (1, 19))[0]
+    summary = leagues.build_leagues(fetched, TEAM_ID, [], {}, {}, 13, (1, 19))[0]
     assert summary["picksFrom"] == "sample" and summary["rivalsWithPicks"] == 30
 
 
 def test_small_leagues_say_their_picks_are_from_every_rival(tmp_path):
     fetched = leagues.fetch_leagues(FakeLeagueClient({1: 10}), FileStorage(tmp_path), league_entry((1, 10, 4)), 12, today="2026-11-22")
-    assert leagues.build_leagues(fetched, TEAM_ID, [], {}, 13, (1, 19))[0]["picksFrom"] == "all"
+    assert leagues.build_leagues(fetched, TEAM_ID, [], {}, {}, 13, (1, 19))[0]["picksFrom"] == "all"
 
 
 def test_where_you_stand_gives_the_gaps_to_the_leader_and_your_neighbours():

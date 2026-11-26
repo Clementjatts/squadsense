@@ -187,7 +187,10 @@ def build_snapshot(bootstrap, fixtures, histories, model_results, squad_state, t
     for squad in (solver_plan or {}).get("freeHitSquads", {}).values():
         included_ids.update(squad)
     half = current_half(bootstrap, first_week)
-    league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, expected_points, first_week, half)
+    # Your planned team for the coming week, which the Leagues page's exposure card compares with rivals.
+    planned = planner.best_lineup(squad_ids, players_by_id, expected_points, first_week)
+    my_multipliers = {player_id: 2 if player_id == planned["captain"] else 1 for player_id in planned["starters"]}
+    league_summaries = leagues.build_leagues(extras.league_data, squad_state.team_id, squad_ids, my_multipliers, expected_points, first_week, half)
     included_ids.update(leagues.players_mentioned(league_summaries))
     included_ids.update(review.players_mentioned(extras.review))
 

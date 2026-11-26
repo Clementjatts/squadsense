@@ -21,7 +21,7 @@ export function forOnePage(snapshot: Snapshot, keepLeagues = false): Snapshot {
 export function withOneLeague(leagues: League[], chosenId: number | undefined): { leagues: League[]; chosen: League | undefined } {
   const chosen = leagues.find((league) => league.id === chosenId) ?? leagues[0];
   const slim = leagues.map((league) =>
-    league === chosen ? league : { ...league, table: [], mySquad: [], threats: [], differentials: [], topCaptains: [] },
+    league === chosen ? league : { ...league, table: [], mySquad: [], topCaptains: [], exposure: undefined },
   );
   return { leagues: slim, chosen };
 }

@@ -1,14 +1,15 @@
 "use client";
 
 // The Leagues page body: pick a league from the dropdown, then see its
-// table 20 teams a page at full width, then where you stand and three short
-// lists (threats, differentials, captains) in rows of equal-height cards.
+// table 20 teams a page at full width, then where you stand beside rivals'
+// captains, then this week's exposure at full width (ExposureCard.tsx).
 // Leagues over 100 teams show their top 50 and the 50 around you, and their
 // lists come from a sample of rivals: the top 10 and the 10 either side of you.
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { PlayerLink } from "./PlayerPanel";
+import { ExposureCard } from "./leagues/ExposureCard";
 import { formatXp } from "@/lib/format";
 import { pageCount, pageRows, pageWithEntry } from "@/lib/leagueTable";
 import type { League, LeaguePlayerLine, LeagueRow, Snapshot } from "@/lib/types";
@@ -98,8 +99,8 @@ function picksSource(league: League): string {
     : `Among all ${league.rivalsWithPicks} rivals`;
 }
 
-// Where you stand and the three rival lists, in two rows of cards that
-// share a height: the two short cards together, then the two longer lists.
+// Where you stand beside rivals' captains (two cards that share a height),
+// then this week's exposure across the full width.
 function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }) {
   return (
     <>
@@ -108,22 +109,7 @@ function RivalCards({ league, snapshot }: { league: League; snapshot: Snapshot }
         <WhereYouStand league={league} />
         <PlayerShareCard title="Rivals' captains" note="Last gameweek" lines={league.topCaptains} snapshot={snapshot} useCaptainShare empty="No captains found." />
       </div>
-      <div className="bc-row bc-row-2">
-        <PlayerShareCard
-          title="Threats"
-          note="Most rivals own him, you don't"
-          lines={league.threats}
-          snapshot={snapshot}
-          empty="No player owned by most of this league is missing from your squad."
-        />
-        <PlayerShareCard
-          title="Your differentials"
-          note="Few rivals own him"
-          lines={league.differentials}
-          snapshot={snapshot}
-          empty="Every one of your players is common in this league."
-        />
-      </div>
+      <ExposureCard exposure={league.exposure} snapshot={snapshot} />
     </>
   );
 }
